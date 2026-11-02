@@ -10,6 +10,7 @@ swiftc -swift-version 5 -O -target arm64-apple-macos13 \
 cp -R "$here"/assets/characters/ "$app/Contents/Resources/characters/"
 cp "$here"/assets/sketches/*.sprite "$app/Contents/Resources/sketches/"   # discussion drafts
 cp "$here"/hooks/* "$app/Contents/Resources/hooks/"
+cp "$here"/assets/icon/AppIcon.icns "$app/Contents/Resources/"   # source: tools/make_icon.py
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -17,6 +18,7 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
   <key>CFBundleIdentifier</key><string>dev.edgeodyssey.app</string>
   <key>CFBundleName</key><string>Edge Odyssey</string>
   <key>CFBundleExecutable</key><string>EdgeOdyssey</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
