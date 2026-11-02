@@ -13,6 +13,19 @@ other adaptation of the Odyssey.
 | `icon/AppIcon.svg`, `AppIcon.icns` (app icon) | The vector walk frame above placed on a hand-written SVG scene (sky, sun, sea, edge trail) | `tools/make_icon.py` |
 | `previews/*.png`, `../character-sheet/*` | Rendered from the sources above | `tools/make_character_sheet.py`, `tools/svg2png.swift` |
 
+## Sounds
+
+| Asset | How it was made | Editable source |
+|---|---|---|
+| `sounds/harp-arrive-ithaca.m4a` (end of a focus) | Synthesized from scratch in Python as a harp-like tone: a rising D-F-A-D figure in the ancient Greek Dorian mode, plus a synthetic reverb | `sounds/src/harp-arrive-ithaca.wav` (44.1 kHz mono master) |
+| `sounds/harp-set-sail.m4a` (end of a break) | Same synthesis: a low D-A figure played twice | `sounds/src/harp-set-sail.wav` |
+
+No recorded samples, sample libraries or sound packs were used, and no film, game or TV music
+was copied, quoted or imitated: the phrases were written for this app. The synthesis script
+was not kept; the WAV masters are the source of truth. The `.m4a` files are made from them with
+`afconvert -f m4af -d aac -b 48000 <src>.wav <name>.m4a`. The *Glass* choice in the menu is the
+macOS system sound, played by name and not shipped in this repository.
+
 Story sources: Homer's *Odyssey* (public domain worldwide). Each episode cites the book
 it comes from in `Sources/Episodes.swift`. No modern translation text is reproduced.
 

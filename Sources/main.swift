@@ -32,7 +32,8 @@ struct Options {
     var showSeconds = true          // menu bar counts down 12:50; off shows whole minutes (13m)
     var longEvery = 4               // a long break after every n-th focus
     var notifyAtEnd = true          // macOS notification when a focus or a break ends
-    var soundAtEnd = false          // a soft sound when a focus ends
+    var sound = "off"               // Chime.choices: harp, glass or off, at the end of a focus and a break
+    var soundVolume = "low"         // Chime.volumes: low or medium
     var autoNextFocus = false       // start the next focus by itself when a break ends
 
     /// Settings the menu changes are kept in UserDefaults; command-line flags override them
@@ -40,7 +41,7 @@ struct Options {
     static let saved: [String: Any] = ["style": "traveler", "display": "main", "thickness": 3.0, "onlyLast5": false,
                                        "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true,
                                        "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4,
-                                       "notifyAtEnd": true, "soundAtEnd": false, "autoNextFocus": false]
+                                       "notifyAtEnd": true, "soundVolume": "low", "autoNextFocus": false]   // "sound" unregistered: see init
 
     init(_ args: [String], defaults d: UserDefaults = .standard) {
         d.register(defaults: Self.saved)
@@ -56,7 +57,8 @@ struct Options {
         restMinutes = Durations.minutes(String(d.double(forKey: "restMinutes")), in: Durations.breakRange) ?? 5
         longEvery = Durations.longEveryChoices.contains(d.integer(forKey: "longEvery")) ? d.integer(forKey: "longEvery") : 4
         notifyAtEnd = d.bool(forKey: "notifyAtEnd")
-        soundAtEnd = d.bool(forKey: "soundAtEnd")
+        sound = Chime.choice(d.string(forKey: "sound") ?? (d.bool(forKey: "soundAtEnd") ? "on" : nil))   // 0.1 kept an on/off toggle
+        soundVolume = Chime.volume(d.string(forKey: "soundVolume"))
         autoNextFocus = d.bool(forKey: "autoNextFocus")
         var it = args.dropFirst().makeIterator()
         while let a = it.next() {
@@ -468,18 +470,28 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// Time is up: he reaches Ithaca (or Calypso's island), the edge glows gold once, and,
     /// if the user wants them, a notification and a soft sound.
     func focusEnded() {
-        log("focus ended: \(restIsLong ? "Calypso" : "Ithaca"), notify=\(o.notifyAtEnd) sound=\(o.soundAtEnd)")
+        log("focus ended: \(restIsLong ? "Calypso" : "Ithaca"), notify=\(o.notifyAtEnd) sound=\(o.sound)")
         startRest()
         overlays.forEach { $0.glow() }
-        if o.soundAtEnd, let snd = NSSound(named: "Glass") { snd.volume = 0.35; snd.play() }
+        chime(focusEnded: true)
         notify(endMessage(focusEnded: true, longBreak: restIsLong, breakMinutes: Int(breakMinutes), korean: korean))
     }
 
     /// The break is over: wait for a click (default) or start the next focus by itself.
     func breakEnded() {
         log("break ended: autoNextFocus=\(o.autoNextFocus)")
+        chime(focusEnded: false)
         if !o.autoNextFocus { notify(endMessage(focusEnded: false, longBreak: false, breakMinutes: 0, korean: korean)) }
         o.autoNextFocus ? start() : stop()
+    }
+
+    /// Harp: arriving at Ithaca after a focus, setting sail after a break. Silent when off.
+    func chime(focusEnded: Bool) {
+        guard let name = Chime.sound(o.sound, focusEnded: focusEnded) else { return }
+        guard let snd = NSSound(named: name) else { log("sound: \(name) not found"); return }
+        log("sound: \(name) at \(o.soundVolume)")
+        snd.volume = Chime.volumes[o.soundVolume] ?? 0.25
+        snd.play()
     }
 
     var korean: Bool { Locale.preferredLanguages.first?.hasPrefix("ko") == true }
@@ -555,7 +567,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case "rest": if let m = Durations.minutes(arg, in: Durations.breakRange) { o.restMinutes = m; remember("restMinutes", m) }
         case "long-every": if let n = Int(arg), Durations.longEveryChoices.contains(n) { o.longEvery = n; remember("longEvery", n) }
         case "notify": o.notifyAtEnd = arg != "off"; remember("notifyAtEnd", o.notifyAtEnd)
-        case "sound": o.soundAtEnd = arg == "on"; remember("soundAtEnd", o.soundAtEnd)
+        case "sound": o.sound = Chime.choice(arg); remember("sound", o.sound); if o.sound != "off" { chime(focusEnded: true) }   // a preview
+        case "volume": o.soundVolume = Chime.volume(arg); remember("soundVolume", o.soundVolume); chime(focusEnded: true)
         case "autonext": o.autoNextFocus = arg == "on"; remember("autoNextFocus", o.autoNextFocus)
         case "share-hide": o.hideWhenCaptured = arg != "off"; remember("hideWhenCaptured", o.hideWhenCaptured); refresh()
         case "hide": manualHidden = true; refresh()
@@ -682,10 +695,14 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 guard let self else { return }
                 self.control(self.o.notifyAtEnd ? "notify:off" : "notify:on")
             },
-            MenuAction("Soft sound when focus ends", checked: o.soundAtEnd) { [weak self] in
-                guard let self else { return }
-                self.control(self.o.soundAtEnd ? "sound:off" : "sound:on")
-            },
+            submenu("Sound", [
+                MenuAction("Harp", checked: o.sound == "harp") { [weak self] in self?.control("sound:harp") },
+                MenuAction("Glass (system)", checked: o.sound == "glass") { [weak self] in self?.control("sound:glass") },
+                MenuAction("Off", checked: o.sound == "off") { [weak self] in self?.control("sound:off") },
+                .separator(),
+                MenuAction("Volume: low", checked: o.soundVolume == "low") { [weak self] in self?.control("volume:low") },
+                MenuAction("Volume: medium", checked: o.soundVolume == "medium") { [weak self] in self?.control("volume:medium") },
+            ]),
             MenuAction("Start the next focus after a break", checked: o.autoNextFocus) { [weak self] in
                 guard let self else { return }
                 self.control(self.o.autoNextFocus ? "autonext:off" : "autonext:on")

@@ -44,3 +44,22 @@ func endMessage(focusEnded: Bool, longBreak: Bool, breakMinutes: Int, korean: Bo
     case (false, false): return ("Break's over", "Start the next focus from the menu when you're ready")
     }
 }
+
+/// The sound played when a focus ends (arrival) or a break ends (setting sail).
+enum Chime {
+    static let choices = ["harp", "glass", "off"]           // menu order; "off" is the default
+    static let volumes: [String: Float] = ["low": 0.25, "medium": 0.5]
+
+    /// A saved or typed choice, or "off" when it isn't one. Legacy `sound:on` means the harp.
+    static func choice(_ s: String?) -> String { s == "on" ? "harp" : choices.contains(s ?? "") ? s! : "off" }
+    static func volume(_ s: String?) -> String { volumes[s ?? ""] == nil ? "low" : s! }
+
+    /// The NSSound name to play, nil for silence. Harp files ship in the app's Resources.
+    static func sound(_ choice: String, focusEnded: Bool) -> String? {
+        switch choice {
+        case "harp": return focusEnded ? "harp-arrive-ithaca" : "harp-set-sail"
+        case "glass": return "Glass"
+        default: return nil
+        }
+    }
+}

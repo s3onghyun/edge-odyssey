@@ -61,10 +61,13 @@ open "/Applications/Edge Odyssey.app"
 - **집중이 끝날 때:** 오디세우스가 정확히 제시간에 왼쪽 아래 모서리로 돌아와 이타카에
   닿습니다(긴 휴식이면 칼립소의 섬). 가장자리가 금색으로 한 번 빛나고, 테두리가 연보라로 바뀌며
   휴식 시간만큼 줄어듭니다. macOS 알림으로 "이타카! 5분 쉬어요"가 뜹니다(기본 켜짐, 처음 한 번
-  권한을 묻습니다). 부드러운 소리는 켜야 납니다(기본 꺼짐). 휴식은 저절로 시작됩니다.
+  권한을 묻습니다). *Timer > Sound* 를 켜면(기본 꺼짐) 도착할 때 짧은 하프 소리가 납니다.
+  휴식은 저절로 시작됩니다.
 - **휴식이 끝날 때:** 테두리가 사라지고 "쉬는 시간 끝" 알림이 뜬 뒤, 다음 집중은 메뉴에서
   **직접 시작할 때까지 기다립니다.** 저절로 시작하려면 *Timer > Start the next focus after a
-  break* 를 켜세요.
+  break* 를 켜세요. 소리를 켜 두면 다시 출항하라는 낮은 하프 소리가 납니다.
+- *Timer > Sound*: **Harp**(이 앱을 위해 만든 짧은 두 소절), **Glass**(macOS 시스템 소리),
+  **Off**(기본) 중에서 고르고, 음량은 low/medium 입니다. 고르면 한 번 들려줍니다.
 - 알림은 macOS 집중 모드/방해 금지를 따르므로, 그동안은 뜨지 않습니다.
 
 <p align="center"><img src="assets/screenshots/logbook.png" width="720" alt="찾은 책과 아직 미지의 책이 보이는 항해 일지 창"></p>
@@ -121,7 +124,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 | `Tests/`, `Package.swift`, `test.sh` | MIT | 움직임 수학 테스트 |
 | `hooks/` | MIT | Claude Code 훅과 상태 줄 스크립트, 설정 조각 |
 | `tools/` | MIT | 그림 생성기(`make_odysseus.py`, `make_icon.py`), 시트 빌더, `svg2png.swift` |
-| `assets/` | 모든 권리 보유, 개인 사용 허락: [`assets/LICENSE`](assets/LICENSE) | 캐릭터, 아이콘, 스크린샷, 스케치 |
+| `assets/` | 모든 권리 보유, 개인 사용 허락: [`assets/LICENSE`](assets/LICENSE) | 캐릭터, 아이콘, 스크린샷, 스케치, 소리 |
 
 코드는 MIT([`LICENSE`](LICENSE))입니다. 그림은 아닙니다. 이 저장소를 직접 빌드해 쓰는 것은
 괜찮지만, 그림을 재배포하거나 파생 캐릭터를 만들 수는 없습니다. 포크는 자기 그림으로 환영합니다.
