@@ -91,3 +91,104 @@ struct LogbookView: View {
         .accessibilityElement(children: .combine)
     }
 }
+
+// MARK: - welcome guide
+
+struct WelcomeView: View {
+    let character: URL?
+    /// Installs the hook scripts and copies the settings snippet; returns a status line.
+    let copyHookSnippet: () -> String
+    let setLoginItem: (Bool) -> Void
+    let finish: (_ startFocus: Bool) -> Void
+
+    @State private var page = 0
+    @State private var copied: String?
+    @State private var login = LoginItem.isOn
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Group {
+                switch page {
+                case 0: voyage
+                case 1: claude
+                default: quiet
+                }
+            }
+            .frame(width: 480, height: 330, alignment: .topLeading)
+            .padding(.horizontal, 28)
+            .padding(.top, 24)
+            Divider()
+            HStack {
+                HStack(spacing: 6) {
+                    ForEach(0..<3, id: \.self) { i in
+                        Circle().fill(i == page ? Color.accentColor : Color.secondary.opacity(0.3)).frame(width: 7, height: 7)
+                    }
+                }
+                Spacer()
+                if page > 0 { Button("Back") { page -= 1 } }
+                if page < 2 {
+                    Button("Next") { page += 1 }.keyboardShortcut(.defaultAction)
+                } else {
+                    Button("Close") { finish(false) }
+                    Button("Start a focus voyage") { finish(true) }.keyboardShortcut(.defaultAction)
+                }
+            }
+            .padding(16)
+        }
+    }
+
+    private func art(_ svg: String, height: CGFloat = 78) -> some View {
+        Group {
+            if let url = character?.appendingPathComponent(svg + ".svg"), let img = NSImage(contentsOf: url) {
+                Image(nsImage: img).resizable().aspectRatio(32.0 / 26.0, contentMode: .fit).frame(height: height)
+                    .accessibilityHidden(true)   // decoration
+            }
+        }
+    }
+
+    private func title(_ t: String) -> some View {
+        Text(t).font(.system(size: 22, weight: .bold, design: .rounded))
+    }
+
+    private var voyage: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .bottom, spacing: 18) {
+                art("walk-1"); art("climb-crag-1"); art("slide-0")
+            }
+            title("A voyage around your screen")
+            Text("Start a 25-minute focus from the menu bar. Odysseus rows along the bottom edge, climbs the right, hangs from the top and slides down the left, arriving home exactly when time is up. The trail behind him is your progress; breaks are short visits to Ithaca.")
+            VStack(alignment: .leading, spacing: 4) {
+                Label("Mode: Odysseus voyage, or a thin border only", systemImage: "sailboat")
+                Label("Show on: main display, all displays, or the one you work on", systemImage: "display.2")
+                Label("Border 2-4 px, or show only in the last 5 minutes", systemImage: "square.dashed")
+            }
+            .font(.callout).foregroundStyle(.secondary)
+        }
+    }
+
+    private var claude: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .bottom, spacing: 18) { art("sirens-1"); art("storm-1") }
+            title("Claude Code signals (optional)")
+            Text("With a small hook, the edge tells you what Claude Code is doing: a quiet blue edge while it works, the Sirens and one soft gold swell when it waits for you, and Poseidon's storm near the 5-hour limit. Nothing leaves your Mac.")
+            HStack(spacing: 12) {
+                Button("Copy hook snippet") { copied = copyHookSnippet() }
+                if let copied { Text(copied).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            }
+            Text("Then paste it into ~/.claude/settings.json yourself (merge it with any \"hooks\" you already have). Edge Odyssey never edits that file. Already have a statusLine? Keep yours and set EDGE_ODYSSEY_STATUSLINE_NEXT to it.")
+                .font(.callout).foregroundStyle(.secondary)
+        }
+    }
+
+    private var quiet: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .bottom, spacing: 18) { art("doze-0"); art("ithaca-0") }
+            title("Out of your way")
+            Text("The edge never takes a click. It hides in full-screen apps and while your screen is shared or recorded, and Control-Option-Command-H hides it any time. Episodes from the Odyssey fill a 24-book logbook as you focus.")
+            Toggle("Launch Edge Odyssey at login", isOn: $login)
+                .onChange(of: login) { setLoginItem($0); login = LoginItem.isOn }
+            Text("Off unless you turn it on. You can change it later under Settings in the menu.")
+                .font(.callout).foregroundStyle(.secondary)
+        }
+    }
+}

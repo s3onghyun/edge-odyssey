@@ -4,11 +4,12 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 app="$here/build/Edge Odyssey.app"
 rm -rf "$app"
-mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/characters" "$app/Contents/Resources/sketches"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/characters" "$app/Contents/Resources/sketches" "$app/Contents/Resources/hooks"
 swiftc -swift-version 5 -O -target arm64-apple-macos13 \
   -o "$app/Contents/MacOS/EdgeOdyssey" "$here"/Sources/*.swift
 cp -R "$here"/assets/characters/ "$app/Contents/Resources/characters/"
 cp "$here"/assets/sketches/*.sprite "$app/Contents/Resources/sketches/"   # discussion drafts
+cp "$here"/hooks/* "$app/Contents/Resources/hooks/"
 cat > "$app/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

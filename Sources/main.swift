@@ -193,6 +193,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         if o.autostart { start() }
         refresh()
+        if !UserDefaults.standard.bool(forKey: "onboarded") && !o.autostart { showWelcome() }
         log("launched: state dir \(o.stateDir.path), speed \(o.speed)")
     }
 
@@ -477,6 +478,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case "display": o.display = arg; remember("display", arg); refresh(); planEpisodes()
         case "lotus": lotus = arg == "on"; if lotus { logbook.record(.lotus) }; refresh()
         case "logbook": showLogbook()
+        case "welcome": showWelcome()
         case "episode": if let e = Episode(rawValue: arg) { fire(e) }
         case "login": setLoginItem(arg == "on")
         case "quit": NSApp.terminate(nil)
@@ -626,7 +628,47 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func showLogbook() {
         logbookWindow.show(title: "Logbook", LogbookView(found: logbook.found, character: sprites["odysseus-vector"]?.folder))
     }
-    func showWelcome() {}
+    let welcomeWindow = PanelWindow()
+
+    func showWelcome() {
+        UserDefaults.standard.set(true, forKey: "onboarded")
+        welcomeWindow.show(title: "Welcome to Edge Odyssey", WelcomeView(
+            character: sprites["odysseus-vector"]?.folder,
+            copyHookSnippet: { [weak self] in self?.installHooksAndCopySnippet() ?? "" },
+            setLoginItem: { [weak self] in self?.setLoginItem($0) },
+            finish: { [weak self] start in
+                self?.welcomeWindow.close()
+                if start, self?.phase == .idle { self?.start() }
+            }))
+    }
+
+    /// Puts the hook scripts in the app's own folder (~/.edge-odyssey/hooks) and copies the
+    /// settings snippet for the user to paste. ~/.claude/settings.json is never touched.
+    func installHooksAndCopySnippet() -> String {
+        guard let src = Bundle.main.resourceURL?.appendingPathComponent("hooks"),
+              var snippet = try? String(contentsOf: src.appendingPathComponent("claude-settings-snippet.json"), encoding: .utf8)
+        else { return "Hook files are missing from the app bundle." }
+        let fm = FileManager.default
+        let dest = o.stateDir.appendingPathComponent("hooks")
+        do {
+            try fm.createDirectory(at: dest, withIntermediateDirectories: true)
+            for name in ["edge-odyssey-hook.sh", "edge-odyssey-statusline.sh"] {
+                let to = dest.appendingPathComponent(name)
+                try? fm.removeItem(at: to)
+                try fm.copyItem(at: src.appendingPathComponent(name), to: to)
+                try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: to.path)
+            }
+        } catch { return "Couldn't install the hook scripts: \(error.localizedDescription)" }
+        let home = fm.homeDirectoryForCurrentUser.appendingPathComponent(".edge-odyssey").path
+        if o.stateDir.path != home {   // a custom --state-dir: the hooks must write there too
+            let dir = "'" + o.stateDir.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+            snippet = snippet.replacingOccurrences(of: "$HOME/.edge-odyssey/hooks/", with: "EDGE_ODYSSEY_STATE_DIR=\(dir) \(dir)/hooks/")
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(snippet, forType: .string)
+        log("hooks installed in \(dest.path), snippet copied")
+        return "Copied. Hook scripts are in \(dest.path.replacingOccurrences(of: fm.homeDirectoryForCurrentUser.path, with: "~"))."
+    }
 
     // MARK: demo backdrop (keeps private screen content out of recordings)
 
