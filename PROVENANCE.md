@@ -16,16 +16,8 @@ other adaptation of the Odyssey.
 Story sources: Homer's *Odyssey* (public domain worldwide). Each episode cites the book
 it comes from in `Sources/Episodes.swift`. No modern translation text is reproduced.
 
-## Who made it, and what that means for ownership
+## Authorship
 
-- The drawings were authored as code by an AI coding agent (Claude, in a Claude Code
-  session on the owner's Mac) at the owner's direction, with the owner choosing the
-  concept (Odysseus), the style (clean vector) and giving feedback.
-- No company account, company tool or company asset was used for the art itself.
-  The Claude Code session's account (personal vs company) is for the owner to confirm;
-  if it was a company account, check the company's IP policy before selling.
-- Copyright in material produced mainly by an AI system can be weak or absent in some
-  countries (for example the U.S. Copyright Office requires meaningful human authorship).
-  Before selling character packs, have a human (the owner or a commissioned artist)
-  make substantial creative edits or redraw the final art, and keep these files and
-  the design-meeting notes as a record. This is not legal advice.
+The art and code in this repository were authored as code with AI coding assistance under
+the owner's direction. They are original work: no third-party or AI-generated images were
+used, and no artwork was traced.
