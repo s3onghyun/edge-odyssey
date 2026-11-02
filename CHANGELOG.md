@@ -24,6 +24,10 @@ The first build meant for daily use.
   every 2-6 sessions; remembered, applied from the next session.
 - End of a focus session: besides arriving at Ithaca / Calypso's island, a one-time gold glow
   along the edge, a notification (on by default) and an optional soft sound (off by default).
+  The sound is chosen in *Timer > Sound*: **Harp** (default sound set; an original phrase
+  in the Dorian mode, rising D-F-A-D on arrival and a low D-A twice when a break ends),
+  **Glass** (macOS system sound) or **Off** (still the default), at low or medium volume.
+  A saved on/off setting from earlier builds turns into Harp.
   End of a break: a notification, then it waits for you; *Start the next focus after a break*
   (off by default) starts it by itself.
 - `--ctl` commands only reach copies with the same bundle id, so a test build can't control or

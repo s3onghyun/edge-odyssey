@@ -65,11 +65,15 @@ Settings are remembered between launches.
 - **End of a focus session:** Odysseus arrives home at the bottom-left corner exactly on time and
   lands on Ithaca (or on Calypso's island for a long break). The edge glows gold once, and the
   border turns lavender and starts draining for the break. A macOS notification says
-  "Ithaca! Take a 5-minute break" (on by default; the first one asks for permission). A soft
-  sound plays if you turn it on (off by default). The break starts on its own.
+  "Ithaca! Take a 5-minute break" (on by default; the first one asks for permission). With
+  *Timer > Sound* on (off by default) a short harp phrase plays as he arrives. The break starts
+  on its own.
 - **End of a break:** the border goes away, a "Break's over" notification appears, and the
   timer **waits for you** to start the next focus from the menu. Turn on *Timer > Start the next
-  focus after a break* if you want it to start by itself.
+  focus after a break* if you want it to start by itself. With sound on, a low harp call says
+  it's time to set sail again.
+- *Timer > Sound*: **Harp** (two short phrases written for this app), **Glass** (the macOS
+  system sound) or **Off** (default), and a low or medium volume. Picking one plays it once.
 - Notifications follow macOS Focus / Do Not Disturb, so they stay silent while that is on.
 
 <p align="center"><img src="assets/screenshots/logbook.png" width="720" alt="Logbook window with found and uncharted books"></p>
@@ -127,7 +131,7 @@ Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--
 | `Tests/`, `Package.swift`, `test.sh` | MIT | Motion-math tests |
 | `hooks/` | MIT | Claude Code hook and status-line scripts, settings snippet |
 | `tools/` | MIT | Art generators (`make_odysseus.py`, `make_icon.py`), sheet builder, `svg2png.swift` |
-| `assets/` | All rights reserved, personal-use grant: [`assets/LICENSE`](assets/LICENSE) | Characters, icon, screenshots, sketches |
+| `assets/` | All rights reserved, personal-use grant: [`assets/LICENSE`](assets/LICENSE) | Characters, icon, screenshots, sketches, sounds |
 
 The code is MIT ([`LICENSE`](LICENSE)). The art is not: you may use it in your own builds of
 this repository, but not redistribute it or make derivative characters. Forks are welcome
