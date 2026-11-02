@@ -16,6 +16,10 @@ The first build meant for daily use.
   is never edited by the app.
 - Logbook window: the 24 books of the Odyssey, with the scene art for the ones you have found.
 - Launch at login (SMAppService), off until you turn it on.
+- The menu bar and the menu header count down to the second (`12:50`, `1:00:00` from an hour
+  up) instead of rounded minutes (`13m`). Settings > *Count down in seconds* switches back to
+  whole minutes. The text ticks once a second only while a session runs (not when idle or
+  paused) and never redraws the edge animation.
 - Motion-math tests (`./test.sh`, Swift Testing): exact arrival time, corners as keyframes,
   no jump when a scene is re-applied, sprite frames on display refreshes, deterministic episodes.
 

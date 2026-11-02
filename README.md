@@ -48,13 +48,13 @@ menu bar (the dashed circle).
 
 | Item | What it does |
 |---|---|
-| Start focus / Pause / Resume / Skip / Stop | The timer (25 min focus, 5 min break, long break every fourth) |
+| Start focus / Pause / Resume / Skip / Stop | The timer (25 min focus, 5 min break, long break every fourth). The menu bar counts down to the second (`12:50`) |
 | Mode | Odysseus voyage (border + traveler) or a thin border only |
 | Show on | Main display, all displays (Odysseus follows the display you work on), follow me, or one named display |
 | Border | 2, 3 or 4 px |
 | Only show in the last 5 minutes | Keeps the edge empty until the end of a focus session (Claude Code calls still show) |
 | Logbook… | The 24 books of the Odyssey you have collected |
-| Settings | Claude Code signals, doze while a game/video/social app is in front, hide while sharing, **Launch at login** (off until you turn it on), Welcome guide |
+| Settings | Claude Code signals, doze while a game/video/social app is in front, hide while sharing, count down in seconds (turn off for whole minutes, `13m`), **Launch at login** (off until you turn it on), Welcome guide |
 | Hide now | Control-Option-Command-H, from anywhere |
 
 Settings are remembered between launches.

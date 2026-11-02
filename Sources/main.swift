@@ -28,11 +28,13 @@ struct Options {
     var ceilingVariant: String?     // demo: force zip or cling
     var lotusEnabled = true         // doze when a game, video or social app is frontmost
     var agentEnabled = true         // show Claude Code signals
+    var showSeconds = true          // menu bar counts down 12:50; off shows whole minutes (13m)
 
     /// Settings the menu changes are kept in UserDefaults; command-line flags override them
     /// for one run without being saved.
     static let saved: [String: Any] = ["style": "traveler", "display": "main", "thickness": 3.0, "onlyLast5": false,
-                                       "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true]
+                                       "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true,
+                                       "showSeconds": true]
 
     init(_ args: [String], defaults d: UserDefaults = .standard) {
         d.register(defaults: Self.saved)
@@ -43,6 +45,7 @@ struct Options {
         agentEnabled = d.bool(forKey: "agentEnabled")
         lotusEnabled = d.bool(forKey: "lotusEnabled")
         hideWhenCaptured = d.bool(forKey: "hideWhenCaptured")
+        showSeconds = d.bool(forKey: "showSeconds")
         var it = args.dropFirst().makeIterator()
         while let a = it.next() {
             switch a {
@@ -116,6 +119,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var phaseTimer: Timer?
     var last5Timer: Timer?
     var titleTimer: Timer?
+    var titleSymbol: String?           // the symbol now in the menu bar
+    weak var headerItem: NSMenuItem?   // the "Focus: 12:50 left" line, ticking while the menu is open
     var backdrops: [NSWindow] = []
     // voyage state
     var focusCount = 0
@@ -384,7 +389,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func pause() {
         guard phase != .idle, pausedAt == nil else { return }
         pausedAt = Date()
-        phaseTimer?.invalidate(); last5Timer?.invalidate()
+        phaseTimer?.invalidate(); last5Timer?.invalidate(); titleTimer?.invalidate()
         cancelEpisodes()
         refresh()
     }
@@ -403,7 +408,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         pausedAt = nil
         lapStart = Date()                                   // agent laps restart from home
         lapFrozenAt = agentState == .working ? nil : lapStart
-        phaseTimer?.invalidate(); last5Timer?.invalidate()
+        phaseTimer?.invalidate(); last5Timer?.invalidate(); titleTimer?.invalidate()
         cancelEpisodes()
         refresh()
     }
@@ -431,10 +436,18 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if phase == .focus, untilLast5 > 0 {
             last5Timer = Timer.scheduledTimer(withTimeInterval: untilLast5, repeats: false) { [weak self] _ in self?.refresh() }
         }
+        scheduleTitleTimer()
+    }
+
+    /// Ticks only the menu-bar text (and the open menu's header), never the edge animation.
+    func scheduleTitleTimer() {
         titleTimer?.invalidate()
-        let every: TimeInterval = o.speed > 1 ? 1 : 15
-        titleTimer = Timer.scheduledTimer(withTimeInterval: every, repeats: true) { [weak self] _ in self?.updateTitle() }
-        titleTimer?.tolerance = every / 3
+        guard phase != .idle, pausedAt == nil else { return }   // nothing counts down: no wakeups
+        let every: TimeInterval = o.showSeconds || o.speed > 1 ? 1 : 15
+        let t = Timer(timeInterval: every, repeats: true) { [weak self] _ in self?.updateTitle() }
+        t.tolerance = every == 1 ? 0.05 : 5
+        RunLoop.main.add(t, forMode: .common)   // .common: keeps ticking while the menu is open
+        titleTimer = t
     }
 
     func toggleHidden() {
@@ -472,6 +485,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             o.lotusEnabled = arg != "off"
             if !o.lotusEnabled { lotus = false }
             remember("lotusEnabled", o.lotusEnabled); refresh()
+        case "seconds": o.showSeconds = arg != "off"; remember("showSeconds", o.showSeconds); scheduleTitleTimer(); updateTitle()
         case "share-hide": o.hideWhenCaptured = arg != "off"; remember("hideWhenCaptured", o.hideWhenCaptured); refresh()
         case "hide": manualHidden = true; refresh()
         case "show": manualHidden = false; refresh()
@@ -492,6 +506,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = NSImage(systemSymbolName: "circle.dashed", accessibilityDescription: "Edge Odyssey")
         statusItem.button?.imagePosition = .imageLeading
+        statusItem.button?.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)   // 12:50 -> 12:49 without the icon wobbling
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
@@ -502,24 +517,36 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if phase == .idle {
             b.title = ""
             b.image = NSImage(systemSymbolName: agentState == .waiting ? "circle.circle.fill" : "circle.dashed", accessibilityDescription: "Edge Odyssey")
+            titleSymbol = nil
             return
         }
-        let r = remaining * o.speed   // show nominal minutes in demo speed too
-        b.image = NSImage(systemSymbolName: phase == .rest ? "cup.and.saucer" : "circle.dashed.inset.filled", accessibilityDescription: "Edge Odyssey")
-        b.title = pausedAt != nil ? " paused" : r >= 60 ? " \(Int((r / 60).rounded(.up)))m" : " \(Int(r))s"
+        let symbol = phase == .rest ? "cup.and.saucer" : "circle.dashed.inset.filled"
+        if symbol != titleSymbol {   // the per-second tick changes only the text
+            b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Edge Odyssey")
+            titleSymbol = symbol
+        }
+        let title = pausedAt != nil ? " paused" : " " + left
+        if b.title != title { b.title = title }
+        if let h = headerItem, h.title != header { h.title = header }
+    }
+
+    /// Time left in the user's chosen style, nominal even at demo speed.
+    var left: String { o.showSeconds ? countdown(remaining * o.speed) : minutesLeft(remaining * o.speed) }
+
+    var header: String {
+        switch phase {
+        case .idle: return "Ready"
+        case .focus: return pausedAt != nil ? "Focus paused: \(left) left" : "Focus: \(left) left"
+        case .rest: return pausedAt != nil ? "Break paused: \(left) left" : "Break: \(left) left"
+        }
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
-        let header: String
-        switch phase {
-        case .idle: header = "Ready"
-        case .focus: header = pausedAt != nil ? "Focus paused" : "Focus: \(Int((remaining * o.speed / 60).rounded(.up))) min left"
-        case .rest: header = "Break: \(Int((remaining * o.speed / 60).rounded(.up))) min left"
-        }
         let h = NSMenuItem(title: header, action: nil, keyEquivalent: "")
         h.isEnabled = false
         menu.addItem(h)
+        headerItem = h
         if phase == .idle {
             menu.addItem(MenuAction("Start focus (\(Int(o.focusMinutes)) min)", key: "s") { [weak self] in self?.start() })
         } else {
@@ -587,6 +614,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             MenuAction("Hide while the screen is shared or recorded", checked: o.hideWhenCaptured) { [weak self] in
                 guard let self else { return }
                 self.control(self.o.hideWhenCaptured ? "share-hide:off" : "share-hide:on")
+            },
+            MenuAction("Count down in seconds (12:50, not 13m)", checked: o.showSeconds) { [weak self] in
+                guard let self else { return }
+                self.control(self.o.showSeconds ? "seconds:off" : "seconds:on")
             },
             .separator(),
             MenuAction("Launch at login", checked: LoginItem.isOn) { [weak self] in self?.toggleLoginItem() },
