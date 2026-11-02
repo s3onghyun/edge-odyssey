@@ -48,7 +48,8 @@ menu bar (the dashed circle).
 
 | Item | What it does |
 |---|---|
-| Start focus / Pause / Resume / Skip / Stop | The timer (25 min focus, 5 min break, long break every fourth). The menu bar counts down to the second (`12:50`) |
+| Start focus / Pause / Resume / Skip / Stop | The timer. The menu bar counts down to the second (`12:50`) |
+| Timer | Focus 15/25/45/50/90 min or custom (1-240), break 5/10/15 min or custom (1-60), a long break (15 min) every 2-6 sessions, and what happens when time is up (below). A new length applies from the next session |
 | Mode | Odysseus voyage (border + traveler) or a thin border only |
 | Show on | Main display, all displays (Odysseus follows the display you work on), follow me, or one named display |
 | Border | 2, 3 or 4 px |
@@ -58,6 +59,18 @@ menu bar (the dashed circle).
 | Hide now | Control-Option-Command-H, from anywhere |
 
 Settings are remembered between launches.
+
+### When time is up
+
+- **End of a focus session:** Odysseus arrives home at the bottom-left corner exactly on time and
+  lands on Ithaca (or on Calypso's island for a long break). The edge glows gold once, and the
+  border turns lavender and starts draining for the break. A macOS notification says
+  "Ithaca! Take a 5-minute break" (on by default; the first one asks for permission). A soft
+  sound plays if you turn it on (off by default). The break starts on its own.
+- **End of a break:** the border goes away, a "Break's over" notification appears, and the
+  timer **waits for you** to start the next focus from the menu. Turn on *Timer > Start the next
+  focus after a break* if you want it to start by itself.
+- Notifications follow macOS Focus / Do Not Disturb, so they stay silent while that is on.
 
 <p align="center"><img src="assets/screenshots/logbook.png" width="720" alt="Logbook window with found and uncharted books"></p>
 

@@ -108,3 +108,14 @@ func spriteFlipsLandOnDisplayRefreshes(fps: Double) {
     #expect(zip(a, a.dropFirst()).allSatisfy { $0.1 <= $1.1 })
     #expect(a.allSatisfy { $0.1 > 0 && $0.1 < 1 })
 }
+
+@Test(arguments: [15.0, 25, 45, 50, 90, 1, 240])
+func episodesStayInsideTheLapForAnyFocusLength(minutes: Double) {
+    let seconds = minutes * 60
+    for seed in UInt64(0)..<20 {
+        let plan = EpisodePlanner.plan(seed: seed, journey: journey, focusSeconds: seconds,
+                                       lastFiveShare: 300 / seconds, forced: nil)
+        #expect(plan.allSatisfy { $0.1 > 0 && $0.1 < 1 })
+        #expect(plan.contains { $0.0 == .owl })
+    }
+}

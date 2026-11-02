@@ -149,6 +149,32 @@ final class Overlay {
         CATransaction.commit()
     }
 
+    /// A one-time gold pulse along the whole edge when a focus session ends. It sits on its own
+    /// layer and removes itself, so the next scene never sees it.
+    func glow() {
+        guard shown, let path = track.path else { return }
+        let g = CAShapeLayer()
+        g.frame = root.bounds
+        g.path = path
+        g.fillColor = nil
+        g.lineWidth = max(track.lineWidth, 3) * 2 + 2
+        g.strokeColor = Palette.waiting.withAlphaComponent(1).cgColor
+        g.shadowColor = g.strokeColor
+        g.shadowOffset = .zero
+        g.shadowRadius = 22
+        g.shadowOpacity = 1
+        g.opacity = 0
+        root.insertSublayer(g, below: mover)
+        let a = CAKeyframeAnimation(keyPath: "opacity")
+        a.values = [0, 1, 0.35, 0.9, 0]
+        a.keyTimes = [0, 0.18, 0.45, 0.62, 1]
+        a.duration = 3
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { g.removeFromSuperlayer() }
+        g.add(tune(a, 30), forKey: "glow")
+        CATransaction.commit()
+    }
+
     // MARK: - apply
 
     func apply(_ s: Scene) {

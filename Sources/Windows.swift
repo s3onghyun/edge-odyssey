@@ -156,7 +156,7 @@ struct WelcomeView: View {
                 art("walk-1"); art("climb-crag-1"); art("slide-0")
             }
             title("A voyage around your screen")
-            Text("Start a 25-minute focus from the menu bar. Odysseus rows along the bottom edge, climbs the right, hangs from the top and slides down the left, arriving home exactly when time is up. The trail behind him is your progress; breaks are short visits to Ithaca.")
+            Text("Start a focus from the menu bar (25 minutes, or another length under Timer). Odysseus rows along the bottom edge, climbs the right, hangs from the top and slides down the left, arriving home exactly when time is up. The trail behind him is your progress; breaks are short visits to Ithaca.")
             VStack(alignment: .leading, spacing: 4) {
                 Label("Mode: Odysseus voyage, or a thin border only", systemImage: "sailboat")
                 Label("Show on: main display, all displays, or the one you work on", systemImage: "display.2")

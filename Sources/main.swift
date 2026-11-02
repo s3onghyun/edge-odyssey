@@ -1,5 +1,6 @@
 import AppKit
 import ServiceManagement
+import UserNotifications
 
 // Edge Odyssey - a thin, click-through screen-edge timer and agent signal.
 
@@ -29,12 +30,17 @@ struct Options {
     var lotusEnabled = true         // doze when a game, video or social app is frontmost
     var agentEnabled = true         // show Claude Code signals
     var showSeconds = true          // menu bar counts down 12:50; off shows whole minutes (13m)
+    var longEvery = 4               // a long break after every n-th focus
+    var notifyAtEnd = true          // macOS notification when a focus or a break ends
+    var soundAtEnd = false          // a soft sound when a focus ends
+    var autoNextFocus = false       // start the next focus by itself when a break ends
 
     /// Settings the menu changes are kept in UserDefaults; command-line flags override them
     /// for one run without being saved.
     static let saved: [String: Any] = ["style": "traveler", "display": "main", "thickness": 3.0, "onlyLast5": false,
                                        "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true,
-                                       "showSeconds": true]
+                                       "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4,
+                                       "notifyAtEnd": true, "soundAtEnd": false, "autoNextFocus": false]
 
     init(_ args: [String], defaults d: UserDefaults = .standard) {
         d.register(defaults: Self.saved)
@@ -46,6 +52,12 @@ struct Options {
         lotusEnabled = d.bool(forKey: "lotusEnabled")
         hideWhenCaptured = d.bool(forKey: "hideWhenCaptured")
         showSeconds = d.bool(forKey: "showSeconds")
+        focusMinutes = Durations.minutes(String(d.double(forKey: "focusMinutes")), in: Durations.focusRange) ?? 25
+        restMinutes = Durations.minutes(String(d.double(forKey: "restMinutes")), in: Durations.breakRange) ?? 5
+        longEvery = Durations.longEveryChoices.contains(d.integer(forKey: "longEvery")) ? d.integer(forKey: "longEvery") : 4
+        notifyAtEnd = d.bool(forKey: "notifyAtEnd")
+        soundAtEnd = d.bool(forKey: "soundAtEnd")
+        autoNextFocus = d.bool(forKey: "autoNextFocus")
         var it = args.dropFirst().makeIterator()
         while let a = it.next() {
             switch a {
@@ -88,7 +100,8 @@ enum LoginItem {
     }
 }
 
-let ctlNotification = Notification.Name("dev.edgeodyssey.ctl")
+/// Scoped to the bundle id, so a test build (another id) never controls or quits your copy.
+let ctlNotification = Notification.Name((Bundle.main.bundleIdentifier ?? "dev.edgeodyssey.app") + ".ctl")
 
 final class MenuAction: NSMenuItem {
     private var handler: (() -> Void)?
@@ -137,9 +150,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         FileHandle.standardError.write("[\(String(format: "%.3f", Date().timeIntervalSince1970))] \(s)\n".data(using: .utf8)!)
     }
 
-    var focusDuration: TimeInterval { o.focusMinutes * 60 / o.speed }
-    var restDuration: TimeInterval { (restIsLong ? 15 : o.restMinutes) * 60 / o.speed }
-    var phaseDuration: TimeInterval { phase == .rest ? restDuration : focusDuration }
+    /// Set when a phase starts, so a length changed in the menu applies from the next session.
+    var phaseDuration: TimeInterval = 25 * 60
+    var breakMinutes: Double { restIsLong ? Durations.longBreakMinutes(rest: o.restMinutes) : o.restMinutes }
     var elapsed: TimeInterval { (pausedAt ?? Date()).timeIntervalSince(phaseStart) - pausedTotal }
     var remaining: TimeInterval { max(phaseDuration - elapsed, 0) }
 
@@ -320,6 +333,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func start() {
         phase = .focus
         focusCount += 1
+        phaseDuration = o.focusMinutes * 60 / o.speed
         phaseStart = Date()
         pausedAt = nil
         pausedTotal = 0
@@ -346,11 +360,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let pt = sprite.unitPoints(backing: host.screen.backingScaleFactor)
         let j = Journey(size: host.screen.frame.size, inset: CGFloat(sprite.height) * pt / 2, weights: Journey.physicalWeights)
         let plan = EpisodePlanner.plan(seed: UInt64(phaseStart.timeIntervalSince1970) &+ UInt64(focusCount),
-                                       journey: j, focusSeconds: focusDuration,
-                                       lastFiveShare: (300 / o.speed) / focusDuration, forced: o.episodes)
+                                       journey: j, focusSeconds: phaseDuration,
+                                       lastFiveShare: (300 / o.speed) / phaseDuration, forced: o.episodes)
         let now = elapsed
         for (ep, share) in plan {
-            let delay = share * focusDuration - now
+            let delay = share * phaseDuration - now
             guard delay > 0 else { continue }
             let t = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in self?.fire(ep) }
             t.tolerance = 0.05
@@ -367,7 +381,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .cyclops:
             host.play(.cyclops, sprite: sprite, seconds: 3)
             // then he escapes under the belly of a ram for a stretch of the floor
-            let floorSeconds = min(6, focusDuration * 0.08)
+            let floorSeconds = min(6, phaseDuration * 0.08)
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) { [weak self] in
                 guard let self, self.phase == .focus else { return }
                 self.overrideAnim = "ram"
@@ -378,7 +392,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 }
             }
         case .circe:
-            host.play(.circe, sprite: sprite, seconds: min(8, focusDuration * 0.25))
+            host.play(.circe, sprite: sprite, seconds: min(8, phaseDuration * 0.25))
         case .owl:
             host.play(.owl, sprite: sprite, seconds: max(remaining, 1))
         default:
@@ -415,9 +429,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func startRest() {
         cancelEpisodes()
-        restIsLong = focusCount % 4 == 0      // every fourth break is long: Calypso's island
+        restIsLong = Durations.isLongBreak(afterFocus: focusCount, every: o.longEvery)   // long: Calypso's island
         logbook.record(restIsLong ? .calypso : .ithaca)
         phase = .rest
+        phaseDuration = breakMinutes * 60 / o.speed
         phaseStart = Date()
         pausedAt = nil
         pausedTotal = 0
@@ -429,7 +444,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         phaseTimer?.invalidate(); last5Timer?.invalidate()
         phaseTimer = Timer.scheduledTimer(withTimeInterval: remaining, repeats: false) { [weak self] _ in
             guard let self else { return }
-            self.phase == .focus ? self.startRest() : self.stop()
+            self.phase == .focus ? self.focusEnded() : self.breakEnded()
         }
         phaseTimer?.tolerance = 0.1
         let untilLast5 = remaining - 300 / o.speed
@@ -448,6 +463,56 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         t.tolerance = every == 1 ? 0.05 : 5
         RunLoop.main.add(t, forMode: .common)   // .common: keeps ticking while the menu is open
         titleTimer = t
+    }
+
+    /// Time is up: he reaches Ithaca (or Calypso's island), the edge glows gold once, and,
+    /// if the user wants them, a notification and a soft sound.
+    func focusEnded() {
+        log("focus ended: \(restIsLong ? "Calypso" : "Ithaca"), notify=\(o.notifyAtEnd) sound=\(o.soundAtEnd)")
+        startRest()
+        overlays.forEach { $0.glow() }
+        if o.soundAtEnd, let snd = NSSound(named: "Glass") { snd.volume = 0.35; snd.play() }
+        notify(endMessage(focusEnded: true, longBreak: restIsLong, breakMinutes: Int(breakMinutes), korean: korean))
+    }
+
+    /// The break is over: wait for a click (default) or start the next focus by itself.
+    func breakEnded() {
+        log("break ended: autoNextFocus=\(o.autoNextFocus)")
+        if !o.autoNextFocus { notify(endMessage(focusEnded: false, longBreak: false, breakMinutes: 0, korean: korean)) }
+        o.autoNextFocus ? start() : stop()
+    }
+
+    var korean: Bool { Locale.preferredLanguages.first?.hasPrefix("ko") == true }
+
+    /// Asks for permission the first time; if the user declines, nothing is shown.
+    func notify(_ m: (title: String, body: String)) {
+        guard o.notifyAtEnd else { return }
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert]) { granted, error in
+            if let error { self.log("notification: \(error)") }
+            self.log("notification: granted=\(granted) \(m.title)")
+            guard granted else { return }
+            let c = UNMutableNotificationContent()
+            c.title = m.title
+            c.body = m.body
+            center.add(UNNotificationRequest(identifier: "edge-odyssey-end", content: c, trigger: nil)) { e in if let e { self.log("notification: \(e)") } }
+        }
+    }
+
+    /// Asks for a custom length in whole minutes; nil when cancelled or out of range.
+    func askMinutes(_ what: String, current: Double, range: ClosedRange<Double>) -> Double? {
+        let alert = NSAlert()
+        alert.messageText = "\(what) length"
+        alert.informativeText = "Minutes, \(Int(range.lowerBound)) to \(Int(range.upperBound)). Applies from the next session."
+        let field = NSTextField(string: String(Int(current)))
+        field.frame = NSRect(x: 0, y: 0, width: 80, height: 24)
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Set")
+        alert.addButton(withTitle: "Cancel")
+        NSApp.activate(ignoringOtherApps: true)
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        return Durations.minutes(field.stringValue, in: range)
     }
 
     func toggleHidden() {
@@ -486,6 +551,12 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if !o.lotusEnabled { lotus = false }
             remember("lotusEnabled", o.lotusEnabled); refresh()
         case "seconds": o.showSeconds = arg != "off"; remember("showSeconds", o.showSeconds); scheduleTitleTimer(); updateTitle()
+        case "focus": if let m = Durations.minutes(arg, in: Durations.focusRange) { o.focusMinutes = m; remember("focusMinutes", m) }
+        case "rest": if let m = Durations.minutes(arg, in: Durations.breakRange) { o.restMinutes = m; remember("restMinutes", m) }
+        case "long-every": if let n = Int(arg), Durations.longEveryChoices.contains(n) { o.longEvery = n; remember("longEvery", n) }
+        case "notify": o.notifyAtEnd = arg != "off"; remember("notifyAtEnd", o.notifyAtEnd)
+        case "sound": o.soundAtEnd = arg == "on"; remember("soundAtEnd", o.soundAtEnd)
+        case "autonext": o.autoNextFocus = arg == "on"; remember("autoNextFocus", o.autoNextFocus)
         case "share-hide": o.hideWhenCaptured = arg != "off"; remember("hideWhenCaptured", o.hideWhenCaptured); refresh()
         case "hide": manualHidden = true; refresh()
         case "show": manualHidden = false; refresh()
@@ -585,6 +656,41 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(submenu("Border", [2, 3, 4].map { t in
             MenuAction("\(t) px\(t == 2 ? " (thinnest)" : "")", checked: Int(o.thickness) == t) { [weak self] in self?.control("thickness:\(t)") }
         }))
+        func choices(_ presets: [Int], current: Double, unit: String, cmd: String, custom: @escaping () -> Void) -> [NSMenuItem] {
+            var items: [NSMenuItem] = presets.map { m in
+                MenuAction("\(m) \(unit)", checked: Int(current) == m) { [weak self] in self?.control("\(cmd):\(m)") }
+            }
+            let isCustom = !presets.contains(Int(current))
+            items.append(MenuAction(isCustom ? "Custom (\(Int(current)) \(unit))…" : "Custom…", checked: isCustom, custom))
+            return items
+        }
+        let long = Int(Durations.longBreakMinutes(rest: o.restMinutes))
+        menu.addItem(submenu("Timer", [
+            submenu("Focus: \(Int(o.focusMinutes)) min", choices(Durations.focusPresets, current: o.focusMinutes, unit: "min", cmd: "focus") { [weak self] in
+                guard let self, let m = self.askMinutes("Focus", current: self.o.focusMinutes, range: Durations.focusRange) else { return }
+                self.control("focus:\(Int(m))")
+            }),
+            submenu("Break: \(Int(o.restMinutes)) min", choices(Durations.breakPresets, current: o.restMinutes, unit: "min", cmd: "rest") { [weak self] in
+                guard let self, let m = self.askMinutes("Break", current: self.o.restMinutes, range: Durations.breakRange) else { return }
+                self.control("rest:\(Int(m))")
+            }),
+            submenu("Long break (\(long) min): every \(o.longEvery) sessions", Durations.longEveryChoices.map { n in
+                MenuAction("Every \(n) sessions", checked: o.longEvery == n) { [weak self] in self?.control("long-every:\(n)") }
+            }),
+            .separator(),
+            MenuAction("Notify when time is up", checked: o.notifyAtEnd) { [weak self] in
+                guard let self else { return }
+                self.control(self.o.notifyAtEnd ? "notify:off" : "notify:on")
+            },
+            MenuAction("Soft sound when focus ends", checked: o.soundAtEnd) { [weak self] in
+                guard let self else { return }
+                self.control(self.o.soundAtEnd ? "sound:off" : "sound:on")
+            },
+            MenuAction("Start the next focus after a break", checked: o.autoNextFocus) { [weak self] in
+                guard let self else { return }
+                self.control(self.o.autoNextFocus ? "autonext:off" : "autonext:on")
+            },
+        ]))
         menu.addItem(MenuAction("Only show in the last 5 minutes", checked: o.onlyLast5) { [weak self] in
             guard let self else { return }
             self.control(self.o.onlyLast5 ? "last5:off" : "last5:on")
