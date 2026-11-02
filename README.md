@@ -1,66 +1,131 @@
-# Edgeling (working name)
+<p align="center"><img src="assets/icon/AppIcon-256.png" width="128" alt="Edge Odyssey icon: Odysseus under sail"></p>
 
-A thin, click-through screen-edge timer for macOS. Odysseus sails, climbs, hangs and slides
-around the edge of your screen as your focus session passes, and the edge glows softly
-when Claude Code needs you.
+# Edge Odyssey
 
-- Pomodoro (25/5, every fourth break is long): the traveler's position is the elapsed share
-  of the session; the trail behind him is the progress bar.
-- Claude Code signals: working = quiet blue edge, waiting for you = one soft gold swell and
-  the Sirens scene, near the 5-hour limit = amber edge and Poseidon's storm.
-- Stays out of the way: 2-4 px border, never takes clicks, hides in full-screen apps, while
-  the screen is captured or shared, and on a global hotkey (Control-Option-Command-H).
-- Episodes from the Odyssey vary each lap and fill a 24-book logbook (menu bar).
+A thin, click-through focus timer that lives on the edge of your Mac's screen. Odysseus rows
+along the bottom, climbs the right side, hangs from the top and slides down the left as your
+focus session passes, and the edge glows softly when Claude Code needs you.
 
-## Build and run
+[한국어 README](README.ko.md)
 
-Needs only the Xcode Command Line Tools (no Xcode project).
+<p align="center"><img src="assets/screenshots/voyage.gif" width="480" alt="Odysseus rowing, climbing, hanging and sliding around the screen edge"></p>
+<p align="center"><sub>One 25-minute lap at 75x speed, the camera following Odysseus.</sub></p>
+
+- **Pomodoro on the edge.** 25 minutes of focus, 5 minutes of break, every fourth break is
+  long. Where Odysseus is on the edge is how much of the session has passed; the trail behind
+  him is the progress bar, and he arrives home exactly when time is up.
+- **Physical on every edge.** Rowing on the floor, grip-and-pull climbing (cliffs, an olive
+  tree, the mast), hanging and swaying from the top or riding a zipline, a gravity slide down
+  a waterfall, a squash on landing.
+- **Episodes from the Odyssey.** The Cyclops, Aeolus' bag of winds, Circe's piglets,
+  Charybdis and Athena's owl visit different laps and fill a 24-book logbook.
+- **Claude Code signals (optional).** Quiet blue edge while it works, the Sirens and one soft
+  gold swell when it is waiting for you, Poseidon's storm near the 5-hour usage limit.
+- **Out of your way.** A 2-4 px border, never takes a click, hides in full-screen apps and
+  while the screen is shared or recorded, and on Control-Option-Command-H.
+- **Smooth and light.** All motion runs in the macOS render server; the app wakes only at
+  corners and state changes (about 0.1% CPU).
+
+## Install
+
+Edge Odyssey is not notarized yet, so for now you build it yourself. It needs macOS 13 or
+later on Apple silicon and the Xcode Command Line Tools (`xcode-select --install`); no Xcode
+project.
 
 ```sh
-./build.sh && open build/Edgeling.app        # menu bar: the dashed circle
+git clone <this repo> && cd edge-odyssey
+./build.sh                                   # -> build/Edge Odyssey.app
+cp -R "build/Edge Odyssey.app" /Applications/
+open "/Applications/Edge Odyssey.app"
 ```
 
-Fast demo (25 minutes in 20 seconds, starts at once):
+The first launch opens a three-page welcome guide. After that, Edge Odyssey lives in the
+menu bar (the dashed circle).
 
-```sh
-./build/Edgeling.app/Contents/MacOS/Edgeling --speed 75 --autostart
-```
+<p align="center"><img src="assets/screenshots/welcome.png" width="720" alt="Welcome guide, pages 1 and 2"></p>
 
-Useful flags: `--display main|all|follow|<index>`, `--char odysseus-vector|odysseus-pixel`,
-`--thickness 2..4`, `--last5`, `--no-lotus`, `--state-dir <dir>`, `-v` (log to stderr).
-Control a running copy: `Edgeling --ctl start|pause|resume|stop|skip|display:all|hide|show|quit`.
+## Menu
 
-## Claude Code hooks
-
-1. Copy `hooks/edgeling-hook.sh` and `hooks/edgeling-statusline.sh` to `~/.edgeling/hooks/`.
-2. Merge `hooks/claude-settings-snippet.json` into your `~/.claude/settings.json` by hand
-   (the app never edits it). If you already have a `statusLine`, set
-   `EDGELING_STATUSLINE_NEXT` to your old command so both keep working.
-
-The hooks write one tiny file per session to `~/.edgeling/sessions/` ("working" / "waiting" /
-"limit" plus a timestamp); the status line writes `~/.edgeling/usage`. The app watches the
-folder (no polling). Nothing leaves your Mac.
-
-| Claude Code event | State |
+| Item | What it does |
 |---|---|
-| UserPromptSubmit, PreToolUse, PostToolUse | working |
-| Notification (permission_prompt, idle_prompt, elicitation_dialog, agent_needs_input), Stop | waiting |
-| StopFailure (rate_limit), or `rate_limits.five_hour.used_percentage` >= 85 | limit |
+| Start focus / Pause / Resume / Skip / Stop | The timer (25 min focus, 5 min break, long break every fourth) |
+| Mode | Odysseus voyage (border + traveler) or a thin border only |
+| Show on | Main display, all displays (Odysseus follows the display you work on), follow me, or one named display |
+| Border | 2, 3 or 4 px |
+| Only show in the last 5 minutes | Keeps the edge empty until the end of a focus session (Claude Code calls still show) |
+| Logbook… | The 24 books of the Odyssey you have collected |
+| Settings | Claude Code signals, doze while a game/video/social app is in front, hide while sharing, **Launch at login** (off until you turn it on), Welcome guide |
+| Hide now | Control-Option-Command-H, from anywhere |
+
+Settings are remembered between launches.
+
+<p align="center"><img src="assets/screenshots/logbook.png" width="720" alt="Logbook window with found and uncharted books"></p>
+
+## Claude Code signals
+
+In the welcome guide (or Settings > Welcome guide), **Copy hook snippet** puts two small
+scripts in `~/.edge-odyssey/hooks/` and copies a settings snippet to the clipboard. Paste it
+into `~/.claude/settings.json` yourself, merged with any `"hooks"` you already have. Edge
+Odyssey never edits that file. If you already have a `statusLine`, keep it and set
+`EDGE_ODYSSEY_STATUSLINE_NEXT` to your old command so both keep working.
+
+The same files are in [`hooks/`](hooks/) if you prefer to install them by hand.
+
+The hooks write one tiny file per session to `~/.edge-odyssey/sessions/` (`working`,
+`waiting` or `limit` plus a timestamp); the status line writes `~/.edge-odyssey/usage`. The app
+watches the folder (no polling). Nothing leaves your Mac.
+
+| Claude Code event | Edge |
+|---|---|
+| UserPromptSubmit, PreToolUse, PostToolUse | working: quiet blue (only when no timer runs) |
+| Notification (permission, idle, elicitation, agent needs input), Stop | waiting: the Sirens, one gold swell |
+| StopFailure (rate_limit), or 5-hour usage >= 85% | limit: amber, Poseidon's storm |
 | SessionEnd | session removed |
 
-## Layout
+## Privacy
+
+No network access, no analytics. The overlay windows are excluded from screenshots and
+screen recordings, and the whole edge hides while the macOS screen-capture indicator is on
+(Zoom, Meet, QuickTime and so on). Local files: `~/.edge-odyssey/` (hook states, logbook) and
+the app's preferences (`dev.edgeodyssey.app`).
+
+## Command line
+
+```sh
+APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
+"$APP" --speed 75 --autostart     # demo: 25 minutes in 20 seconds
+"$APP" --ctl start|pause|resume|stop|skip|logbook|welcome|hide|show|quit
+```
+
+Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--style border|traveler`,
+`--thickness 2..4`, `--last5`, `--focus <min>`, `--rest <min>`, `--no-lotus`, `--char <id>`,
+`--state-dir <dir>`, `-v` (log to stderr).
+
+## Development
+
+```sh
+./build.sh      # the app, with swiftc from the Command Line Tools
+./test.sh       # motion-math tests (Swift Testing): exact timing, no jumps on re-apply, sprite timing
+```
 
 | Path | License | What |
 |---|---|---|
-| `Sources/` | MIT | the app (AppKit + Core Animation, ~1,500 lines) |
+| `Sources/` | MIT | The app (AppKit, SwiftUI windows, Core Animation) |
+| `Tests/`, `Package.swift`, `test.sh` | MIT | Motion-math tests |
 | `hooks/` | MIT | Claude Code hook and status-line scripts, settings snippet |
-| `tools/` | MIT | art generators (`make_odysseus.py`), sheet builder, `svg2png.swift` |
-| `assets/` | All rights reserved, see `assets/LICENSE` | characters, sketches, previews |
+| `tools/` | MIT | Art generators (`make_odysseus.py`, `make_icon.py`), sheet builder, `svg2png.swift` |
+| `assets/` | All rights reserved, personal-use grant: [`assets/LICENSE`](assets/LICENSE) | Characters, icon, screenshots, sketches |
 
-## Character format
+The code is MIT ([`LICENSE`](LICENSE)). The art is not: you may use it in your own builds of
+this repository, but not redistribute it or make derivative characters. Forks are welcome
+with their own art. See [`PROVENANCE.md`](PROVENANCE.md) for how the art was made.
+
+### Character format
 
 A character is either a `.sprite` text grid (pixel art: palette + frames) or a folder with
 `character.txt` and SVG frames (vector). Animations the app looks for: `walk` (bottom edge),
 `climb` / `climb-*` (right edge), `cling` / `zip` (top edge), `slide` (left edge), `idle`,
 `sirens`, `storm`, `rest`, `ithaca`, `doze`, `ram`, and episode props `ep-*`. Missing ones fall
 back to `walk` or `idle`, so a new character can start with a single walk cycle.
+
+See [`CHANGELOG.md`](CHANGELOG.md) for what changed.

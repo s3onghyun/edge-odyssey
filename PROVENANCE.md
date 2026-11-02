@@ -10,6 +10,7 @@ other adaptation of the Odyssey.
 | `characters/odysseus-pixel.sprite` (alternative style, not updated after the vector pick) | Hand-typed pixel stamps composed by the same pose table | `tools/make_odysseus.py` (`draw_pixel`, stamps) |
 | `sketches/pip.sprite`, `sketches/drift.sprite` (early discussion sketches) | Hand-typed pixel grids | `tools/make_sprites.py` |
 | `sketches/placeholder.sprite` (neutral pebble) | Rasterised ellipses, squash-and-stretch only | `tools/make_sprites.py` |
+| `icon/AppIcon.svg`, `AppIcon.icns` (app icon) | The vector walk frame above placed on a hand-written SVG scene (sky, sun, sea, edge trail) | `tools/make_icon.py` |
 | `previews/*.png`, `../character-sheet/*` | Rendered from the sources above | `tools/make_character_sheet.py`, `tools/svg2png.swift` |
 
 Story sources: Homer's *Odyssey* (public domain worldwide). Each episode cites the book
