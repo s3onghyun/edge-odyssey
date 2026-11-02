@@ -26,8 +26,22 @@ struct Options {
     var climbVariant: String?       // demo: force a climb variant (climb, climb-crag, climb-olive, climb-mast)
     var ceilingVariant: String?     // demo: force zip or cling
     var lotusEnabled = true         // doze when a game, video or social app is frontmost
+    var agentEnabled = true         // show Claude Code signals
 
-    init(_ args: [String]) {
+    /// Settings the menu changes are kept in UserDefaults; command-line flags override them
+    /// for one run without being saved.
+    static let saved: [String: Any] = ["style": "traveler", "display": "main", "thickness": 3.0, "onlyLast5": false,
+                                       "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true]
+
+    init(_ args: [String], defaults d: UserDefaults = .standard) {
+        d.register(defaults: Self.saved)
+        style = Style(rawValue: d.string(forKey: "style") ?? "") ?? .traveler
+        display = d.string(forKey: "display") ?? "main"
+        thickness = CGFloat(min(max(d.double(forKey: "thickness"), 2), 4))
+        onlyLast5 = d.bool(forKey: "onlyLast5")
+        agentEnabled = d.bool(forKey: "agentEnabled")
+        lotusEnabled = d.bool(forKey: "lotusEnabled")
+        hideWhenCaptured = d.bool(forKey: "hideWhenCaptured")
         var it = args.dropFirst().makeIterator()
         while let a = it.next() {
             switch a {
@@ -84,7 +98,6 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var pausedAt: Date?
     var pausedTotal: TimeInterval = 0
     var manualHidden = false
-    var agentEnabled = true
     var agentState: AgentState = .idle
     var lapStart = Date()
     var lapFrozenAt: Date?
@@ -232,7 +245,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         s.duration = phaseDuration
         s.elapsed = min(elapsed, phaseDuration)
         s.paused = pausedAt != nil
-        s.agent = agentEnabled ? agentState : .idle
+        s.agent = o.agentEnabled ? agentState : .idle
         s.lapDuration = 720 / o.speed
         s.lapElapsed = (lapFrozenAt ?? Date()).timeIntervalSince(lapStart).truncatingRemainder(dividingBy: s.lapDuration)
         s.style = o.style
@@ -420,6 +433,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refresh()
     }
 
+    /// Saves one setting the user changed (only that one: other values may be one-run flags).
+    func remember(_ key: String, _ value: Any) { UserDefaults.standard.set(value, forKey: key) }
+
     func control(_ cmd: String) {
         log("ctl: \(cmd)")
         let parts = cmd.split(separator: ":", maxSplits: 1).map(String.init)
@@ -437,14 +453,19 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 if pausedAt != nil { pausedAt = Date() }
                 schedulePhaseTimers(); refresh(); planEpisodes()
             }
-        case "style": o.style = Style(rawValue: arg) ?? o.style; refresh()
+        case "style": o.style = Style(rawValue: arg) ?? o.style; remember("style", o.style.rawValue); refresh(); planEpisodes()
         case "char": if sprites[arg] != nil { o.character = arg; refresh() }
-        case "thickness": o.thickness = CGFloat(Double(arg) ?? 3); refresh()
-        case "last5": o.onlyLast5 = arg == "on"; refresh()
-        case "agent": agentEnabled = arg != "off"; refresh()
+        case "thickness": o.thickness = CGFloat(min(max(Double(arg) ?? 3, 2), 4)); remember("thickness", Double(o.thickness)); refresh()
+        case "last5": o.onlyLast5 = arg == "on"; remember("onlyLast5", o.onlyLast5); refresh()
+        case "agent": o.agentEnabled = arg != "off"; remember("agentEnabled", o.agentEnabled); refresh()
+        case "lotus-enabled":
+            o.lotusEnabled = arg != "off"
+            if !o.lotusEnabled { lotus = false }
+            remember("lotusEnabled", o.lotusEnabled); refresh()
+        case "share-hide": o.hideWhenCaptured = arg != "off"; remember("hideWhenCaptured", o.hideWhenCaptured); refresh()
         case "hide": manualHidden = true; refresh()
         case "show": manualHidden = false; refresh()
-        case "display": o.display = arg; refresh(); planEpisodes()
+        case "display": o.display = arg; remember("display", arg); refresh(); planEpisodes()
         case "lotus": lotus = arg == "on"; if lotus { logbook.record(.lotus) }; refresh()
         case "episode": if let e = Episode(rawValue: arg) { fire(e) }
         case "quit": NSApp.terminate(nil)
@@ -539,18 +560,17 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let ai = NSMenuItem(title: agentTitle, action: nil, keyEquivalent: "")
         ai.isEnabled = false
         menu.addItem(ai)
-        menu.addItem(MenuAction("Show Claude Code signals", checked: agentEnabled) { [weak self] in
+        menu.addItem(MenuAction("Show Claude Code signals", checked: o.agentEnabled) { [weak self] in
             guard let self else { return }
-            self.control(self.agentEnabled ? "agent:off" : "agent:on")
+            self.control(self.o.agentEnabled ? "agent:off" : "agent:on")
         })
         menu.addItem(MenuAction("Doze while a game, video or social app is in front", checked: o.lotusEnabled) { [weak self] in
             guard let self else { return }
-            self.o.lotusEnabled.toggle()
-            if !self.o.lotusEnabled { self.lotus = false }
-            self.refresh()
+            self.control(self.o.lotusEnabled ? "lotus-enabled:off" : "lotus-enabled:on")
         })
         menu.addItem(MenuAction("Hide while the screen is shared or recorded", checked: o.hideWhenCaptured) { [weak self] in
-            self?.o.hideWhenCaptured.toggle(); self?.refresh()
+            guard let self else { return }
+            self.control(self.o.hideWhenCaptured ? "share-hide:off" : "share-hide:on")
         })
         let hide = MenuAction(manualHidden ? "Show again" : "Hide now") { [weak self] in self?.toggleHidden() }
         hide.keyEquivalent = "h"
