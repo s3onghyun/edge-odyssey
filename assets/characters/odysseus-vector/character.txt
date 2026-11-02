@@ -1,0 +1,23 @@
+# Edgeling vector character v1 - Odysseus, clean vector variant (SVG frames).
+name: Odysseus (vector)
+size: 32x26
+anim: walk fps=5 frames=walk-0.svg,walk-1.svg,walk-2.svg,walk-3.svg
+anim: idle fps=2.5 frames=idle-0.svg,idle-1.svg,idle-2.svg,idle-3.svg,idle-4.svg,idle-5.svg,idle-6.svg,idle-7.svg
+anim: climb fps=4 frames=climb-0.svg,climb-1.svg,climb-2.svg,climb-3.svg
+anim: cling fps=4 frames=cling-0.svg,cling-1.svg,cling-2.svg
+anim: slide fps=8 frames=slide-0.svg,slide-1.svg
+anim: sirens fps=3 frames=sirens-0.svg,sirens-1.svg,sirens-2.svg
+anim: storm fps=4 frames=storm-0.svg,storm-1.svg,storm-2.svg,storm-3.svg
+anim: rest fps=1.5 frames=rest-0.svg,rest-1.svg
+anim: ram fps=6 frames=ram-0.svg,ram-1.svg,ram-2.svg,ram-3.svg
+anim: zip fps=6 frames=zip-0.svg,zip-1.svg,zip-2.svg
+anim: climb-crag fps=3 frames=climb-crag-0.svg,climb-crag-1.svg,climb-crag-2.svg,climb-crag-3.svg
+anim: climb-olive fps=3 frames=climb-olive-0.svg,climb-olive-1.svg,climb-olive-2.svg
+anim: climb-mast fps=3 frames=climb-mast-0.svg,climb-mast-1.svg,climb-mast-2.svg
+anim: ithaca fps=2 frames=ithaca-0.svg,ithaca-1.svg,ithaca-2.svg
+anim: doze fps=1.5 frames=doze-0.svg,doze-1.svg
+anim: ep-cyclops fps=3 frames=ep-cyclops-0.svg,ep-cyclops-1.svg,ep-cyclops-2.svg,ep-cyclops-3.svg,ep-cyclops-4.svg,ep-cyclops-5.svg,ep-cyclops-6.svg,ep-cyclops-7.svg
+anim: ep-bag fps=5 frames=ep-bag-0.svg,ep-bag-1.svg,ep-bag-2.svg,ep-bag-3.svg
+anim: ep-whirl fps=8 frames=ep-whirl-0.svg,ep-whirl-1.svg,ep-whirl-2.svg,ep-whirl-3.svg
+anim: ep-piglets fps=6 frames=ep-piglets-0.svg,ep-piglets-1.svg
+anim: ep-owl fps=5 frames=ep-owl-0.svg,ep-owl-1.svg

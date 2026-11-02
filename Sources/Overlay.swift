@@ -1,0 +1,612 @@
+import AppKit
+import QuartzCore
+
+enum AgentState: String { case idle, working, waiting, limit }
+enum Phase { case idle, focus, rest }
+enum Style: String { case border, traveler }
+
+/// Everything one screen needs to draw, computed by the app from its model.
+struct Scene {
+    var visible = false
+    var phase: Phase = .idle
+    var elapsed: TimeInterval = 0
+    var duration: TimeInterval = 1
+    var paused = false
+    var agent: AgentState = .idle
+    /// Agent-only lap (no timer running): elapsed seconds into the lap, and lap length.
+    var lapElapsed: TimeInterval = 0
+    var lapDuration: TimeInterval = 720
+    var style: Style = .traveler
+    var thickness: CGFloat = 3
+    var hostsTraveler = false
+    var sprite: SpriteSheet?
+    /// Per-lap variety: which climb (right edge) and which hang (top edge) this lap uses.
+    var climbAnim = "climb"
+    var ceilingAnim = "cling"
+    var restIsLong = false          // long break: Calypso's island; short break: Ithaca
+    var dozing = false              // a distracting app is in front: the Lotus-eaters
+    var overrideAnim: String?       // a short encounter that replaces the pose (the ram)
+    var devicePixelsPerSpritePixel = 3
+}
+
+/// Within-edge speed profile: the share of an edge covered at a given share of its time.
+/// Gravity on the slide (accelerate), speed-up-and-brake on a zipline; linear elsewhere.
+/// Edge start and end times never change, so the session still ends exactly on time.
+func edgeProfile(_ kind: EdgeKind, zip: Bool) -> (Double) -> Double {
+    switch kind {
+    case .slide: return { u in u * u }
+    case .ceiling where zip: return { u in u * u * (3 - 2 * u) }
+    default: return { u in u }
+    }
+}
+
+/// The rest of the route from time share `t`, as keyframes: (share of the remaining time,
+/// edge index, position inside that edge after its speed profile). Corners are keyframes, so
+/// one animation runs the whole way and never waits for the app at a corner. Curved edges
+/// (slide, zipline) are sampled on a fixed grid of 24 steps and the start point lies on the
+/// chord between grid points, so the path is the same whenever it is rebuilt: re-applying a
+/// scene mid-edge continues exactly where the previous animation was.
+func routeSamples(_ j: Journey, from t: Double, zip: Bool, profiled: Bool) -> [(time: Double, edge: Int, u: Double)] {
+    let (k0, u0) = j.locate(t)
+    func steps(_ k: Int) -> Int {
+        profiled && (j.edges[k].kind == .slide || (zip && j.edges[k].kind == .ceiling)) ? 24 : 1
+    }
+    func shape(_ k: Int, _ u: Double) -> Double {   // the keyframed (chord) profile
+        guard profiled else { return u }
+        let f = edgeProfile(j.edges[k].kind, zip: zip), n = Double(steps(k))
+        let g = min(floor(u * n), n - 1) / n
+        return f(g) + (f(g + 1 / n) - f(g)) * (u - g) * n
+    }
+    func time(_ k: Int, _ u: Double) -> Double {
+        (j.timeMarks[k] + (j.timeMarks[k + 1] - j.timeMarks[k]) * u - t) / max(1 - t, 1e-9)
+    }
+    var out = [(time: 0.0, edge: k0, u: shape(k0, u0))]
+    for k in k0..<j.edges.count {
+        let n = steps(k)
+        for i in 1...n {
+            let u = Double(i) / Double(n)
+            if k == k0 && u <= u0 { continue }
+            out.append((time: time(k, u), edge: k, u: shape(k, u)))
+        }
+    }
+    return out
+}
+
+/// Peak speed factor of an edge profile (peak / average speed): u^2 -> 2, smoothstep -> 1.5.
+func profilePeak(_ kind: EdgeKind, zip: Bool) -> Double {
+    switch kind {
+    case .slide: return 2
+    case .ceiling where zip: return 1.5
+    default: return 1
+    }
+}
+
+enum Palette {
+    static let calm = NSColor(srgbRed: 0.31, green: 0.82, blue: 0.77, alpha: 0.85)    // teal
+    static let warm = NSColor(srgbRed: 1.00, green: 0.54, blue: 0.40, alpha: 0.95)    // coral, last 20%
+    static let rest = NSColor(srgbRed: 0.65, green: 0.55, blue: 0.98, alpha: 0.75)    // lavender
+    static let working = NSColor(srgbRed: 0.35, green: 0.66, blue: 1.00, alpha: 0.45) // quiet blue
+    static let waiting = NSColor(srgbRed: 1.00, green: 0.75, blue: 0.35, alpha: 0.95) // soft gold
+    static let limit = NSColor(srgbRed: 1.00, green: 0.62, blue: 0.10, alpha: 0.90)   // amber
+    static let track = NSColor(white: 0.5, alpha: 0.12)
+
+    static func focus(at t: Double) -> NSColor {
+        guard t > 0.8 else { return calm }
+        return calm.blended(withFraction: CGFloat((t - 0.8) / 0.2), of: warm) ?? warm
+    }
+}
+
+/// A transparent, click-through, borderless window covering one display.
+/// All motion runs as Core Animation animations in the render server, so the app
+/// itself only wakes on state changes and at the four corners of each lap.
+final class Overlay {
+    /// Debug override (`--fps N`): pin every continuous animation to N fps (0 = speed-based).
+    static var maxFPS: Float = 0
+    /// One clock for every repeating animation (sprite frames, sway, grip...). Re-adding an
+    /// animation with this begin time continues its cycle instead of restarting it, so a
+    /// state change never makes the traveler pop.
+    static let epoch = CACurrentMediaTime()
+
+    /// Frame rate for a motion whose fastest point moves `speed` points per second: just
+    /// enough that each rendered step moves at most one device pixel, capped by the display.
+    /// Slow travel stays cheap (about 8 fps at real speed); sways, gusts and demo speed get
+    /// up to the full refresh rate.
+    private func rate(_ speed: Double) -> Float {
+        if Self.maxFPS > 0 { return Self.maxFPS }
+        let fps = (speed * Double(screen.backingScaleFactor)).rounded(.up)
+        return Float(min(max(fps, 8), Double(max(screen.maximumFramesPerSecond, 60))))
+    }
+
+    private func tune<T: CAAnimation>(_ a: T, _ fps: Float) -> T {
+        if #available(macOS 12.0, *) {
+            a.preferredFrameRateRange = CAFrameRateRange(minimum: min(fps, 8), maximum: fps, preferred: fps)
+        }
+        return a
+    }
+
+    /// Sprite flips that land exactly on display refreshes: every frame lasts a whole number of
+    /// 1/60 s ticks (so 60 Hz and 120 Hz panels agree), and the layer composites at 60/g fps,
+    /// g = the largest of 4, 3, 2, 1 that divides the tick count. E.g. 5 fps -> 12 ticks at 15 fps;
+    /// 4 fps -> 15 ticks at 20 fps; 8 fps -> 8 ticks (7.5 fps) at 15 fps.
+    static func flipTiming(fps: Double) -> (frame: Double, rate: Float) {
+        let ticks = max(1, (60 / fps).rounded())
+        let g = [4.0, 3, 2, 1].first { ticks.truncatingRemainder(dividingBy: $0) == 0 } ?? 1
+        return (ticks / 60, Float(60 / g))
+    }
+
+    /// Makes a repeating animation continue its cycle from a fixed start (default: the shared
+    /// `epoch`) instead of restarting it whenever it is re-added.
+    private func phaseLocked<T: CAAnimation>(_ a: T, on layer: CALayer, since start: CFTimeInterval = Overlay.epoch) -> T {
+        a.beginTime = layer.convertTime(start, from: nil)
+        return a
+    }
+
+    private(set) var screen: NSScreen
+    let window: NSWindow
+    private let root = CALayer()
+    private let track = CAShapeLayer()
+    private let fill = CAShapeLayer()
+    private let agentRing = CAShapeLayer()
+    private let mover = CALayer()   // gross position along the edge
+    private let poser = CALayer()   // rotation onto the edge + sway / grip micro-motion
+    private let spriteLayer = CALayer()
+    private var edgeTimer: Timer?
+    private var lastEdge: Int?
+    private var lastAgent: AgentState = .idle
+    private var shown = false
+    var sceneProvider: (() -> Scene)?
+    var log: ((String) -> Void)?
+
+    init(screen: NSScreen, excludeFromCapture: Bool) {
+        self.screen = screen
+        window = NSWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
+        window.setFrame(screen.frame, display: false)
+        window.isOpaque = false
+        window.backgroundColor = .clear
+        window.hasShadow = false
+        window.ignoresMouseEvents = true
+        window.isReleasedWhenClosed = false
+        window.level = .statusBar
+        // No .fullScreenAuxiliary: the overlay never appears in another app's full-screen space.
+        window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        window.sharingType = excludeFromCapture ? .none : .readOnly
+
+        let view = NSView(frame: CGRect(origin: .zero, size: screen.frame.size))
+        view.layer = root
+        view.wantsLayer = true
+        window.contentView = view
+        root.frame = view.bounds
+        root.opacity = 0
+
+        for l in [track, fill, agentRing] {
+            l.fillColor = nil
+            l.lineCap = .butt
+            l.lineJoin = .miter
+            root.addSublayer(l)
+        }
+        agentRing.shadowOffset = .zero
+        agentRing.shadowRadius = 7
+        root.addSublayer(mover)
+        mover.addSublayer(poser)
+        poser.addSublayer(spriteLayer)
+        spriteLayer.magnificationFilter = .nearest
+        spriteLayer.minificationFilter = .nearest
+        spriteLayer.contentsGravity = .resize
+    }
+
+    func close() {
+        edgeTimer?.invalidate()
+        window.orderOut(nil)
+    }
+
+    /// The same display came back with new parameters (resolution, arrangement, a monitor
+    /// connected or disconnected elsewhere): resize in place, so nothing fades or restarts.
+    func move(to screen: NSScreen) {
+        self.screen = screen
+        window.setFrame(screen.frame, display: false)
+        window.contentView?.frame = CGRect(origin: .zero, size: screen.frame.size)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        root.frame = CGRect(origin: .zero, size: screen.frame.size)
+        CATransaction.commit()
+    }
+
+    // MARK: - apply
+
+    func apply(_ s: Scene) {
+        edgeTimer?.invalidate()
+        edgeTimer = nil
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+
+        setVisible(s.visible)
+        guard s.visible else { lastEdge = nil; return }
+
+        let size = root.bounds.size
+        let weights = s.style == .traveler ? Journey.physicalWeights : Journey.uniformWeights
+        let borderInset = s.thickness / 2
+        let borderJourney = Journey(size: size, inset: borderInset, weights: weights)
+        let path = Journey.borderPath(size: size, inset: borderInset)
+        for l in [track, fill, agentRing] {
+            l.frame = root.bounds
+            l.path = path
+            l.lineWidth = s.thickness
+        }
+
+        applyTimerBorder(s, borderJourney)
+        applyAgentRing(s)
+        applyTraveler(s, size: size, weights: weights)
+        lastAgent = s.agent
+    }
+
+    private func setVisible(_ v: Bool) {
+        guard v != shown else { return }
+        shown = v
+        if v { window.orderFrontRegardless() }
+        let a = CABasicAnimation(keyPath: "opacity")
+        a.fromValue = root.presentation()?.opacity ?? root.opacity
+        a.toValue = v ? 1 : 0
+        a.duration = 0.6
+        root.opacity = v ? 1 : 0
+        root.add(a, forKey: "fade")
+        if !v {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) { [weak self] in
+                guard let self, !self.shown else { return }
+                self.window.orderOut(nil)
+                // Hidden: leave nothing animating, so the render server has no work for us.
+                for l in [self.fill, self.agentRing, self.mover, self.poser, self.spriteLayer] { l.removeAllAnimations() }
+                self.clearEpisodes()
+            }
+        }
+    }
+
+    private func applyTimerBorder(_ s: Scene, _ j: Journey) {
+        fill.removeAllAnimations()
+        guard s.phase != .idle else {
+            track.isHidden = true
+            fill.isHidden = true
+            return
+        }
+        track.isHidden = false
+        fill.isHidden = false
+        track.strokeColor = Palette.track.cgColor
+        let t0 = min(max(s.elapsed / s.duration, 0), 1)
+        let remaining = max(s.duration - s.elapsed, 0.01)
+
+        if s.phase == .rest {   // break: the trail drains away in lavender
+            fill.strokeColor = Palette.rest.cgColor
+            fill.strokeEnd = s.paused ? CGFloat(1 - t0) : 0
+            if !s.paused {
+                let a = CABasicAnimation(keyPath: "strokeEnd")
+                a.fromValue = 1 - t0
+                a.toValue = 0
+                a.duration = remaining
+                let len = Double(2 * (root.bounds.width + root.bounds.height))
+                fill.add(tune(a, rate(len / remaining)), forKey: "drain")
+            }
+            return
+        }
+
+        fill.strokeColor = Palette.focus(at: t0).cgColor
+        fill.strokeEnd = CGFloat(j.lengthFraction(t0))
+        guard !s.paused else { return }
+        // Trail end follows the same per-edge time mapping as the traveler.
+        let zip = s.style == .traveler && s.ceilingAnim == "zip"
+        let route = routeSamples(j, from: t0, zip: zip, profiled: s.style == .traveler)
+        let a = CAKeyframeAnimation(keyPath: "strokeEnd")
+        a.keyTimes = route.map { NSNumber(value: $0.time) }
+        a.values = route.map { j.lengthMarks[$0.edge] + (j.lengthMarks[$0.edge + 1] - j.lengthMarks[$0.edge]) * $0.u }
+        a.calculationMode = .linear
+        a.duration = remaining
+        a.fillMode = .forwards
+        a.isRemovedOnCompletion = false
+        fill.strokeEnd = 1
+        // Rate from the fastest the trail end moves on the current edge (it is rebuilt at corners).
+        let k0 = route[0].edge
+        let edgeSeconds = max((j.timeMarks[k0 + 1] - j.timeMarks[k0]) * s.duration, 0.01)
+        let tip = Double(j.edges[k0].length) / edgeSeconds * (s.style == .traveler ? profilePeak(j.edges[k0].kind, zip: zip) : 1)
+        fill.add(tune(a, rate(tip)), forKey: "progress")
+
+        let samples = 8
+        let c = CAKeyframeAnimation(keyPath: "strokeColor")
+        c.values = (0...samples).map { Palette.focus(at: t0 + (1 - t0) * Double($0) / Double(samples)).cgColor }
+        c.duration = remaining
+        c.fillMode = .forwards
+        c.isRemovedOnCompletion = false
+        fill.strokeColor = Palette.warm.cgColor
+        fill.add(tune(c, 4), forKey: "color")   // a slow colour drift needs only a few steps a second
+    }
+
+    private func applyAgentRing(_ s: Scene) {
+        let color: NSColor?
+        switch s.agent {
+        case .idle: color = nil
+        case .working: color = s.phase == .idle ? Palette.working : nil   // stay quiet during a focus timer
+        case .waiting: color = Palette.waiting
+        case .limit: color = Palette.limit
+        }
+        guard let color else {
+            agentRing.isHidden = true
+            agentRing.removeAllAnimations()
+            return
+        }
+        agentRing.isHidden = false
+        agentRing.strokeColor = color.cgColor
+        agentRing.shadowColor = color.cgColor
+        agentRing.lineWidth = s.thickness + (s.agent == .waiting ? 1 : 0)
+        agentRing.shadowOpacity = s.agent == .waiting ? 0.9 : 0
+        agentRing.opacity = s.agent == .waiting ? 0.8 : 1
+        if s.agent == .waiting && lastAgent != .waiting {
+            // One soft swell, then steady. Never blinks.
+            let p = CAKeyframeAnimation(keyPath: "opacity")
+            p.values = [0, 1, 0.8]
+            p.keyTimes = [0, 0.45, 1]
+            p.duration = 1.8
+            agentRing.add(p, forKey: "pulse")
+        }
+    }
+
+    // MARK: - traveler
+
+    private func applyTraveler(_ s: Scene, size: CGSize, weights: [EdgeKind: Double]) {
+        // Only the animations rebuilt below; a turn, a landing squash or an episode gust/spin
+        // that is still playing finishes untouched.
+        mover.removeAnimation(forKey: "go")
+        for key in ["grip", "gust", "rattle"] { poser.removeAnimation(forKey: key) }
+        spriteLayer.removeAnimation(forKey: "frames")
+        let moving: Bool
+        let t: Double
+        let total: TimeInterval
+        switch s.phase {
+        case .focus:
+            t = s.elapsed / s.duration; total = s.duration; moving = !s.paused && t < 0.999
+        case .rest:   // home again: asleep on the floor at the start corner
+            t = 0; total = s.duration; moving = false
+        case .idle:
+            t = s.lapElapsed / s.lapDuration; total = s.lapDuration
+            moving = s.agent == .working
+        }
+        let travelerVisible = s.style == .traveler && s.hostsTraveler && s.sprite != nil
+            && (s.phase != .idle || s.agent != .idle)
+        mover.isHidden = !travelerVisible
+        guard travelerVisible, let sprite = s.sprite else { lastEdge = nil; return }
+
+        let pt = sprite.unitPoints(backing: screen.backingScaleFactor)
+        spriteLayer.magnificationFilter = sprite.pixelated ? .nearest : .linear
+        spriteLayer.minificationFilter = sprite.pixelated ? .nearest : .trilinear
+        spriteLayer.contentsScale = screen.backingScaleFactor
+        let sw = CGFloat(sprite.width) * pt, sh = CGFloat(sprite.height) * pt
+        spriteLayer.bounds = CGRect(x: 0, y: 0, width: sw, height: sh)
+        spriteLayer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        spriteLayer.position = .zero
+        spriteLayer.removeAnimation(forKey: "sway")
+        spriteLayer.transform = CATransform3DIdentity
+
+        let j = Journey(size: size, inset: sh / 2, weights: weights)
+        let (k, local) = j.locate(t)
+        let edge = j.edges[k]
+        let prof = edgeProfile(edge.kind, zip: s.ceilingAnim == "zip")
+        mover.position = edge.point(prof(local))
+        poser.setAffineTransform(CGAffineTransform(rotationAngle: edge.angle))
+
+        // Pick frames: waiting agent -> wave; break -> sleep; paused/limit -> idle; else per edge.
+        func pick(_ names: String...) -> String { names.first { sprite.anims[$0] != nil } ?? "walk" }
+        let animName: String
+        if s.agent == .waiting { animName = pick("sirens", "wave") }          // the agent is calling you
+        else if s.phase == .rest { animName = s.restIsLong ? pick("rest", "sleep") : pick("ithaca", "rest", "sleep") }
+        else if s.agent == .limit && !moving { animName = pick("storm", "idle") } // near the usage limit
+        else if !moving { animName = pick("idle") }
+        else if let o = s.overrideAnim, edge.kind == .floor, sprite.anims[o] != nil { animName = o }
+        else if s.dozing { animName = pick("doze", "walk") }
+        else {
+            switch edge.kind {
+            case .floor: animName = "walk"
+            case .ceiling: animName = pick(s.ceilingAnim, "cling", "walk")
+            case .climb: animName = pick(s.climbAnim, "climb", "walk")
+            case .slide: animName = "slide"
+            }
+        }
+        playFrames(sprite.anims[animName] ?? sprite.anims["walk"]!, slow: edge.kind == .ceiling && moving ? 1.6 : 1)
+
+        // Corner transition: a quick turn (and a squash when landing from the slide).
+        if let prev = lastEdge, prev != k, moving || s.phase == .rest {
+            let prevAngle = j.edges[prev].angle
+            var target = edge.angle
+            while target < prevAngle { target += 2 * .pi }
+            let turn = CABasicAnimation(keyPath: "transform.rotation.z")
+            turn.fromValue = prevAngle
+            turn.toValue = target
+            turn.duration = 0.35
+            turn.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            poser.add(turn, forKey: "turn")
+            if j.edges[prev].kind == .slide {
+                let squash = CAKeyframeAnimation(keyPath: "transform.scale.y")
+                squash.values = [0.6, 1.15, 0.95, 1]
+                squash.keyTimes = [0, 0.35, 0.7, 1]
+                squash.duration = 0.45
+                spriteLayer.add(squash, forKey: "land")
+            }
+        }
+        lastEdge = k
+        let o = screen.frame.origin
+        log?(String(format: "traveler edge=%d anim=%@ moving=%d from=%.0f,%.0f to=%.0f,%.0f dur=%.2f screenOrigin=%.0f,%.0f",
+                    k, animName, moving ? 1 : 0, mover.position.x, mover.position.y, edge.end.x, edge.end.y,
+                    moving ? (j.timeMarks[k + 1] - t) * total : 0, o.x, o.y))
+        guard moving else { return }
+
+        // Gross motion over the rest of the route, timed exactly by the journey mapping. It runs
+        // through the corners on its own; the corner timer below only changes the pose.
+        let zip = s.ceilingAnim == "zip"
+        let edgeEndT = j.timeMarks[k + 1]
+        let edgeRemaining = max((edgeEndT - t) * total, 0.01)
+        let route = routeSamples(j, from: t, zip: zip, profiled: true)
+        let go = CAKeyframeAnimation(keyPath: "position")
+        go.keyTimes = route.map { NSNumber(value: $0.time) }
+        go.values = route.map { NSValue(point: j.edges[$0.edge].point($0.u)) }
+        go.duration = max((1 - t) * total, 0.01)
+        go.fillMode = .forwards
+        go.isRemovedOnCompletion = false
+        go.calculationMode = .linear
+        mover.position = j.edges.last!.end
+        let speed = Double(edge.length) / max((j.timeMarks[k + 1] - j.timeMarks[k]) * total, 0.01)
+        mover.add(tune(go, rate(speed * profilePeak(edge.kind, zip: zip))), forKey: "go")
+
+        // Micro-motion cycles count from the moment he reached this edge: zero offset at the
+        // corner, and the same phase however often the scene is re-applied.
+        let edgeStart = CACurrentMediaTime() - (t - j.timeMarks[k]) * total
+        addMicroMotion(edge.kind, speed: speed, zip: zip, spriteHeight: sh, since: edgeStart)
+
+        edgeTimer = Timer.scheduledTimer(withTimeInterval: edgeRemaining + 0.02, repeats: false) { [weak self] _ in
+            guard let self, let scene = self.sceneProvider?() else { return }
+            self.apply(scene)
+        }
+        edgeTimer?.tolerance = 0.05
+    }
+
+    // MARK: - episodes
+
+    private var props: [CALayer] = []
+
+    func clearEpisodes() {
+        props.forEach { $0.removeFromSuperlayer() }
+        props.removeAll()
+    }
+
+    /// Plays a short encounter around the traveler. Purely decorative: no input, no effect
+    /// on where the traveler is at any time (gusts and spins net to zero displacement).
+    func play(_ ep: Episode, sprite: SpriteSheet, seconds: TimeInterval) {
+        guard shown, !mover.isHidden else { return }
+        let pt = sprite.unitPoints(backing: screen.backingScaleFactor)
+        let size = CGSize(width: CGFloat(sprite.width) * pt, height: CGFloat(sprite.height) * pt)
+        let here = mover.presentation()?.position ?? mover.position
+        let angle = (poser.presentation()?.value(forKeyPath: "transform.rotation.z") as? CGFloat) ?? 0
+
+        func prop(_ anim: String, in parent: CALayer, at p: CGPoint, rotation: CGFloat = 0, once: Bool, life: TimeInterval) {
+            guard let a = sprite.anims[anim] else { return }
+            let l = CALayer()
+            l.bounds = CGRect(origin: .zero, size: size)
+            l.position = p
+            l.contentsGravity = .resize
+            l.contentsScale = screen.backingScaleFactor
+            l.magnificationFilter = sprite.pixelated ? .nearest : .linear
+            l.contents = a.frames.last
+            l.setAffineTransform(CGAffineTransform(rotationAngle: rotation))
+            let flip = Self.flipTiming(fps: a.fps)
+            let f = CAKeyframeAnimation(keyPath: "contents")
+            f.values = a.frames
+            f.calculationMode = .discrete
+            f.duration = flip.frame * Double(a.frames.count)
+            f.repeatCount = once ? 1 : .infinity
+            l.add(tune(f, flip.rate), forKey: "frames")
+            let fade = CAKeyframeAnimation(keyPath: "opacity")
+            fade.values = [0, 1, 1, 0]
+            fade.keyTimes = [0, NSNumber(value: min(0.4 / life, 0.2)), NSNumber(value: 1 - min(0.5 / life, 0.2)), 1]
+            fade.duration = life
+            l.opacity = 0
+            l.add(tune(fade, 30), forKey: "fade")   // can last minutes (the owl): keep it cheap
+            parent.addSublayer(l)
+            props.append(l)
+            DispatchQueue.main.asyncAfter(deadline: .now() + life) { [weak self, weak l] in
+                l?.removeFromSuperlayer()
+                self?.props.removeAll { $0 === l }
+            }
+        }
+
+        switch ep {
+        case .cyclops:   // stationary in the world, ahead of the boat on the floor
+            let ahead = CGPoint(x: here.x + cos(angle) * 110, y: here.y + sin(angle) * 110)
+            prop("ep-cyclops", in: root, at: ahead, rotation: angle, once: true, life: max(seconds, 3))
+        case .circe:     // piglets trot behind him
+            prop("ep-piglets", in: poser, at: CGPoint(x: -size.width * 0.95, y: 0), once: false, life: seconds)
+        case .aeolus:    // the bag bursts behind him and the gust shoves him along, then eases back
+            prop("ep-bag", in: poser, at: CGPoint(x: -size.width * 0.7, y: 0), once: true, life: 2.2)
+            let d = CGPoint(x: cos(angle), y: sin(angle))
+            let g = CAKeyframeAnimation(keyPath: "position")
+            g.isAdditive = true
+            g.values = [0, 70, 55, 25, 0].map { NSValue(point: CGPoint(x: d.x * $0, y: d.y * $0)) }
+            g.keyTimes = [0, 0.12, 0.35, 0.7, 1]
+            g.duration = 4
+            // On the poser, not the mover: the mover's route animation is rebuilt on every
+            // re-apply and, added later, would override an additive gust on the same layer.
+            poser.add(tune(g, rate(70 / (0.12 * 4))), forKey: "gust-\(Date().timeIntervalSince1970)")
+        case .whirlpool: // Charybdis spins him round the corner
+            prop("ep-whirl", in: poser, at: .zero, once: false, life: 1.8)
+            let spin = CABasicAnimation(keyPath: "transform.rotation.z")
+            spin.isAdditive = true
+            spin.fromValue = 0
+            spin.toValue = 4 * Double.pi
+            spin.duration = 1.6
+            spin.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            spriteLayer.add(spin, forKey: "spin")
+        case .owl:       // Athena's owl flies just ahead until the end of the session
+            prop("ep-owl", in: poser, at: CGPoint(x: size.width * 0.9, y: size.height * 0.45), once: false, life: seconds)
+        default:
+            break
+        }
+    }
+
+    private func playFrames(_ a: SpriteAnim, slow: Double) {
+        spriteLayer.contents = a.frames[0]
+        guard a.frames.count > 1 else { return }
+        let flip = Self.flipTiming(fps: a.fps / slow)
+        let f = CAKeyframeAnimation(keyPath: "contents")
+        f.values = a.frames
+        f.calculationMode = .discrete
+        f.duration = flip.frame * Double(a.frames.count)
+        f.repeatCount = .infinity
+        spriteLayer.add(tune(phaseLocked(f, on: spriteLayer), flip.rate), forKey: "frames")
+    }
+
+    /// Edge-specific motion layered on top of the exact gross motion. Each cycle nets to
+    /// zero displacement, so it never changes where the traveler is at a given time.
+    private func addMicroMotion(_ kind: EdgeKind, speed: Double, zip: Bool, spriteHeight sh: CGFloat, since start: CFTimeInterval) {
+        spriteLayer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+        switch kind {
+        case .climb:
+            // Grip-and-pull steps of ~8 pt, with a small slip back every fourth step.
+            let step = 8.0
+            let p = min(max(step / max(speed, 0.001), 0.25), 5)
+            let actual: [(Double, Double)] = [(0, 0), (0.55, 0), (1, 1), (1.55, 1), (2, 2), (2.55, 2),
+                                             (3, 3.5), (3.15, 2.85), (3.55, 2.85), (4, 4)]
+            let a = CAKeyframeAnimation(keyPath: "position.y")
+            a.isAdditive = true
+            a.keyTimes = actual.map { NSNumber(value: $0.0 / 4) }
+            a.values = actual.map { ($0.1 - $0.0) * step }
+            a.duration = 4 * p
+            a.repeatCount = .infinity
+            // fastest moment: the slip back (0.65 step in 0.15 of a step period) on top of travel
+            poser.add(tune(phaseLocked(a, on: poser, since: start), rate(0.65 * step / (0.15 * p) + speed)), forKey: "grip")
+        case .ceiling:
+            // Hanging from the top edge: swing like a pendulum about the hands (the edge side).
+            spriteLayer.anchorPoint = CGPoint(x: 0.5, y: 0)
+            spriteLayer.position = CGPoint(x: 0, y: -sh / 2)
+            let sway = CAKeyframeAnimation(keyPath: "transform.rotation.z")
+            sway.isAdditive = true
+            sway.values = zip ? [0, 0.22, 0, -0.16, 0] : [0, 0.1, 0, -0.08, 0]
+            sway.duration = zip ? 1.6 : 2.6
+            sway.repeatCount = .infinity
+            sway.timingFunctions = Array(repeating: CAMediaTimingFunction(name: .easeInEaseOut), count: 4)
+            // feet swing on a radius of one sprite height; ease-in-out peaks at ~1.6x the average
+            let peak = 1.6 * (zip ? 0.22 : 0.1) * Double(sh) / (sway.duration / 4)
+            spriteLayer.add(tune(phaseLocked(sway, on: spriteLayer, since: start), rate(peak)), forKey: "sway")
+            if !zip {
+                let gust = CAKeyframeAnimation(keyPath: "position.x")
+                gust.isAdditive = true
+                gust.values = [0, -7, 0, 5, 0]
+                gust.duration = 3.4
+                gust.repeatCount = .infinity
+                poser.add(tune(phaseLocked(gust, on: poser, since: start), rate(7 / (3.4 / 4) + speed)), forKey: "gust")
+            }
+        case .slide:
+            let jitter = CAKeyframeAnimation(keyPath: "position.x")
+            jitter.isAdditive = true
+            jitter.values = [0, 0.8, 0, -0.8, 0]
+            jitter.duration = 0.3
+            jitter.repeatCount = .infinity
+            poser.add(tune(phaseLocked(jitter, on: poser, since: start), rate(0.8 / (0.3 / 4))), forKey: "rattle")
+        case .floor:
+            break
+        }
+    }
+}

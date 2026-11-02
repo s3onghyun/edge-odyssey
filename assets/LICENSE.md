@@ -1,0 +1,24 @@
+# Edgeling character assets - license
+
+Copyright (c) 2026 Seonghyun (Joshua) Hong. All rights reserved.
+
+This license covers everything under `assets/`: the character sheets, sprite files
+(`*.sprite`), SVG frames, previews, and any future sounds or character packs.
+The app's source code is MIT-licensed separately (see `../LICENSE`).
+
+You may:
+- use these assets as part of an unmodified build of this repository, for your own
+  personal use;
+- show them in screenshots, videos and reviews of the app.
+
+You may not, without written permission:
+- redistribute the assets, or modified versions of them, outside this repository,
+  including in forks that are published or sold, other apps, themes or packs;
+- create and distribute derivative characters or character packs based on them;
+- use the characters, names or likenesses as a logo or brand for another product.
+
+Forks of the MIT-licensed code are welcome: replace the contents of `assets/` with
+your own art (the sprite format is documented in the README).
+
+The underlying story elements (Homer's Odyssey and other classical myths) are in the
+public domain; this license covers only these specific drawings and animations.
