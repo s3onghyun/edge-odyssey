@@ -18,11 +18,19 @@ enum Episode: String, CaseIterable {
         }
     }
 
+    /// Short names for all 24 books. Only the ones an episode belongs to can be found so far.
     static let bookTitles: [Int: String] = [
-        1: "Athena's owl", 5: "Calypso and Poseidon's storm", 9: "The Lotus-eaters and the Cyclops",
-        10: "Aeolus' winds and Circe", 12: "The Sirens, Scylla and Charybdis", 13: "Home to Ithaca",
-        17: "Old Argos",
+        1: "Athena's owl", 2: "Telemachus speaks", 3: "Nestor at Pylos", 4: "Menelaus and Helen",
+        5: "Calypso and Poseidon's storm", 6: "Nausicaa", 7: "The Phaeacian court", 8: "Songs of Demodocus",
+        9: "The Lotus-eaters and the Cyclops", 10: "Aeolus' winds and Circe", 11: "The land of the dead",
+        12: "The Sirens, Scylla and Charybdis", 13: "Home to Ithaca", 14: "The swineherd Eumaeus",
+        15: "Telemachus sails home", 16: "Father and son", 17: "Old Argos", 18: "The beggars' fight",
+        19: "Penelope and the scar", 20: "Omens", 21: "The bow", 22: "The suitors fall",
+        23: "The olive-tree bed", 24: "Peace",
     ]
+
+    /// Books that some encounter can unlock today.
+    static let findableBooks = Set(allCases.flatMap(\.books))
 }
 
 /// Deterministic per-session randomness, so a session's encounters can be reproduced.

@@ -24,6 +24,8 @@ final class SpriteSheet {
     private(set) var pixelated = true
     /// Device pixels per sprite pixel for pixel art (header `pixel: N`, default 3).
     private(set) var devicePixels = 3
+    /// Folder of a vector character (its SVG frames can be drawn at any size), else nil.
+    private(set) var folder: URL?
 
     /// Size of one sprite unit in points on a display with this backing scale.
     func unitPoints(backing: CGFloat) -> CGFloat {
@@ -39,6 +41,7 @@ final class SpriteSheet {
 
     init(vectorFolder url: URL) throws {
         id = url.lastPathComponent
+        folder = url
         pixelated = false
         let text = try String(contentsOf: url.appendingPathComponent("character.txt"), encoding: .utf8)
         // Rasterise at the sharpest display's backing scale: 1 pt per unit maps 1:1 to pixels.

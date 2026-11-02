@@ -476,6 +476,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case "show": manualHidden = false; refresh()
         case "display": o.display = arg; remember("display", arg); refresh(); planEpisodes()
         case "lotus": lotus = arg == "on"; if lotus { logbook.record(.lotus) }; refresh()
+        case "logbook": showLogbook()
         case "episode": if let e = Episode(rawValue: arg) { fire(e) }
         case "login": setLoginItem(arg == "on")
         case "quit": NSApp.terminate(nil)
@@ -620,7 +621,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: windows
 
-    func showLogbook() {}
+    let logbookWindow = PanelWindow()
+
+    func showLogbook() {
+        logbookWindow.show(title: "Logbook", LogbookView(found: logbook.found, character: sprites["odysseus-vector"]?.folder))
+    }
     func showWelcome() {}
 
     // MARK: demo backdrop (keeps private screen content out of recordings)
