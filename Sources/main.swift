@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 
 // Edge Odyssey - a thin, click-through screen-edge timer and agent signal.
 
@@ -73,6 +74,14 @@ struct Options {
         if let env = ProcessInfo.processInfo.environment["EDGE_ODYSSEY_STATE_DIR"], !env.isEmpty {
             stateDir = URL(fileURLWithPath: env)
         }
+    }
+}
+
+/// Launch at login through SMAppService (macOS 13+). Never registered unless the user asks.
+enum LoginItem {
+    static var isOn: Bool { SMAppService.mainApp.status == .enabled }
+    static func set(_ on: Bool) throws {
+        if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
     }
 }
 
@@ -468,6 +477,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case "display": o.display = arg; remember("display", arg); refresh(); planEpisodes()
         case "lotus": lotus = arg == "on"; if lotus { logbook.record(.lotus) }; refresh()
         case "episode": if let e = Episode(rawValue: arg) { fire(e) }
+        case "login": setLoginItem(arg == "on")
         case "quit": NSApp.terminate(nil)
         default: log("unknown ctl \(cmd)")
         }
@@ -517,34 +527,34 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         menu.addItem(.separator())
 
-        let styleMenu = NSMenu()
-        styleMenu.addItem(MenuAction("Thin border", checked: o.style == .border) { [weak self] in self?.control("style:border") })
-        styleMenu.addItem(MenuAction("Border with traveler", checked: o.style == .traveler) { [weak self] in self?.control("style:traveler") })
-        styleMenu.addItem(.separator())
-        for id in sprites.keys.sorted() {
-            styleMenu.addItem(MenuAction(sprites[id]!.name, checked: o.character == id) { [weak self] in self?.control("char:\(id)") })
+        func submenu(_ title: String, _ items: [NSMenuItem]) -> NSMenuItem {
+            let m = NSMenu()
+            items.forEach(m.addItem)
+            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            item.submenu = m
+            return item
         }
-        styleMenu.addItem(.separator())
-        for t in [2, 3, 4] {
-            styleMenu.addItem(MenuAction("\(t) px border", checked: Int(o.thickness) == t) { [weak self] in self?.control("thickness:\(t)") })
-        }
-        let styleItem = NSMenuItem(title: "Look", action: nil, keyEquivalent: "")
-        styleItem.submenu = styleMenu
-        menu.addItem(styleItem)
-        let showOn = NSMenu()
-        showOn.addItem(MenuAction("Main display", checked: o.display == "main") { [weak self] in self?.control("display:main") })
-        showOn.addItem(MenuAction("All displays (traveler follows you)", checked: o.display == "all") { [weak self] in self?.control("display:all") })
-        showOn.addItem(MenuAction("Follow me (display I'm working on)", checked: o.display == "follow") { [weak self] in self?.control("display:follow") })
-        showOn.addItem(.separator())
+        menu.addItem(submenu("Mode", [
+            MenuAction("Odysseus voyage (border + traveler)", checked: o.style == .traveler) { [weak self] in self?.control("style:traveler") },
+            MenuAction("Thin border only", checked: o.style == .border) { [weak self] in self?.control("style:border") },
+        ]))
+        var displays: [NSMenuItem] = [
+            MenuAction("Main display", checked: o.display == "main") { [weak self] in self?.control("display:main") },
+            MenuAction("All displays (Odysseus follows you)", checked: o.display == "all") { [weak self] in self?.control("display:all") },
+            MenuAction("Follow me (the display I'm working on)", checked: o.display == "follow") { [weak self] in self?.control("display:follow") },
+            .separator(),
+        ]
         for (i, scr) in NSScreen.screens.enumerated() {
             let size = "\(Int(scr.frame.width))x\(Int(scr.frame.height))\(scr.backingScaleFactor > 1 ? " Retina" : "")"
-            showOn.addItem(MenuAction("\(scr.localizedName) (\(size))", checked: o.display == String(i)) { [weak self] in
-                self?.control("display:\(i)")
+            let name = scr.localizedName   // saved by name: indices shift when displays come and go
+            displays.append(MenuAction("\(name) (\(size))", checked: o.display == name || o.display == String(i)) { [weak self] in
+                self?.control("display:\(name)")
             })
         }
-        let showItem = NSMenuItem(title: "Show on", action: nil, keyEquivalent: "")
-        showItem.submenu = showOn
-        menu.addItem(showItem)
+        menu.addItem(submenu("Show on", displays))
+        menu.addItem(submenu("Border", [2, 3, 4].map { t in
+            MenuAction("\(t) px\(t == 2 ? " (thinnest)" : "")", checked: Int(o.thickness) == t) { [weak self] in self?.control("thickness:\(t)") }
+        }))
         menu.addItem(MenuAction("Only show in the last 5 minutes", checked: o.onlyLast5) { [weak self] in
             guard let self else { return }
             self.control(self.o.onlyLast5 ? "last5:off" : "last5:on")
@@ -560,36 +570,58 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let ai = NSMenuItem(title: agentTitle, action: nil, keyEquivalent: "")
         ai.isEnabled = false
         menu.addItem(ai)
-        menu.addItem(MenuAction("Show Claude Code signals", checked: o.agentEnabled) { [weak self] in
-            guard let self else { return }
-            self.control(self.o.agentEnabled ? "agent:off" : "agent:on")
-        })
-        menu.addItem(MenuAction("Doze while a game, video or social app is in front", checked: o.lotusEnabled) { [weak self] in
-            guard let self else { return }
-            self.control(self.o.lotusEnabled ? "lotus-enabled:off" : "lotus-enabled:on")
-        })
-        menu.addItem(MenuAction("Hide while the screen is shared or recorded", checked: o.hideWhenCaptured) { [weak self] in
-            guard let self else { return }
-            self.control(self.o.hideWhenCaptured ? "share-hide:off" : "share-hide:on")
-        })
+        menu.addItem(.separator())
+        menu.addItem(MenuAction("Logbook (\(logbook.found.count) of 24 books)…", key: "l") { [weak self] in self?.showLogbook() })
+        menu.addItem(submenu("Settings", [
+            MenuAction("Show Claude Code signals", checked: o.agentEnabled) { [weak self] in
+                guard let self else { return }
+                self.control(self.o.agentEnabled ? "agent:off" : "agent:on")
+            },
+            MenuAction("Doze while a game, video or social app is in front", checked: o.lotusEnabled) { [weak self] in
+                guard let self else { return }
+                self.control(self.o.lotusEnabled ? "lotus-enabled:off" : "lotus-enabled:on")
+            },
+            MenuAction("Hide while the screen is shared or recorded", checked: o.hideWhenCaptured) { [weak self] in
+                guard let self else { return }
+                self.control(self.o.hideWhenCaptured ? "share-hide:off" : "share-hide:on")
+            },
+            .separator(),
+            MenuAction("Launch at login", checked: LoginItem.isOn) { [weak self] in self?.toggleLoginItem() },
+            MenuAction("Welcome guide…") { [weak self] in self?.showWelcome() },
+        ]))
         let hide = MenuAction(manualHidden ? "Show again" : "Hide now") { [weak self] in self?.toggleHidden() }
         hide.keyEquivalent = "h"
         hide.keyEquivalentModifierMask = [.control, .option, .command]
         menu.addItem(hide)
         menu.addItem(.separator())
-        let book = NSMenu()
-        for b in 1...24 {
-            let title = logbook.found[b] != nil ? "Book \(b): \(Episode.bookTitles[b] ?? "found")" : "Book \(b): not yet found"
-            let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-            item.isEnabled = logbook.found[b] != nil
-            book.addItem(item)
-        }
-        let bookItem = NSMenuItem(title: "Logbook: \(logbook.found.count) of 24 books", action: nil, keyEquivalent: "")
-        bookItem.submenu = book
-        menu.addItem(bookItem)
-        menu.addItem(.separator())
         menu.addItem(MenuAction("Quit Edge Odyssey", key: "q") { NSApp.terminate(nil) })
     }
+
+    // MARK: login item (off unless the user turns it on)
+
+    func toggleLoginItem() { setLoginItem(!LoginItem.isOn) }
+
+    func setLoginItem(_ on: Bool) {
+        do {
+            try LoginItem.set(on)
+            log("login item: \(SMAppService.mainApp.status.rawValue)")
+            if SMAppService.mainApp.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }
+        } catch {
+            log("login item: \(error)")
+            let alert = NSAlert()
+            alert.messageText = "Couldn't change Launch at login"
+            alert.informativeText = "\(error.localizedDescription)\n\nYou can add Edge Odyssey in System Settings > General > Login Items."
+            alert.addButton(withTitle: "Open Login Items")
+            alert.addButton(withTitle: "Cancel")
+            NSApp.activate(ignoringOtherApps: true)
+            if alert.runModal() == .alertFirstButtonReturn { SMAppService.openSystemSettingsLoginItems() }
+        }
+    }
+
+    // MARK: windows
+
+    func showLogbook() {}
+    func showWelcome() {}
 
     // MARK: demo backdrop (keeps private screen content out of recordings)
 
