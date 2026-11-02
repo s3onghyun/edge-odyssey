@@ -23,4 +23,4 @@ SOFTWARE.
 ---
 The MIT license above covers the source code (Sources/, tools/, hooks/, build.sh).
 It does NOT cover the character art, sprites and other files under assets/,
-which have their own license: see assets/LICENSE.md.
+which have their own license: see assets/LICENSE.

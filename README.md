@@ -55,7 +55,7 @@ folder (no polling). Nothing leaves your Mac.
 | `Sources/` | MIT | the app (AppKit + Core Animation, ~1,500 lines) |
 | `hooks/` | MIT | Claude Code hook and status-line scripts, settings snippet |
 | `tools/` | MIT | art generators (`make_odysseus.py`), sheet builder, `svg2png.swift` |
-| `assets/` | All rights reserved, see `assets/LICENSE.md` | characters, sketches, previews |
+| `assets/` | All rights reserved, see `assets/LICENSE` | characters, sketches, previews |
 
 ## Character format
 

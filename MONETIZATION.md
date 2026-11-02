@@ -10,7 +10,7 @@
 Notes
 - Keep the free build fully useful (timer, agent signals, hiding). Charge for convenience
   and delight, not for removing nags.
-- Art stays outside the MIT license (`assets/LICENSE.md`) so packs can be sold while the code
+- Art stays outside the MIT license (`assets/LICENSE`) so packs can be sold while the code
   stays open. Premium packs live outside the public repo.
 - Mac App Store needs sandboxing: the hook files would have to move into an App Group or a
   user-granted folder, and window names for capture detection may be limited. Selling

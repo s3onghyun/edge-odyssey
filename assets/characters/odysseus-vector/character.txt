@@ -1,4 +1,4 @@
-# Edgeling vector character v1 - Odysseus, clean vector variant (SVG frames).
+# Edge Odyssey vector character v1 - Odysseus, clean vector variant (SVG frames).
 name: Odysseus (vector)
 size: 32x26
 anim: walk fps=5 frames=walk-0.svg,walk-1.svg,walk-2.svg,walk-3.svg

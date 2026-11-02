@@ -1,12 +1,12 @@
 import AppKit
 
-// Edgeling (working name) - a thin, click-through screen-edge timer and agent signal.
+// Edge Odyssey - a thin, click-through screen-edge timer and agent signal.
 
 struct Options {
     var speed = 1.0                 // demo: 60 makes a 25-minute focus last 25 seconds
     var focusMinutes = 25.0
     var restMinutes = 5.0
-    var stateDir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".edgeling")
+    var stateDir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".edge-odyssey")
     var style = Style.traveler
     var character = "odysseus-vector"
     var thickness: CGFloat = 3
@@ -56,13 +56,13 @@ struct Options {
             default: break
             }
         }
-        if let env = ProcessInfo.processInfo.environment["EDGELING_STATE_DIR"], !env.isEmpty {
+        if let env = ProcessInfo.processInfo.environment["EDGE_ODYSSEY_STATE_DIR"], !env.isEmpty {
             stateDir = URL(fileURLWithPath: env)
         }
     }
 }
 
-let ctlNotification = Notification.Name("dev.edgeling.proto.ctl")
+let ctlNotification = Notification.Name("dev.edgeodyssey.ctl")
 
 final class MenuAction: NSMenuItem {
     private var handler: (() -> Void)?
@@ -456,7 +456,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func buildStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "circle.dashed", accessibilityDescription: "Edgeling")
+        statusItem.button?.image = NSImage(systemSymbolName: "circle.dashed", accessibilityDescription: "Edge Odyssey")
         statusItem.button?.imagePosition = .imageLeading
         let menu = NSMenu()
         menu.delegate = self
@@ -467,11 +467,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let b = statusItem?.button else { return }
         if phase == .idle {
             b.title = ""
-            b.image = NSImage(systemSymbolName: agentState == .waiting ? "circle.circle.fill" : "circle.dashed", accessibilityDescription: "Edgeling")
+            b.image = NSImage(systemSymbolName: agentState == .waiting ? "circle.circle.fill" : "circle.dashed", accessibilityDescription: "Edge Odyssey")
             return
         }
         let r = remaining * o.speed   // show nominal minutes in demo speed too
-        b.image = NSImage(systemSymbolName: phase == .rest ? "cup.and.saucer" : "circle.dashed.inset.filled", accessibilityDescription: "Edgeling")
+        b.image = NSImage(systemSymbolName: phase == .rest ? "cup.and.saucer" : "circle.dashed.inset.filled", accessibilityDescription: "Edge Odyssey")
         b.title = pausedAt != nil ? " paused" : r >= 60 ? " \(Int((r / 60).rounded(.up)))m" : " \(Int(r))s"
     }
 
@@ -568,7 +568,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         bookItem.submenu = book
         menu.addItem(bookItem)
         menu.addItem(.separator())
-        menu.addItem(MenuAction("Quit Edgeling", key: "q") { NSApp.terminate(nil) })
+        menu.addItem(MenuAction("Quit Edge Odyssey", key: "q") { NSApp.terminate(nil) })
     }
 
     // MARK: demo backdrop (keeps private screen content out of recordings)
@@ -609,7 +609,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         mockWindow(CGRect(x: size.width * 0.08, y: size.height * 0.18, width: size.width * 0.5, height: size.height * 0.62), dark: true)
         mockWindow(CGRect(x: size.width * 0.52, y: size.height * 0.28, width: size.width * 0.38, height: size.height * 0.5), dark: false)
         let label = CATextLayer()
-        label.string = "Edgeling prototype - demo backdrop (timer at \(Int(o.speed))x speed)"
+        label.string = "Edge Odyssey - demo backdrop (timer at \(Int(o.speed))x speed)"
         label.fontSize = 15
         label.foregroundColor = NSColor(white: 0.25, alpha: 1).cgColor
         label.contentsScale = scr.backingScaleFactor

@@ -370,7 +370,7 @@ def make_pebble():
 def write_sprite(ch, folder="characters"):
     w, h = ch["size"]
     out = [
-        "# Edgeling sprite v1 - hand-drawn pixel grid. Edit freely; see PROVENANCE.md.",
+        "# Edge Odyssey sprite v1 - hand-drawn pixel grid. Edit freely; see PROVENANCE.md.",
         f"name: {ch['name']}",
         f"size: {w}x{h}",
         "palette:",
