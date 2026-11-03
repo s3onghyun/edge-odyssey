@@ -187,6 +187,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     var overrideAnim: String?
     var restIsLong = false
     var scrollCarry = 0.0                // trackpad scrolling not yet worth a whole step
+    var detentHeld = 0                   // wheel notches the dial's current detent has held (Dial.wheel)
+    var menuBarRing: String?             // the ring now drawn in the menu bar, to redraw only on change
+    var appearanceWatch: NSKeyValueObservation?
     var lengthShownUntil = Date.distantPast   // idle: the menu bar shows the length just scrolled to
     var backgroundIndex = Int.random(in: 0..<1000)
     lazy var history = HistoryLog(url: o.stateDir.appendingPathComponent("history.jsonl"))
@@ -216,6 +219,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         if let a = o.appearance { NSApp.appearance = NSAppearance(named: a == "dark" ? .darkAqua : .aqua) }
         loadSprites()
         buildStatusItem()
+        // The palette has light and dark variants: recolour the edge and the menu bar when macOS switches.
+        appearanceWatch = NSApp.observe(\.effectiveAppearance) { [weak self] _, _ in DispatchQueue.main.async { self?.refresh() } }
         for b in o.demoBackdrop { showBackdrop(on: b) }
         rebuildOverlays()
         detector.log = { [weak self] in self?.log($0) }
@@ -835,17 +840,54 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         let r = TimeAdjust.notches(carry: scrollCarry, delta: raw * (e.isDirectionInvertedFromDevice ? -1 : 1),
                                    precise: e.hasPreciseScrollingDeltas)
         scrollCarry = r.carry
-        adjust(notches: r.notches, e.modifierFlags)
+        var n = r.notches
+        // Setting a length, the dial's detents hold the plain one-minute steps for a moment.
+        if phase == .idle, n != 0, e.modifierFlags.isDisjoint(with: [.shift, .option]), let m = dialState?.left {
+            (n, detentHeld) = Dial.wheel(from: m, notches: n, held: detentHeld)
+        }
+        adjust(notches: n, e.modifierFlags)
     }
 
     func adjust(notches: Int, _ flags: NSEvent.ModifierFlags) {
         guard notches != 0 else { return }
-        adjust(by: Double(notches) * TimeAdjust.step(shift: flags.contains(.shift), option: flags.contains(.option)))
+        let d = Double(notches) * TimeAdjust.step(shift: flags.contains(.shift), option: flags.contains(.option))
+        let before = dialState?.left
+        adjust(by: d)
+        if let v = focusOverlay?.focusView, let a = dialState?.left, let b = before, abs(a - b) > 0.01 {   // "+1m" by the boat
+            v.dial.nudge((d > 0 ? "+" : "\u{2212}") + minutesLeft(abs(d)))
+        }
+    }
+
+    /// A click or drag on the dial: the time it shows becomes `minutes`.
+    func setDial(_ minutes: Double) {
+        guard let ds = dialState, ds.settable else { return }
+        detentHeld = 0
+        let delta = (minutes - ds.left) * 60
+        if abs(delta) >= 1 { adjust(by: delta) }
+    }
+
+    /// The dial's reading: idle, the next length; running, what is left; nil for the stopwatch.
+    var dialState: DialView.State? {
+        guard o.mode != .stopwatch else { return nil }
+        switch phase {
+        case .idle:
+            let m = o.mode == .timer ? o.timerSeconds / 60 : o.focusMinutes
+            return .init(left: m, total: m, tone: .focus, settable: true)
+        case .arrived: return .init(left: 0, total: phaseDuration * o.speed / 60, tone: .arrived, settable: false)
+        case .focus, .rest:
+            return .init(left: remaining * o.speed / 60, total: phaseDuration * o.speed / 60, tone: phase == .rest ? .rest : .focus, settable: true)
+        }
     }
 
     /// Idle: the length of the next session (saved). Running: this session only, by moving what
     /// is left. The stopwatch has nothing to set.
     func adjust(by delta: Double) {
+        let before = dialState?.left
+        defer {   // a detent you can feel, on a Force Touch trackpad
+            if let a = dialState?.left, let b = before, abs(a - b) > 0.001, Dial.isDetent(a) {
+                NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
+            }
+        }
         switch (phase, o.mode) {
         case (_, .stopwatch), (.arrived, _): return
         case (.idle, .timer):
@@ -966,7 +1008,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.image = NSImage(systemSymbolName: "circle.dashed", accessibilityDescription: "Edge Odyssey")
         statusItem.button?.imagePosition = .imageLeading
-        statusItem.button?.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)   // 12:50 -> 12:49 without the icon wobbling
+        statusItem.button?.font = Typography.font(.menuBar)   // monospaced digits: 12:50 -> 12:49 without the icon wobbling
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
@@ -979,6 +1021,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             b.title = lengthShownUntil > Date() ? " " + idleLength : ""
             b.image = NSImage(systemSymbolName: agentState == .waiting ? "circle.circle.fill" : "circle.dashed", accessibilityDescription: "Edge Odyssey")
             titleSymbol = nil
+            menuBarRing = nil
             return
         }
         if phase == .arrived {   // a gold badge, redrawn once a second: "⚓ Done +0:42"
@@ -987,30 +1030,37 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             b.image = arrivalBadge(text)
             b.setAccessibilityLabel(header)
             titleSymbol = "arrived"
+            menuBarRing = nil
             if let h = headerItem, h.title != header { h.title = header }
             return
         }
-        let symbol = phase == .rest ? "cup.and.saucer" : "circle.dashed.inset.filled"
-        if symbol != titleSymbol {   // the per-second tick changes only the text
-            b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Edge Odyssey")
-            titleSymbol = symbol
+        // A progress ring: a focus fills it (coral in the last five minutes), a break empties it.
+        let ring = Dial.ring(phase, left: remaining * o.speed, total: phaseDuration * o.speed) ?? (0, .focus)
+        let key = "\(ring.tone)-\(Int(ring.fill * 64))-\(Palette.dark)"
+        if key != menuBarRing {   // redrawn only when it visibly changes
+            b.image = DialView.ringIcon(ring.fill, ring.tone)
+            menuBarRing = key
+            titleSymbol = nil
         }
+        let late = ring.tone == .warm && pausedAt == nil
+        let font = Typography.font(.menuBar, weight: late ? .semibold : nil)
+        if b.font != font { b.font = font }
         let title = " " + (pausedAt != nil ? L.t("paused", "일시정지", "一時停止", "暂停") : left)
         if b.title != title { b.title = title }
         if let h = headerItem, h.title != header { h.title = header }
     }
 
-    /// The menu-bar badge while a finished focus waits: laurel gold with dark ink, so it reads on a
+    /// The menu-bar badge while a finished focus waits: bright brass with navy ink, so it reads on a
     /// light or a dark menu bar (gold text alone would not). The anchor comes from Apple Symbols:
     /// a plain glyph, not the colour emoji.
     func arrivalBadge(_ text: String) -> NSImage {
-        let ink = NSColor(srgbRed: 0.17, green: 0.13, blue: 0.04, alpha: 1), h: CGFloat = 18
-        let s = NSMutableAttributedString(string: "\u{2693}\u{FE0E} ", attributes: [.font: NSFont(name: "Apple Symbols", size: 15) ?? Typography.badge,
+        let ink = Palette.color(Tones.badgeInk), h: CGFloat = 18
+        let s = NSMutableAttributedString(string: "\u{2693}\u{FE0E} ", attributes: [.font: NSFont(name: "Apple Symbols", size: 15) ?? Typography.font(.badge),
                                                                                  .foregroundColor: ink, .baselineOffset: -1])
-        s.append(NSAttributedString(string: text, attributes: [.font: Typography.badge, .foregroundColor: ink]))
+        s.append(Typography.string(text, .badge, color: ink))
         let ts = s.size()
         return NSImage(size: NSSize(width: ceil(ts.width) + 14, height: h), flipped: false) { r in
-            Palette.arrive.setFill()
+            Palette.color(Tones.badge).setFill()
             NSBezierPath(roundedRect: r, xRadius: h / 2, yRadius: h / 2).fill()
             s.draw(at: NSPoint(x: 7, y: ((h - ts.height) / 2).rounded()))
             return true
@@ -1327,6 +1377,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             v.onResize = { [weak self] in self?.refresh() }
             v.onScroll = { [weak self] in self?.scrolled($0) }
             v.onAdjust = { [weak self] in self?.adjust(notches: $0, $1) }
+            v.onPreset = { [weak self] in self?.pickPreset($0) }
+            v.dial.onSet = { [weak self] in self?.setDial($0) }
         }
         if o.background == "cycle" { backgroundIndex += 1 }
         applyBackground()
@@ -1352,6 +1404,13 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     }
 
     func toggleFocusMode() { focusOverlay == nil ? openFocusMode() : closeFocusMode() }
+
+    /// A preset chip under the dial: the next focus or timer length.
+    func pickPreset(_ minutes: Double) {
+        detentHeld = 0
+        control(o.mode == .timer ? "timer:\(Int(minutes))" : "focus:\(Int(minutes))")
+        refresh()
+    }
 
     /// Space, S, Esc and the buttons in the focus window.
     func focusAction(_ a: String) {
@@ -1404,7 +1463,12 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                    : phase == .focus ? L.t("Skip to break (S)", "휴식으로 건너뛰기 (S)", "休憩へスキップ (S)", "跳到休息 (S)")
                    : L.t("End break (S)", "휴식 끝내기 (S)", "休憩を終える (S)", "结束休息 (S)"),
                footer: todayLine(short: true),
-               contentHidden: manualHidden || (o.hideWhenCaptured && detector.result.capturing))
+               contentHidden: manualHidden || (o.hideWhenCaptured && detector.result.capturing),
+               dial: dialState,
+               presets: phase != .idle || o.mode == .stopwatch ? []
+                   : (o.mode == .timer ? Durations.timerPresets : Durations.focusPresets).map { m in
+                       (L.t("\(m) min", "\(m)분", "\(m)分", "\(m) 分钟"), Double(m)) },
+               selected: dialState?.left)
     }
 
     // MARK: focus mode background

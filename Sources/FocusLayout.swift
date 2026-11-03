@@ -27,4 +27,11 @@ enum FocusLayout {
         let room = timeRoom(stage: stage, spriteHeight: spriteHeight)
         return max(24, min(room.width / (CGFloat(max(glyphs, 1)) * glyphWidth), room.height * 0.32)).rounded(.down)
     }
+
+    /// The dial: the largest square that fits the room with `reserve` points left beneath it for
+    /// the caption, the preset chips and the buttons; the pair is centred in the room.
+    static func dial(room: CGRect, reserve: CGFloat) -> CGRect {
+        let d = max(0, min(room.width, room.height - reserve)).rounded(.down)
+        return CGRect(x: (room.midX - d / 2).rounded(), y: (room.midY - (d + reserve) / 2 + reserve).rounded(), width: d, height: d)
+    }
 }
