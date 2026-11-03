@@ -95,8 +95,7 @@ final class FocusView: NSView {
     /// Light and dark appearance: a deep night sea or a pale sand page, the digits in ink.
     /// Over a photo the digits are always light, on a dark scrim.
     override func updateLayer() {
-        layer?.backgroundColor = (dark ? NSColor(srgbRed: 0.06, green: 0.07, blue: 0.10, alpha: 1)
-                                       : NSColor(srgbRed: 0.97, green: 0.96, blue: 0.93, alpha: 1)).cgColor
+        layer?.backgroundColor = Palette.color(Tones.paper, dark: dark).cgColor
         dial.night = night
         paintText()
         for l in [time, caption, footer] {
@@ -107,8 +106,8 @@ final class FocusView: NSView {
     }
 
     private var night: Bool { dark || hasBackdrop }
-    private var ink: NSColor { night ? NSColor(white: 0.95, alpha: 1) : NSColor(srgbRed: 0.12, green: 0.13, blue: 0.17, alpha: 1) }
-    private var soft: NSColor { night ? NSColor(white: 0.95, alpha: hasBackdrop ? 0.75 : 0.6) : ink.withAlphaComponent(0.6) }
+    private var ink: NSColor { hasBackdrop ? NSColor(white: 0.95, alpha: 1) : Palette.color(Tones.ink, dark: dark) }
+    private var soft: NSColor { hasBackdrop ? NSColor(white: 0.95, alpha: 0.75) : Palette.color(Tones.muted, dark: dark) }
 
     /// The texts in their Typography roles: the hero count, captions in tracked medium.
     private func paintText() {

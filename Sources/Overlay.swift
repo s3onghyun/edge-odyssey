@@ -30,14 +30,23 @@ struct Scene {
     var devicePixelsPerSpritePixel = 3
 }
 
+/// The colours (values and contrast checks in Tones): the light or dark variant by the system
+/// appearance, since the edge sits over whatever is on screen. Focus mode passes its own `dark`.
 enum Palette {
-    static let calm = NSColor(srgbRed: 0.31, green: 0.82, blue: 0.77, alpha: 0.85)    // teal
-    static let warm = NSColor(srgbRed: 1.00, green: 0.54, blue: 0.40, alpha: 0.95)    // coral, last 20%
-    static let rest = NSColor(srgbRed: 0.65, green: 0.55, blue: 0.98, alpha: 0.75)    // lavender
-    static let working = NSColor(srgbRed: 0.35, green: 0.66, blue: 1.00, alpha: 0.45) // quiet blue
-    static let waiting = NSColor(srgbRed: 1.00, green: 0.75, blue: 0.35, alpha: 0.95) // soft gold: Claude Code waits
-    static let arrive = NSColor(srgbRed: 0.91, green: 0.765, blue: 0.353, alpha: 1)    // #E8C35A laurel gold: home at Ithaca
-    static let limit = NSColor(srgbRed: 1.00, green: 0.62, blue: 0.10, alpha: 0.90)   // amber
+    static var dark: Bool { NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua }
+
+    static func color(_ rgb: UInt32, alpha: CGFloat = 1) -> NSColor {
+        NSColor(srgbRed: CGFloat(rgb >> 16 & 0xFF) / 255, green: CGFloat(rgb >> 8 & 0xFF) / 255, blue: CGFloat(rgb & 0xFF) / 255, alpha: alpha)
+    }
+    static func color(_ p: Tones.Pair, dark d: Bool = Palette.dark, alpha: CGFloat = 1) -> NSColor { color(d ? p.dark : p.light, alpha: alpha) }
+
+    static var calm: NSColor { color(Tones.teal) }                    // focus
+    static var warm: NSColor { color(Tones.brass) }                   // the last fifth
+    static var rest: NSColor { color(Tones.slate) }                   // a break
+    static var working: NSColor { color(Tones.signal, alpha: 0.45) } // quiet: Claude Code works
+    static var waiting: NSColor { color(Tones.signal) }               // Claude Code waits
+    static var arrive: NSColor { color(Tones.brass) }                 // home at Ithaca
+    static var limit: NSColor { color(Tones.rust, alpha: 0.9) }       // the storm near the usage limit
     static let track = NSColor(white: 0.5, alpha: 0.12)
 
     static func focus(at t: Double) -> NSColor {
@@ -189,7 +198,7 @@ final class Overlay {
         CATransaction.commit()
     }
 
-    /// Arrival: a laurel-gold wave runs twice round the edge from the harbor (bottom-left, where
+    /// Arrival: a brass wave runs twice round the edge from the harbor (bottom-left, where
     /// the route starts and ends), then ripples and a few sparkles there. One-shot Core Animation
     /// on throwaway layers: nothing keeps running, and a hidden overlay skips it.
     func celebrate() {
@@ -350,7 +359,7 @@ final class Overlay {
         track.isHidden = false
         fill.isHidden = false
         track.strokeColor = Palette.track.cgColor
-        if s.phase == .arrived {   // home: the whole trail in laurel gold, still, until the user moves on
+        if s.phase == .arrived {   // home: the whole trail in brass, still, until the user moves on
             fill.strokeColor = Palette.arrive.cgColor
             fill.strokeEnd = 1
             return

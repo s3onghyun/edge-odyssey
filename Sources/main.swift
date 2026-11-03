@@ -189,6 +189,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     var scrollCarry = 0.0                // trackpad scrolling not yet worth a whole step
     var detentHeld = 0                   // wheel notches the dial's current detent has held (Dial.wheel)
     var menuBarRing: String?             // the ring now drawn in the menu bar, to redraw only on change
+    var appearanceWatch: NSKeyValueObservation?
     var lengthShownUntil = Date.distantPast   // idle: the menu bar shows the length just scrolled to
     var backgroundIndex = Int.random(in: 0..<1000)
     lazy var history = HistoryLog(url: o.stateDir.appendingPathComponent("history.jsonl"))
@@ -218,6 +219,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         if let a = o.appearance { NSApp.appearance = NSAppearance(named: a == "dark" ? .darkAqua : .aqua) }
         loadSprites()
         buildStatusItem()
+        // The palette has light and dark variants: recolour the edge and the menu bar when macOS switches.
+        appearanceWatch = NSApp.observe(\.effectiveAppearance) { [weak self] _, _ in DispatchQueue.main.async { self?.refresh() } }
         for b in o.demoBackdrop { showBackdrop(on: b) }
         rebuildOverlays()
         detector.log = { [weak self] in self?.log($0) }
@@ -1033,7 +1036,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         }
         // A progress ring: a focus fills it (coral in the last five minutes), a break empties it.
         let ring = Dial.ring(phase, left: remaining * o.speed, total: phaseDuration * o.speed) ?? (0, .focus)
-        let key = "\(ring.tone)-\(Int(ring.fill * 64))"
+        let key = "\(ring.tone)-\(Int(ring.fill * 64))-\(Palette.dark)"
         if key != menuBarRing {   // redrawn only when it visibly changes
             b.image = DialView.ringIcon(ring.fill, ring.tone)
             menuBarRing = key
@@ -1047,17 +1050,17 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         if let h = headerItem, h.title != header { h.title = header }
     }
 
-    /// The menu-bar badge while a finished focus waits: laurel gold with dark ink, so it reads on a
+    /// The menu-bar badge while a finished focus waits: bright brass with navy ink, so it reads on a
     /// light or a dark menu bar (gold text alone would not). The anchor comes from Apple Symbols:
     /// a plain glyph, not the colour emoji.
     func arrivalBadge(_ text: String) -> NSImage {
-        let ink = NSColor(srgbRed: 0.17, green: 0.13, blue: 0.04, alpha: 1), h: CGFloat = 18
+        let ink = Palette.color(Tones.badgeInk), h: CGFloat = 18
         let s = NSMutableAttributedString(string: "\u{2693}\u{FE0E} ", attributes: [.font: NSFont(name: "Apple Symbols", size: 15) ?? Typography.font(.badge),
                                                                                  .foregroundColor: ink, .baselineOffset: -1])
         s.append(Typography.string(text, .badge, color: ink))
         let ts = s.size()
         return NSImage(size: NSSize(width: ceil(ts.width) + 14, height: h), flipped: false) { r in
-            Palette.arrive.setFill()
+            Palette.color(Tones.badge).setFill()
             NSBezierPath(roundedRect: r, xRadius: h / 2, yRadius: h / 2).fill()
             s.draw(at: NSPoint(x: 7, y: ((h - ts.height) / 2).rounded()))
             return true

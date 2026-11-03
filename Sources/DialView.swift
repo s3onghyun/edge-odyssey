@@ -49,7 +49,7 @@ final class DialView: NSView {
         time.alignmentMode = .center
         bubbleText.alignmentMode = .center
         bubble.opacity = 0
-        bubble.backgroundColor = NSColor(srgbRed: 0.11, green: 0.12, blue: 0.15, alpha: 0.88).cgColor
+        bubble.backgroundColor = Palette.color(Tones.ink.light, alpha: 0.9).cgColor   // navy, light text: either appearance
         recolor()
     }
 
@@ -193,31 +193,31 @@ final class DialView: NSView {
 
     // MARK: colours
 
-    private var ink: NSColor { night ? NSColor(white: 0.95, alpha: 1) : NSColor(srgbRed: 0.12, green: 0.13, blue: 0.17, alpha: 1) }
-    private var numeralColor: NSColor { ink.withAlphaComponent(0.5) }
+    private var ink: NSColor { Palette.color(Tones.ink, dark: night) }
+    private var numeralColor: NSColor { Palette.color(Tones.muted, dark: night) }
 
     private func recolor() {
-        let calm = state.tone == .rest ? Palette.rest : Palette.calm
+        let calm = Palette.color(state.tone == .rest ? Tones.slate : Tones.teal, dark: night), brass = Palette.color(Tones.brass, dark: night)
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        bezel.fillColor = (night ? NSColor(white: 1, alpha: 0.06) : NSColor(srgbRed: 1, green: 0.995, blue: 0.98, alpha: 0.95)).cgColor
+        bezel.fillColor = Palette.color(Tones.surface, dark: night).cgColor
         bezel.shadowColor = NSColor.black.cgColor
         bezel.shadowOpacity = night ? 0 : 0.10
         bezel.shadowRadius = 18
         bezel.shadowOffset = CGSize(width: 0, height: -4)
-        face.fillColor = (night ? NSColor(white: 1, alpha: 0.05) : NSColor(srgbRed: 0.945, green: 0.925, blue: 0.88, alpha: 1)).cgColor
+        face.fillColor = Palette.color(Tones.face, dark: night).cgColor
         minors.strokeColor = ink.withAlphaComponent(0.28).cgColor
         majors.strokeColor = ink.withAlphaComponent(0.55).cgColor
-        coral.strokeColor = (state.tone == .rest ? Palette.rest : Palette.warm).cgColor
+        coral.strokeColor = (state.tone == .rest ? calm : brass).cgColor
         teal.strokeColor = calm.cgColor
-        rim.strokeColor = Palette.arrive.cgColor
-        dots.fillColor = Palette.arrive.cgColor
+        rim.strokeColor = brass.cgColor
+        dots.fillColor = brass.cgColor
         needle.strokeColor = ink.withAlphaComponent(0.8).cgColor
-        hub.fillColor = (night ? NSColor(srgbRed: 0.09, green: 0.10, blue: 0.13, alpha: 1) : NSColor(srgbRed: 1, green: 0.99, blue: 0.975, alpha: 1)).cgColor
+        hub.fillColor = bezel.fillColor
         disc.fillColor = hub.fillColor
-        disc.strokeColor = calm.withAlphaComponent(1).cgColor
-        hull.fillColor = NSColor(srgbRed: 0.45, green: 0.29, blue: 0.17, alpha: 1).cgColor
-        sail.fillColor = Palette.warm.withAlphaComponent(1).cgColor
+        disc.strokeColor = calm.cgColor
+        hull.fillColor = ink.cgColor
+        sail.fillColor = brass.cgColor
         CATransaction.commit()
         paintNumerals()
         paintTime()

@@ -74,7 +74,7 @@ open "/Applications/Edge Odyssey.app"
 
 The first launch opens a three-page welcome guide. After that, Edge Odyssey lives in the
 menu bar (the dashed circle; while a clock runs, a small ring that fills during a focus, turns
-coral in its last five minutes and empties during a break).
+brass in its last five minutes and empties during a break).
 
 <p align="center"><img src="assets/screenshots/welcome.png" width="720" alt="Welcome guide, pages 1 and 2"></p>
 
@@ -190,8 +190,8 @@ for two notches, a drag snaps to them, and a Force Touch trackpad gives a tap.
 
 *Focus mode* (Control-Option-Command-F, or the menu) opens a full-screen view on the display
 you last used for it, or the one you are working on. The middle is a dial with a 60-minute face,
-read clockwise from twelve: the wedge is the time left (teal; the session's last fifth coral, so
-the wedge turns coral as the end nears; lavender during a break), with the countdown in its hub.
+read clockwise from twelve: the wedge is the time left (sea teal; the session's last fifth brass, so
+the wedge turns brass as the end nears; slate during a break), with the countdown in its hub.
 A sailboat marks the wedge's edge; drag it round or click the face to set the time, or pick a
 preset under the dial while nothing runs. Longer than an hour fills the face. The stopwatch keeps
 the large digits. VoiceOver reads the dial as an adjustable slider. The track around it all is the progress bar (teal, coral near the end, lavender

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Colour pass, palette "Aegean night"** (picked from three options in
+  [`assets/screenshots/palette-options.png`](assets/screenshots/palette-options.png)): navy ink, a
+  muted sea teal for focus, one warm-brass accent for a session's last fifth and the arrival,
+  slate for breaks, slate blue for Claude Code, rust for the usage storm; light and dark variants
+  everywhere (edge, dial, focus mode, menu bar, history chart), following the system appearance.
+  Values live in `Tones`, and a test holds every text pair to WCAG AA (4.5:1) and every hue to
+  3:1 against the page, the dial face and the hub. Before/after:
+  [`assets/screenshots/colour-before-after.png`](assets/screenshots/colour-before-after.png).
 - Focus mode has a **Time-Timer-style dial**: a 60-minute face read clockwise from twelve, the
   time left as a wedge (teal, coral for the session's last fifth, lavender on a break), gold
   detents at 15, 25, 45 and 50 minutes and a sailboat handle at the wedge's edge, with the

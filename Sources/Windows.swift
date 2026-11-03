@@ -319,7 +319,7 @@ struct HistoryView: View {
             Chart {
                 ForEach(days, id: \.day) { d in
                     BarMark(x: .value(L.t("Day", "날짜", "日付", "日期"), d.day, unit: .day), y: .value(L.t("Hours", "시간", "時間", "小时"), d.seconds / 3600))
-                        .foregroundStyle(goalHours > 0 && d.seconds >= goalHours * 3600 ? Color.orange : Color.teal)
+                        .foregroundStyle(Color(nsColor: goalHours > 0 && d.seconds >= goalHours * 3600 ? Palette.arrive : Palette.calm))
                 }
                 if goalHours > 0 {
                     RuleMark(y: .value(L.t("Goal", "목표", "目標", "目标"), goalHours))
