@@ -22,6 +22,9 @@ Mac 화면 가장자리에 사는 얇은 집중 타이머입니다. 클릭을 �
   아테나의 부엉이가 바퀴마다 다르게 찾아오고, 24권짜리 항해 일지를 채웁니다.
 - **Claude Code 신호(선택).** 일하는 중엔 조용한 파란 테두리, 나를 기다리면 세이렌과 금빛
   한 번, 5시간 사용 한도에 가까우면 포세이돈의 폭풍.
+- **집중 모드.** 시간을 한가운데서 보고 싶을 때: Control-Option-Command-F로 차분한 전체 화면을
+  엽니다. 가운데에 큰 남은 시간, 그 둘레에 시간이 지나며 차오르는 트랙, 그 위를 세 배 크기의
+  오디세우스가 항해합니다. 보조 모니터나 세로 모니터에 잘 맞습니다.
 - **방해하지 않음.** 2-4px 테두리, 클릭은 그대로 통과, 전체 화면 앱과 화면 공유·녹화 중에는
   숨고, Control-Option-Command-H로 언제든 숨깁니다.
 - **매끄럽고 가벼움.** 움직임은 모두 macOS 렌더 서버에서 돌고, 앱은 모서리와 상태 변화 때만
@@ -70,6 +73,8 @@ open "/Applications/Edge Odyssey.app"
 |---|---|
 | 집중 시작 / 일시정지 / 재개 / 건너뛰기 / 정지 | 타이머. 메뉴 막대에 남은 시간을 초 단위로 표시(`12:50`) |
 | Timer | 집중 15/25/45/50/90분 또는 직접 입력(1-240), 휴식 5/10/15분 또는 직접 입력(1-60), 2-6회마다 긴 휴식(15분), 시간이 다 됐을 때의 동작(아래). 바꾼 시간은 다음 세션부터 적용 |
+| Focus mode | 어디서든 Control-Option-Command-F: 전체 화면 집중 모드(아래). 한 번 더 누르면 닫힘 |
+| Focus mode on | 모니터가 둘 이상일 때 집중 모드를 열 모니터(기억됨) |
 | Mode | 오디세우스 항해(테두리 + 여행자) 또는 얇은 테두리만. Speed: Even(기본) 또는 Physical |
 | Show on | 주 모니터, 모든 모니터(오디세우스는 작업 중인 모니터로 따라옴), 따라오기, 또는 이름으로 고른 모니터 |
 | Border | 2, 3, 4px |
@@ -93,6 +98,30 @@ open "/Applications/Edge Odyssey.app"
 - *Timer > Sound*: **Harp**(이 앱을 위해 만든 짧은 두 소절), **Glass**(macOS 시스템 소리),
   **Off**(기본) 중에서 고르고, 음량은 low/medium 입니다. 고르면 한 번 들려줍니다.
 - 알림은 macOS 집중 모드/방해 금지를 따르므로, 그동안은 뜨지 않습니다.
+
+### 집중 모드
+
+<p align="center">
+  <img src="assets/screenshots/focus-mode.gif" width="270" alt="세로 창의 집중 모드: 큰 남은 시간, 차오르는 트랙을 따라 도는 오디세우스, 그리고 이타카">
+  <img src="assets/screenshots/focus-mode.png" width="270" alt="세로 모니터 전체 화면의 집중 모드, 밝은 화면">
+</p>
+<p align="center"><sub>세로 창에서 40배속으로 한 바퀴, 그리고 세로 모니터 전체 화면.</sub></p>
+
+*집중 모드*(Control-Option-Command-F 또는 메뉴)는 지난번에 쓴 모니터, 없으면 지금 작업 중인
+모니터에 전체 화면으로 열립니다. 남은 시간은 가운데에 큰 숫자로 나오고, 둘레의 트랙이 진행
+막대입니다(청록, 끝 무렵엔 산호색, 휴식 중엔 연보라로 줄어듦). 세 배 크기의 오디세우스가 일정한
+속도로 트랙을 돌기 때문에 반 바퀴가 곧 절반입니다. 에피소드와 이타카, 칼립소의 섬도 같은 크기로
+나오고, Claude Code 신호(금빛 한 번, 세이렌, 폭풍)도 트랙에 그대로 보입니다.
+
+- **키:** Space로 시작·일시정지·재개, S로 휴식으로 건너뛰기(휴식 중엔 휴식 끝), Esc로 나가기.
+  포인터를 움직이면 시작/일시정지, 건너뛰기, 나가기 버튼이 나타납니다. 창이 앞에 있을 때 빈
+  곳을 클릭해도 나갑니다.
+- **어디에:** *Focus mode on* 에서 모니터를 고릅니다. 보통의 전체 화면 창이라 Spaces를 오가거나,
+  전체 화면을 끄고 크기를 바꾸거나, 닫을 수 있습니다.
+- 집중 모드가 열려 있는 동안 그 모니터의 가장자리 표시는 집중 모드가 대신합니다(다른 모니터의
+  테두리는 그대로). 밝은/어두운 화면은 macOS를 따릅니다.
+- 화면 공유·녹화 중(그리고 Control-Option-Command-H)에는 남은 시간과 트랙을 숨기고 빈 배경만
+  보여 줍니다. 창 자체도 스크린샷과 녹화에서 빠집니다.
 
 <p align="center"><img src="assets/screenshots/logbook.png" width="720" alt="찾은 책과 아직 미지의 책이 보이는 항해 일지 창"></p>
 
@@ -120,7 +149,8 @@ open "/Applications/Edge Odyssey.app"
 ## 개인정보
 
 네트워크 접속도, 분석 도구도 없습니다. 오버레이 창은 스크린샷과 화면 녹화에서 빠지고, macOS
-화면 캡처 표시등이 켜져 있는 동안(Zoom, Meet, QuickTime 등)에는 가장자리 전체가 숨습니다.
+화면 캡처 표시등이 켜져 있는 동안(Zoom, Meet, QuickTime 등)에는 가장자리 전체(와 집중 모드의
+내용)가 숨습니다.
 로컬 파일은 `~/.edge-odyssey/`(훅 상태, 항해 일지)와 앱 환경설정(`app.edgeodyssey`)뿐입니다.
 
 ## 명령줄
@@ -129,17 +159,19 @@ open "/Applications/Edge Odyssey.app"
 APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --speed 75 --autostart     # 시연: 25분을 20초에
 "$APP" --ctl start|pause|resume|stop|skip|logbook|welcome|hide|show|quit
+"$APP" --ctl focus-mode:on|off|toggle   # 또는 focus-display:<모니터 이름>
 ```
 
 플래그(이번 실행에만 적용, 저장 안 됨): `--display main|all|follow|<번호>|<이름>`,
 `--style border|traveler`, `--pace even|physical`, `--thickness 2..4`, `--last5`, `--focus <분>`, `--rest <분>`,
-`--no-lotus`, `--char <id>`, `--state-dir <폴더>`, `-v`(stderr에 로그).
+`--no-lotus`, `--char <id>`, `--state-dir <폴더>`, `-v`(stderr에 로그). 시연·테스트용:
+`--focus-mode`(실행하며 열기), `--focus-frame x,y,w,h`(전체 화면 대신 창), `--appearance dark|light`.
 
 ## 개발
 
 ```sh
 ./build.sh      # Command Line Tools의 swiftc로 앱 빌드
-./test.sh       # 움직임 수학 테스트(Swift Testing): 정확한 시각, 다시 걸어도 튀지 않음, 스프라이트 박자
+./test.sh       # 움직임 수학 테스트(Swift Testing): 정확한 시각, 다시 걸어도 튀지 않음, 스프라이트 박자, 집중 모드 배치
 ```
 
 | 경로 | 라이선스 | 내용 |
