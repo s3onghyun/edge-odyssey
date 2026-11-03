@@ -35,13 +35,14 @@ struct Options {
     var sound = "off"               // Chime.choices: harp, glass or off, at the end of a focus and a break
     var soundVolume = "low"         // Chime.volumes: low or medium
     var autoNextFocus = false       // start the next focus by itself when a break ends
+    var physicalPace = false        // traveler pace: even (position = elapsed share) or physical per-edge speeds
 
     /// Settings the menu changes are kept in UserDefaults; command-line flags override them
     /// for one run without being saved.
     static let saved: [String: Any] = ["style": "traveler", "display": "main", "thickness": 3.0, "onlyLast5": false,
                                        "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true,
                                        "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4,
-                                       "notifyAtEnd": true, "soundVolume": "low", "autoNextFocus": false]   // "sound" unregistered: see init
+                                       "notifyAtEnd": true, "soundVolume": "low", "autoNextFocus": false, "pace": "even"]   // "sound" unregistered: see init
 
     init(_ args: [String], defaults d: UserDefaults = .standard) {
         d.register(defaults: Self.saved)
@@ -60,6 +61,7 @@ struct Options {
         sound = Chime.choice(d.string(forKey: "sound") ?? (d.bool(forKey: "soundAtEnd") ? "on" : nil))   // 0.1 kept an on/off toggle
         soundVolume = Chime.volume(d.string(forKey: "soundVolume"))
         autoNextFocus = d.bool(forKey: "autoNextFocus")
+        physicalPace = d.string(forKey: "pace") == "physical"
         var it = args.dropFirst().makeIterator()
         while let a = it.next() {
             switch a {
@@ -82,6 +84,7 @@ struct Options {
             case "--no-lotus": lotusEnabled = false
             case "--climb": climbVariant = it.next()
             case "--ceiling": ceilingVariant = it.next()
+            case "--pace": physicalPace = it.next() == "physical"
             case "--episodes": episodes = (it.next() ?? "").split(separator: ",").compactMap { Episode(rawValue: String($0)) }
             case "--fps": Overlay.maxFPS = Float(it.next() ?? "") ?? 0
             case "-v", "--verbose": verbose = true
@@ -285,6 +288,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         var rng = SplitMix64(state: UInt64(max(focusCount, 0)) &* 7919 &+ 17)
         s.climbAnim = o.climbVariant ?? ["climb", "climb-crag", "climb-olive", "climb-mast"][Int(rng.next() % 4)]
         s.ceilingAnim = o.ceilingVariant ?? (focusCount % 2 == 1 ? "zip" : "cling")
+        s.physical = o.physicalPace
         s.restIsLong = restIsLong
         s.dozing = lotus && phase == .focus
         s.overrideAnim = overrideAnim
@@ -360,7 +364,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard phase == .focus, pausedAt == nil, o.style == .traveler, let host = hostOverlay,
               let sprite = sprites[o.character] else { return }
         let pt = sprite.unitPoints(backing: host.screen.backingScaleFactor)
-        let j = Journey(size: host.screen.frame.size, inset: CGFloat(sprite.height) * pt / 2, weights: Journey.physicalWeights)
+        let j = Journey(size: host.screen.frame.size, inset: CGFloat(sprite.height) * pt / 2, weights: Journey.weights(physical: o.physicalPace))
         let plan = EpisodePlanner.plan(seed: UInt64(phaseStart.timeIntervalSince1970) &+ UInt64(focusCount),
                                        journey: j, focusSeconds: phaseDuration,
                                        lastFiveShare: (300 / o.speed) / phaseDuration, forced: o.episodes)
@@ -554,6 +558,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 schedulePhaseTimers(); refresh(); planEpisodes()
             }
         case "style": o.style = Style(rawValue: arg) ?? o.style; remember("style", o.style.rawValue); refresh(); planEpisodes()
+        case "pace": o.physicalPace = arg == "physical"; remember("pace", o.physicalPace ? "physical" : "even"); refresh(); planEpisodes()
         case "char": if sprites[arg] != nil { o.character = arg; refresh() }
         case "thickness": o.thickness = CGFloat(min(max(Double(arg) ?? 3, 2), 4)); remember("thickness", Double(o.thickness)); refresh()
         case "last5": o.onlyLast5 = arg == "on"; remember("onlyLast5", o.onlyLast5); refresh()
@@ -651,6 +656,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(submenu("Mode", [
             MenuAction("Odysseus voyage (border + traveler)", checked: o.style == .traveler) { [weak self] in self?.control("style:traveler") },
             MenuAction("Thin border only", checked: o.style == .border) { [weak self] in self?.control("style:border") },
+            .separator(),
+            MenuAction("Speed: Even (halfway round = halfway through)", checked: !o.physicalPace) { [weak self] in self?.control("pace:even") },
+            MenuAction("Speed: Physical (slow climb, fast slide)", checked: o.physicalPace) { [weak self] in self?.control("pace:physical") },
         ]))
         var displays: [NSMenuItem] = [
             MenuAction("Main display", checked: o.display == "main") { [weak self] in self?.control("display:main") },

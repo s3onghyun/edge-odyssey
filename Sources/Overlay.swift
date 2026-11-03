@@ -23,6 +23,7 @@ struct Scene {
     /// Per-lap variety: which climb (right edge) and which hang (top edge) this lap uses.
     var climbAnim = "climb"
     var ceilingAnim = "cling"
+    var physical = false            // physical pace: per-edge speeds; even pace: position = elapsed share
     var restIsLong = false          // long break: Calypso's island; short break: Ithaca
     var dozing = false              // a distracting app is in front: the Lotus-eaters
     var overrideAnim: String?       // a short encounter that replaces the pose (the ram)
@@ -188,7 +189,7 @@ final class Overlay {
         guard s.visible else { lastEdge = nil; return }
 
         let size = root.bounds.size
-        let weights = s.style == .traveler ? Journey.physicalWeights : Journey.uniformWeights
+        let weights = Journey.weights(physical: s.style == .traveler && s.physical)
         let borderInset = s.thickness / 2
         let borderJourney = Journey(size: size, inset: borderInset, weights: weights)
         let path = Journey.borderPath(size: size, inset: borderInset)
@@ -256,8 +257,9 @@ final class Overlay {
         fill.strokeEnd = CGFloat(j.lengthFraction(t0))
         guard !s.paused else { return }
         // Trail end follows the same per-edge time mapping as the traveler.
-        let zip = s.style == .traveler && s.ceilingAnim == "zip"
-        let route = routeSamples(j, from: t0, zip: zip, profiled: s.style == .traveler)
+        let physical = s.style == .traveler && s.physical
+        let zip = s.ceilingAnim == "zip"
+        let route = routeSamples(j, from: t0, zip: zip, profiled: physical)
         let a = CAKeyframeAnimation(keyPath: "strokeEnd")
         a.keyTimes = route.map { NSNumber(value: $0.time) }
         a.values = route.map { j.lengthMarks[$0.edge] + (j.lengthMarks[$0.edge + 1] - j.lengthMarks[$0.edge]) * $0.u }
@@ -269,7 +271,7 @@ final class Overlay {
         // Rate from the fastest the trail end moves on the current edge (it is rebuilt at corners).
         let k0 = route[0].edge
         let edgeSeconds = max((j.timeMarks[k0 + 1] - j.timeMarks[k0]) * s.duration, 0.01)
-        let tip = Double(j.edges[k0].length) / edgeSeconds * (s.style == .traveler ? profilePeak(j.edges[k0].kind, zip: zip) : 1)
+        let tip = Double(j.edges[k0].length) / edgeSeconds * (physical ? profilePeak(j.edges[k0].kind, zip: zip) : 1)
         fill.add(tune(a, rate(tip)), forKey: "progress")
 
         let samples = 8
@@ -350,8 +352,8 @@ final class Overlay {
         let j = Journey(size: size, inset: sh / 2, weights: weights)
         let (k, local) = j.locate(t)
         let edge = j.edges[k]
-        let prof = edgeProfile(edge.kind, zip: s.ceilingAnim == "zip")
-        mover.position = edge.point(prof(local))
+        // Even pace keeps every edge linear: gravity and zipline easing would bend time again.
+        mover.position = edge.point(s.physical ? edgeProfile(edge.kind, zip: s.ceilingAnim == "zip")(local) : local)
         poser.setAffineTransform(CGAffineTransform(rotationAngle: edge.angle))
 
         // Pick frames: waiting agent -> wave; break -> sleep; paused/limit -> idle; else per edge.
@@ -404,7 +406,7 @@ final class Overlay {
         let zip = s.ceilingAnim == "zip"
         let edgeEndT = j.timeMarks[k + 1]
         let edgeRemaining = max((edgeEndT - t) * total, 0.01)
-        let route = routeSamples(j, from: t, zip: zip, profiled: true)
+        let route = routeSamples(j, from: t, zip: zip, profiled: s.physical)
         let go = CAKeyframeAnimation(keyPath: "position")
         go.keyTimes = route.map { NSNumber(value: $0.time) }
         go.values = route.map { NSValue(point: j.edges[$0.edge].point($0.u)) }
@@ -414,7 +416,7 @@ final class Overlay {
         go.calculationMode = .linear
         mover.position = j.edges.last!.end
         let speed = Double(edge.length) / max((j.timeMarks[k + 1] - j.timeMarks[k]) * total, 0.01)
-        mover.add(tune(go, rate(speed * profilePeak(edge.kind, zip: zip))), forKey: "go")
+        mover.add(tune(go, rate(speed * (s.physical ? profilePeak(edge.kind, zip: zip) : 1))), forKey: "go")
 
         // Micro-motion cycles count from the moment he reached this edge: zero offset at the
         // corner, and the same phase however often the scene is re-applied.

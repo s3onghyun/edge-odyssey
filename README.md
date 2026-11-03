@@ -12,11 +12,13 @@ focus session passes, and the edge glows softly when Claude Code needs you.
 <p align="center"><sub>One 25-minute lap at 75x speed, the camera following Odysseus.</sub></p>
 
 - **Pomodoro on the edge.** 25 minutes of focus, 5 minutes of break, every fourth break is
-  long. Where Odysseus is on the edge is how much of the session has passed; the trail behind
-  him is the progress bar, and he arrives home exactly when time is up.
+  long. Where Odysseus is on the edge is how much of the session has passed (he moves at an
+  even pace, so halfway round is halfway through); the trail behind him is the progress bar,
+  and he arrives home exactly when time is up.
 - **Physical on every edge.** Rowing on the floor, grip-and-pull climbing (cliffs, an olive
   tree, the mast), hanging and swaying from the top or riding a zipline, a gravity slide down
-  a waterfall, a squash on landing.
+  a waterfall, a squash on landing. These are looks only; *Mode > Speed: Physical* also makes
+  him slow on the climb and fast on the slide, so his place no longer reads as time.
 - **Episodes from the Odyssey.** The Cyclops, Aeolus' bag of winds, Circe's piglets,
   Charybdis and Athena's owl visit different laps and fill a 24-book logbook.
 - **Claude Code signals (optional).** Quiet blue edge while it works, the Sirens and one soft
@@ -50,7 +52,7 @@ menu bar (the dashed circle).
 |---|---|
 | Start focus / Pause / Resume / Skip / Stop | The timer. The menu bar counts down to the second (`12:50`) |
 | Timer | Focus 15/25/45/50/90 min or custom (1-240), break 5/10/15 min or custom (1-60), a long break (15 min) every 2-6 sessions, and what happens when time is up (below). A new length applies from the next session |
-| Mode | Odysseus voyage (border + traveler) or a thin border only |
+| Mode | Odysseus voyage (border + traveler) or a thin border only; Speed: Even (default) or Physical |
 | Show on | Main display, all displays (Odysseus follows the display you work on), follow me, or one named display |
 | Border | 2, 3 or 4 px |
 | Only show in the last 5 minutes | Keeps the edge empty until the end of a focus session (Claude Code calls still show) |
@@ -114,7 +116,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl start|pause|resume|stop|skip|logbook|welcome|hide|show|quit
 ```
 
-Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--style border|traveler`,
+Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--style border|traveler`, `--pace even|physical`,
 `--thickness 2..4`, `--last5`, `--focus <min>`, `--rest <min>`, `--no-lotus`, `--char <id>`,
 `--state-dir <dir>`, `-v` (log to stderr).
 
