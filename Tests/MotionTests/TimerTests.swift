@@ -2,12 +2,15 @@ import Testing
 @testable import EdgeMotion
 
 @Test func timeUpStateMachine() {
-    #expect(TimerMode.pomodoro.timeUp(in: .focus, autoNext: false) == .arrive)
+    #expect(TimerMode.pomodoro.timeUp(in: .focus, autoNext: false) == .arrive(restNow: false))   // waits at Ithaca by default
     #expect(TimerMode.pomodoro.timeUp(in: .rest, autoNext: false) == .breakOver(next: false))
     #expect(TimerMode.pomodoro.timeUp(in: .rest, autoNext: true) == .breakOver(next: true))
     #expect(TimerMode.timer.timeUp(in: .focus, autoNext: true) == .timerDone)   // a timer never takes a break
     #expect(TimerMode.stopwatch.timeUp(in: .focus, autoNext: false) == .lap)
-    for m in TimerMode.allCases { #expect(m.timeUp(in: .idle, autoNext: true) == nil) }
+    for m in TimerMode.allCases {
+        #expect(m.timeUp(in: .idle, autoNext: true) == nil)
+        #expect(m.timeUp(in: .arrived, autoNext: true, autoRest: true) == nil)   // arrived: nothing runs out
+    }
 }
 
 @Test func savedModeFallsBackToPomodoro() {
@@ -89,4 +92,32 @@ import Testing
 @Test func timerDoneMessages() {
     #expect(timerDoneMessage(seconds: 600, lang: .en) == ("Time's up", "Your 10:00 timer is done"))
     #expect(timerDoneMessage(seconds: 90, lang: .ko) == ("시간 종료", "1:30 타이머가 끝났어요"))
+}
+
+@Test func autoStartBreakIsAnOption() {
+    #expect(TimerMode.pomodoro.timeUp(in: .focus, autoNext: false, autoRest: true) == .arrive(restNow: true))
+    #expect(TimerMode.timer.timeUp(in: .focus, autoNext: false, autoRest: true) == .timerDone)   // a timer never rests
+}
+
+@Test func overtimeCountsUp() {
+    #expect(overtime(0) == "+0:00")
+    #expect(overtime(42.9) == "+0:42")    // whole seconds since arrival, never ahead
+    #expect(overtime(65) == "+1:05")
+    #expect(overtime(3600) == "+1:00:00")
+}
+
+@Test func confirmingTheArrival() {
+    let rest = ArrivalChoice.rest.next(breakMinutes: 5)
+    #expect(rest.phase == .rest && rest.seconds == 300)
+    #expect(ArrivalChoice.rest.next(breakMinutes: 15).seconds == 900)   // a long break
+    let more = ArrivalChoice.extend.next(breakMinutes: 5)
+    #expect(more.phase == .focus && more.seconds == 5 * 60)   // +5 min: back to focus
+    #expect(ArrivalChoice(rawValue: "rest") == .rest && ArrivalChoice(rawValue: "extend") == .extend)   // notification actions
+    #expect(ArrivalChoice(rawValue: "com.apple.UNNotificationDefaultActionIdentifier") == nil)   // a plain click changes nothing
+}
+
+@Test func arrivalMessageWaitsForTheUser() {
+    #expect(endMessage(focusEnded: true, longBreak: false, breakMinutes: 5, waits: true, lang: .ko)
+            == ("이타카!", "항해 완료. 준비되면 5분 휴식을 시작하세요"))
+    #expect(endMessage(focusEnded: true, longBreak: false, breakMinutes: 5, waits: false, lang: .ko).body == "5분 쉬어요")
 }

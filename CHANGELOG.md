@@ -1,5 +1,28 @@
 # Changelog
 
+## Unreleased
+
+- The end of a focus is now unmistakable, and it waits for you. Odysseus reaches Ithaca, a
+  laurel-gold wave runs twice round the edge from the harbor and ripples and sparkles spread there
+  (Core Animation only, one-shot, nothing left running). Then the session **stays arrived**: the
+  border stays gold and the menu bar shows a gold `⚓ Done +m:ss` counting the time since, until
+  you pick *Start break* or *5 more minutes* (menu, focus mode Space/S, or the notification's
+  buttons). *Timer > Start the break by itself when a focus ends* (off) brings back the old
+  behaviour. The finished focus goes into the history at arrival, so waiting doesn't count.
+- Arrival has its own colour, laurel gold `#E8C35A` with an anchor, apart from the gold swell of
+  Claude Code waiting.
+- The harp now plays by default at low volume; the welcome guide has a switch and *Listen*.
+  Saved choices (including *Off*) are kept.
+- End notifications are time-sensitive, ask for sound as well as alerts, carry *Start break* and
+  *+5 min* actions, and are removed once you move on. With the app's own sound off, the
+  notification brings the system sound, so the end is never silent unless you silence it in
+  System Settings.
+- Fixed: a notification banner on screen counted as a window covering the display and hid the
+  edge (Notification Center hosts banners in a clear, display-sized window).
+- New UI text uses one small type system (`Typography`): SF Pro Rounded with monospaced digits
+  for the menu-bar badge, so the counting time never jitters.
+- `--ctl rest`, `extend`, `autorest:on|off`.
+
 ## 0.2.0 (unreleased)
 
 First public downloadable build, for Apple silicon Macs running macOS 13 or later.

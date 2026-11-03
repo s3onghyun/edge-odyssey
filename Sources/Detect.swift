@@ -62,7 +62,9 @@ final class Detector {
                 }
                 continue
             }
-            guard pid != me, layer >= 0, alpha > 0.05 else { continue }
+            // Notification Center hosts banners in a clear window the size of the display: a banner
+            // (our own arrival notice included) covers nothing.
+            guard pid != me, layer >= 0, alpha > 0.05, owner != "Notification Center" else { continue }
             if r.activeDisplay == nil, pid == front, layer == 0, b.width > 80, b.height > 80 {
                 // window list is front-to-back: the first normal window of the active app
                 let c = CGPoint(x: b.midX, y: b.midY)

@@ -36,8 +36,9 @@ enum Durations {
     static func longBreakMinutes(rest: Double) -> Double { max(15, rest) }
 }
 
-/// The notification at the end of a focus session (arrival) or of a break.
-func endMessage(focusEnded: Bool, longBreak: Bool, breakMinutes m: Int, lang: Lang? = nil) -> (title: String, body: String) {
+/// The notification at the end of a focus session (arrival) or of a break. `waits`: the break
+/// starts only when the user says so.
+func endMessage(focusEnded: Bool, longBreak: Bool, breakMinutes m: Int, waits: Bool = false, lang: Lang? = nil) -> (title: String, body: String) {
     guard focusEnded else {
         return (L.t("Break's over", "쉬는 시간 끝", "休憩おわり", "休息结束", in: lang),
                 L.t("Start the next focus from the menu when you're ready", "준비되면 메뉴에서 다음 집중을 시작하세요",
@@ -45,7 +46,9 @@ func endMessage(focusEnded: Bool, longBreak: Bool, breakMinutes m: Int, lang: La
     }
     return (longBreak ? L.t("Calypso's island!", "칼립소의 섬!", "カリュプソの島！", "卡吕普索之岛！", in: lang)
                       : L.t("Ithaca!", "이타카!", "イタケ！", "伊萨卡！", in: lang),
-            L.t("Take a \(m)-minute break", "\(m)분 쉬어요", "\(m)分休みましょう", "休息 \(m) 分钟", in: lang))
+            waits ? L.t("Voyage complete. Start your \(m)-minute break when you're ready", "항해 완료. 준비되면 \(m)분 휴식을 시작하세요",
+                        "航海完了。準備ができたら \(m) 分の休憩を始めましょう", "航行完成。准备好后开始 \(m) 分钟休息", in: lang)
+                  : L.t("Take a \(m)-minute break", "\(m)분 쉬어요", "\(m)分休みましょう", "休息 \(m) 分钟", in: lang))
 }
 
 /// The notification when a countdown timer reaches 0:00.
@@ -57,11 +60,15 @@ func timerDoneMessage(seconds: Int, lang: Lang? = nil) -> (title: String, body: 
 
 /// The sound played when a focus ends (arrival) or a break ends (setting sail).
 enum Chime {
-    static let choices = ["harp", "glass", "off"]           // menu order; "off" is the default
+    static let choices = ["harp", "glass", "off"]           // menu order; the harp (at low volume) is the default
     static let volumes: [String: Float] = ["low": 0.25, "medium": 0.5]
 
-    /// A saved or typed choice, or "off" when it isn't one. Legacy `sound:on` means the harp.
-    static func choice(_ s: String?) -> String { s == "on" ? "harp" : choices.contains(s ?? "") ? s! : "off" }
+    /// A saved or typed choice: the harp when nothing is saved, "off" when it isn't one. Legacy
+    /// `sound:on` means the harp.
+    static func choice(_ s: String?) -> String {
+        guard let s else { return "harp" }
+        return s == "on" ? "harp" : choices.contains(s) ? s : "off"
+    }
     static func volume(_ s: String?) -> String { volumes[s ?? ""] == nil ? "low" : s! }
 
     /// The NSSound name to play, nil for silence. Harp files ship in the app's Resources.
@@ -72,9 +79,34 @@ enum Chime {
         default: return nil
         }
     }
+
+    /// The end notification makes the system sound only when the app plays no chime of its own:
+    /// one sound, never two. (macOS still lets the user silence it per app.)
+    static func notificationSounds(_ choice: String) -> Bool { choice == "off" }
 }
 
-enum Phase { case idle, focus, rest }
+/// `arrived`: a Pomodoro focus is over and waits, counting the time since, until the user starts
+/// the break (or sails on for a few more minutes).
+enum Phase { case idle, focus, arrived, rest }
+
+/// What the user does at Ithaca.
+enum ArrivalChoice: String {
+    case rest     // start the break
+    case extend   // five more minutes of focus
+
+    static let extraMinutes = 5.0
+
+    /// The phase this leads to and its length in (nominal) seconds.
+    func next(breakMinutes: Double) -> (phase: Phase, seconds: Double) {
+        switch self {
+        case .rest: return (.rest, breakMinutes * 60)
+        case .extend: return (.focus, Self.extraMinutes * 60)
+        }
+    }
+}
+
+/// Time since arrival, as the menu bar counts it: "+0:42", "+1:05:00".
+func overtime(_ seconds: Double) -> String { "+" + elapsedClock(seconds) }
 
 /// Pomodoro (focus, then a break), a plain countdown timer, or a stopwatch that counts up.
 enum TimerMode: String, CaseIterable {
@@ -85,16 +117,16 @@ enum TimerMode: String, CaseIterable {
 
     /// What happens when a phase's time is up: the timer state machine.
     enum TimeUp: Equatable {
-        case arrive              // a Pomodoro focus is over: Ithaca, then a break
+        case arrive(restNow: Bool) // a Pomodoro focus is over: Ithaca; the break waits unless `restNow`
         case breakOver(next: Bool) // the break is over; `next`: the next focus starts by itself
         case timerDone           // a countdown reached 0:00
         case lap                 // a stopwatch finished one lap round the edge and carries on
     }
 
-    func timeUp(in phase: Phase, autoNext: Bool) -> TimeUp? {
+    func timeUp(in phase: Phase, autoNext: Bool, autoRest: Bool = false) -> TimeUp? {
         switch (self, phase) {
-        case (_, .idle): return nil
-        case (.pomodoro, .focus): return .arrive
+        case (_, .idle), (_, .arrived): return nil   // arrived: nothing runs out, the overtime counts up
+        case (.pomodoro, .focus): return .arrive(restNow: autoRest)
         case (.pomodoro, .rest): return .breakOver(next: autoNext)
         case (.timer, _): return .timerDone
         case (.stopwatch, _): return .lap

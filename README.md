@@ -80,7 +80,7 @@ menu bar (the dashed circle).
 
 | Item | What it does |
 |---|---|
-| Start focus / Pause / Resume / Skip / Stop | The timer. The menu bar counts down to the second (`12:50`); scroll over it to change the time (below) |
+| Start focus / Pause / Resume / Skip / Stop | The timer. The menu bar counts down to the second (`12:50`); scroll over it to change the time (below). After a focus: *Start break*, *5 more minutes* or *Stop* (below) |
 | Timer | **Pomodoro**, **Countdown timer** or **Stopwatch** (below); the countdown's length (1, 3, 5, 10, 15, 30, 60 min or custom); focus 15/25/45/50/90 min or custom (1-240), break 5/10/15 min or custom (1-60), a long break (15 min) every 2-6 sessions, and what happens when time is up (below). A new length applies from the next session |
 | Focus mode | Control-Option-Command-F, from anywhere: the full-screen focus view (below). Again to close |
 | Focus mode on | With more than one display: which one focus mode opens on (remembered) |
@@ -128,18 +128,26 @@ new ZIP from the release page, check its `.sha256` and replace the app as in [In
 ### When time is up
 
 - **End of a focus session:** Odysseus arrives home at the bottom-left corner exactly on time and
-  lands on Ithaca (or on Calypso's island for a long break). The edge glows gold once, and the
-  border turns lavender and starts draining for the break. A macOS notification says
-  "Ithaca! Take a 5-minute break" (on by default; the first one asks for permission). With
-  *Timer > Sound* on (off by default) a short harp phrase plays as he arrives. The break starts
-  on its own.
+  lands on Ithaca (or on Calypso's island for a long break). A laurel-gold wave runs twice round
+  the edge and ripples and sparkles spread from the harbor; the border then **stays gold, and the
+  menu bar shows a gold `⚓ Done +0:42` that counts the time since**, until you choose: *Start
+  break* (Space in focus mode), *5 more minutes* (S) or *Stop*. A macOS notification says
+  "Ithaca! Voyage complete. Start your 5-minute break when you're ready", with **Start break**
+  and **+5 min** buttons (on by default; the first one asks for permission). A short harp phrase
+  plays at low volume as he arrives (*Timer > Sound*). Turn on *Timer > Start the break by itself
+  when a focus ends* for the old behaviour: the break starts at once.
+- Gold has two meanings kept apart: laurel gold (`#E8C35A`) with the anchor is *you arrived*;
+  the warmer gold swell is *Claude Code is waiting for you*.
 - **End of a break:** the border goes away, a "Break's over" notification appears, and the
   timer **waits for you** to start the next focus from the menu. Turn on *Timer > Start the next
   focus after a break* if you want it to start by itself. With sound on, a low harp call says
   it's time to set sail again.
-- *Timer > Sound*: **Harp** (two short phrases written for this app), **Glass** (the macOS
-  system sound) or **Off** (default), and a low or medium volume. Picking one plays it once.
-- Notifications follow macOS Focus / Do Not Disturb, so they stay silent while that is on.
+- *Timer > Sound*: **Harp** (default; two short phrases written for this app), **Glass** (the
+  macOS system sound) or **Off**, and a low (default) or medium volume. Picking one plays it once;
+  the welcome guide has the same switch and a *Listen* button. With the sound off, the
+  notification brings the system alert sound instead (one sound, never two).
+- Notifications are time-sensitive and follow macOS Focus / Do Not Disturb: a Focus that doesn't
+  allow them holds them back.
 
 ### Timer and stopwatch
 
