@@ -19,13 +19,15 @@ struct Edge {
     }
 }
 
-/// Maps elapsed share of a session to a place on the route. Speed differs per edge
-/// (climbing is slow, sliding is fast), but the mapping is monotonic and exact: the
-/// traveler leaves each corner at a fixed time and arrives home exactly when time is up.
+/// Maps elapsed share of a session to a place on the route. With even pace (the default)
+/// position is time: halfway round is halfway through. With physical pace speed differs per
+/// edge (climbing is slow, sliding is fast). Either way the mapping is monotonic and exact:
+/// the traveler leaves each corner at a fixed time and arrives home exactly when time is up.
 struct Journey {
     /// Relative slowness per edge kind; time share of an edge = length x weight / total.
     static let physicalWeights: [EdgeKind: Double] = [.floor: 1.0, .climb: 1.6, .ceiling: 1.1, .slide: 0.45]
     static let uniformWeights: [EdgeKind: Double] = [.floor: 1, .climb: 1, .ceiling: 1, .slide: 1]
+    static func weights(physical: Bool) -> [EdgeKind: Double] { physical ? physicalWeights : uniformWeights }
 
     let edges: [Edge]
     /// Cumulative time fraction at the start of each edge, plus 1.0 at the end.

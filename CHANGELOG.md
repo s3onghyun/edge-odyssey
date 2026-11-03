@@ -30,6 +30,11 @@ The first build meant for daily use.
   A saved on/off setting from earlier builds turns into Harp.
   End of a break: a notification, then it waits for you; *Start the next focus after a break*
   (off by default) starts it by itself.
+- Odysseus travels at an even pace by default: his place on the edge is the elapsed share of
+  the session on any screen shape (halfway round = halfway through, also on a vertical
+  display). Rowing, climbing, hanging and sliding keep their poses, sways, slips and bounce as
+  looks only. *Mode > Speed: Physical* brings back the per-edge speeds (slow climb, fast
+  slide); saved as `pace`, `--pace physical` for one run. Everyone starts on Even.
 - `--ctl` commands only reach copies with the same bundle id, so a test build can't control or
   quit your everyday copy.
 - Motion-math tests (`./test.sh`, Swift Testing): exact arrival time, corners as keyframes,
