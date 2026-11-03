@@ -15,6 +15,8 @@ cp "$here"/assets/sketches/*.sprite "$app/Contents/Resources/sketches/"   # disc
 cp "$here"/hooks/* "$app/Contents/Resources/hooks/"
 cp "$here"/assets/sounds/*.m4a "$app/Contents/Resources/"   # NSSound(named:) finds them; sources in assets/sounds/src
 cp "$here"/assets/icon/AppIcon.icns "$app/Contents/Resources/"   # source: tools/make_icon.py
+mkdir -p "$app/Contents/Resources/backgrounds"
+cp "$here"/assets/backgrounds/*.jpg "$app/Contents/Resources/backgrounds/"   # focus mode photos: assets/backgrounds/PROVENANCE.md
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

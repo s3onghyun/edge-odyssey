@@ -6,6 +6,8 @@ This license covers everything under `assets/`: the character sheets, sprite fil
 (`*.sprite`), SVG frames, the app icon, previews and screenshots, and any future sounds or
 character packs.
 The app's source code is MIT-licensed separately (see `../LICENSE`).
+The photographs in `backgrounds/` are not covered: they are in the public domain, and
+`backgrounds/PROVENANCE.md` records where each one comes from.
 
 You may:
 - use these assets as part of an unmodified build of this repository, for your own

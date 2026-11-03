@@ -16,6 +16,22 @@ First public downloadable build, for Apple silicon Macs running macOS 13 or late
   recordings, and blanks its content while the screen is shared. CPU at real speed: about 0.7%
   of one core in focus mode vs 0.5% for the edge on the same machine.
 
+- Timer modes (*Timer* menu): **Pomodoro** (as before), a plain **countdown timer** of any
+  length (presets 1-60 min, *Custom…* as `10`, `1:30` or `1:15:00`, 10 s to 24 h) that ends with
+  the same gold glow, sound and notification and no break, and a **stopwatch** that counts up,
+  Odysseus sailing one lap per hour. Both work on the edge and in focus mode; the choice and the
+  timer length are remembered. Switching mode stops what is running.
+- Change the time by scrolling over the menu-bar time or anywhere in focus mode (mouse wheel or
+  trackpad), or with the arrow keys in focus mode: a minute per step, Shift five minutes, Option
+  ten seconds. Idle, it sets the next session's length; running, it moves what is left.
+- Focus mode backgrounds: seven public-domain photographs (NASA, NOAA, National Park Service):
+  rough seas, a rocky coast, sea cliffs, the Aegean from orbit, a sunset and the night sky
+  (sources in `assets/backgrounds/PROVENANCE.md`),
+  softened and dimmed under the voyage with a slow drift. *Focus mode background*: off, a
+  different photo each session (default), one photo, or your own folder; drift on or off.
+- Command line: `--mode`, `--timer`, `--background`; `--ctl mode:…`, `timer:…`, `adjust:<seconds>`,
+  `background:…`, `background-folder:…`, `drift:on|off`.
+
 ## 0.1.0
 
 The first build meant for daily use.

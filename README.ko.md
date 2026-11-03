@@ -24,7 +24,11 @@ Mac 화면 가장자리에 사는 얇은 집중 타이머입니다. 클릭을 �
   한 번, 5시간 사용 한도에 가까우면 포세이돈의 폭풍.
 - **집중 모드.** 시간을 한가운데서 보고 싶을 때: Control-Option-Command-F로 차분한 전체 화면을
   엽니다. 가운데에 큰 남은 시간, 그 둘레에 시간이 지나며 차오르는 트랙, 그 위를 세 배 크기의
-  오디세우스가 항해합니다. 보조 모니터나 세로 모니터에 잘 맞습니다.
+  오디세우스가 항해합니다. 뒤에는 어둡게 누른 바다·해안·궤도에서 본 에게해·밤하늘 사진(퍼블릭 도메인, 또는 내 사진)이
+  깔립니다. 보조 모니터나 세로 모니터에 잘 맞습니다.
+- **뽀모도로, 타이머, 스톱워치.** 집중과 휴식을 오가는 세션 말고도, 원하는 길이의 일반
+  타이머(1분부터 1시간까지 프리셋)와 스톱워치가 있습니다. 시간 위에서 스크롤하면 바뀝니다. 한 칸에
+  1분, Shift는 5분, Option은 10초.
 - **방해하지 않음.** 2-4px 테두리, 클릭은 그대로 통과, 전체 화면 앱과 화면 공유·녹화 중에는
   숨고, Control-Option-Command-H로 언제든 숨깁니다.
 - **매끄럽고 가벼움.** 움직임은 모두 macOS 렌더 서버에서 돌고, 앱은 모서리와 상태 변화 때만
@@ -71,10 +75,11 @@ open "/Applications/Edge Odyssey.app"
 
 | 항목 | 하는 일 |
 |---|---|
-| 집중 시작 / 일시정지 / 재개 / 건너뛰기 / 정지 | 타이머. 메뉴 막대에 남은 시간을 초 단위로 표시(`12:50`) |
-| Timer | 집중 15/25/45/50/90분 또는 직접 입력(1-240), 휴식 5/10/15분 또는 직접 입력(1-60), 2-6회마다 긴 휴식(15분), 시간이 다 됐을 때의 동작(아래). 바꾼 시간은 다음 세션부터 적용 |
+| 집중 시작 / 일시정지 / 재개 / 건너뛰기 / 정지 | 타이머. 메뉴 막대에 남은 시간을 초 단위로 표시(`12:50`). 그 위에서 스크롤하면 시간이 바뀜(아래) |
+| Timer | **Pomodoro**, **Countdown timer**, **Stopwatch** 중 선택(아래). 타이머 길이(1, 3, 5, 10, 15, 30, 60분 또는 직접 입력). 집중 15/25/45/50/90분 또는 직접 입력(1-240), 휴식 5/10/15분 또는 직접 입력(1-60), 2-6회마다 긴 휴식(15분), 시간이 다 됐을 때의 동작(아래). 바꾼 시간은 다음 세션부터 적용 |
 | Focus mode | 어디서든 Control-Option-Command-F: 전체 화면 집중 모드(아래). 한 번 더 누르면 닫힘 |
 | Focus mode on | 모니터가 둘 이상일 때 집중 모드를 열 모니터(기억됨) |
+| Focus mode background | 끄기, 세션마다 다른 사진(기본), 사진 하나 고정, **내 폴더** 사용. 천천히 움직이기 켜기/끄기 |
 | Mode | 오디세우스 항해(테두리 + 여행자) 또는 얇은 테두리만. Speed: Even(기본) 또는 Physical |
 | Show on | 주 모니터, 모든 모니터(오디세우스는 작업 중인 모니터로 따라옴), 따라오기, 또는 이름으로 고른 모니터 |
 | Border | 2, 3, 4px |
@@ -99,6 +104,27 @@ open "/Applications/Edge Odyssey.app"
   **Off**(기본) 중에서 고르고, 음량은 low/medium 입니다. 고르면 한 번 들려줍니다.
 - 알림은 macOS 집중 모드/방해 금지를 따르므로, 그동안은 뜨지 않습니다.
 
+### 타이머와 스톱워치
+
+<p align="center"><img src="assets/screenshots/timer-background.gif" width="300" alt="어두운 노을 사진 위의 집중 모드: 타이머를 한 칸씩 12:00으로 올렸다가 6:40으로 줄이고, 금빛과 함께 시간이 끝날 때까지 돌린 모습"></p>
+<p align="center"><sub>스크롤 휠처럼 한 칸씩 정한 타이머를 집중 모드에서 40배속으로, 노을 사진 위에서.</sub></p>
+
+*Timer* 에서 메뉴 막대와 집중 모드의 시계가 무엇을 셀지 고릅니다.
+
+- **Pomodoro**(기본): 집중 뒤에 휴식, 몇 번에 한 번은 긴 휴식.
+- **Countdown timer**: 10초부터 24시간까지 원하는 길이로 한 번 세는 타이머. 프리셋, *Custom…*
+  (`10`은 분, `1:30`, `1:15:00`) 또는 스크롤로 정합니다. 오디세우스는 그 시간 동안 한 바퀴를
+  돕니다. 0:00이 되면 가장자리가 금빛으로 한 번 빛나고, 집중이 끝날 때와 같은 소리와 알림이 오고,
+  이타카에서 잠깐 쉰 뒤 다음 타이머를 기다립니다. 휴식은 따라오지 않습니다.
+- **Stopwatch**: 멈출 때까지 0:00부터 올라갑니다. 오디세우스는 한 시간에 가장자리를 한 바퀴
+  돌고 다음 바퀴를 시작합니다. 줄어드는 시간이 없으니 지나온 길은 계속 청록색입니다.
+
+모드를 바꾸면 돌고 있던 시계는 멈춥니다. **시간 바꾸기:** 메뉴 막대의 시간 위나 집중 모드
+어디서든 스크롤하거나(마우스 휠, 트랙패드. 위로 늘고 아래로 줄어듦) 집중 모드에서 화살표 키를
+누릅니다(위/오른쪽은 늘리기, 아래/왼쪽은 줄이기). 한 칸은 1분, **Shift**는 5분, **Option**은
+10초입니다. 아무것도 돌지 않을 때는 다음 세션의 길이를 정하고 기억합니다(뽀모도로 집중 길이는 분
+단위). 돌고 있을 때는 그 세션의 남은 시간만 바꿉니다.
+
 ### 집중 모드
 
 <p align="center">
@@ -113,14 +139,20 @@ open "/Applications/Edge Odyssey.app"
 속도로 트랙을 돌기 때문에 반 바퀴가 곧 절반입니다. 에피소드와 이타카, 칼립소의 섬도 같은 크기로
 나오고, Claude Code 신호(금빛 한 번, 세이렌, 폭풍)도 트랙에 그대로 보입니다.
 
-- **키:** Space로 시작·일시정지·재개, S로 휴식으로 건너뛰기(휴식 중엔 휴식 끝), Esc로 나가기.
+- **키:** Space로 시작·일시정지·재개, S로 휴식으로 건너뛰기(휴식 중엔 휴식 끝), Esc로 나가기,
+  화살표나 스크롤로 시간 바꾸기(위).
   포인터를 움직이면 시작/일시정지, 건너뛰기, 나가기 버튼이 나타납니다. 창이 앞에 있을 때 빈
   곳을 클릭해도 나갑니다.
 - **어디에:** *Focus mode on* 에서 모니터를 고릅니다. 보통의 전체 화면 창이라 Spaces를 오가거나,
   전체 화면을 끄고 크기를 바꾸거나, 닫을 수 있습니다.
 - 집중 모드가 열려 있는 동안 그 모니터의 가장자리 표시는 집중 모드가 대신합니다(다른 모니터의
   테두리는 그대로). 밝은/어두운 화면은 macOS를 따릅니다.
-- 화면 공유·녹화 중(그리고 Control-Option-Command-H)에는 남은 시간과 트랙을 숨기고 빈 배경만
+- **배경:** 항해 뒤로 거친 바다, 바위 해안, 궤도에서 본 에게해, 노을, 밤하늘 사진이 깔립니다. 시간이 잘 읽히도록 살짝
+  흐리고 어둡게 했고, 천천히 움직입니다. *Focus mode background* 에서 끄거나, 한 장으로 고정하거나,
+  JPEG·PNG·HEIC 사진이 든 **내 폴더**를 쓸 수 있습니다(내 Mac에서만 읽음). 앱에 들어 있는 사진 일곱 장은
+  퍼블릭 도메인(NASA, NOAA, 미국 국립공원관리청 저작물)이고, 출처는
+  [`assets/backgrounds/PROVENANCE.md`](assets/backgrounds/PROVENANCE.md)에 있습니다.
+- 화면 공유·녹화 중(그리고 Control-Option-Command-H)에는 남은 시간, 트랙, 사진을 숨기고 빈 배경만
   보여 줍니다. 창 자체도 스크린샷과 녹화에서 빠집니다.
 
 <p align="center"><img src="assets/screenshots/logbook.png" width="720" alt="찾은 책과 아직 미지의 책이 보이는 항해 일지 창"></p>
@@ -160,10 +192,15 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --speed 75 --autostart     # 시연: 25분을 20초에
 "$APP" --ctl start|pause|resume|stop|skip|logbook|welcome|hide|show|quit
 "$APP" --ctl focus-mode:on|off|toggle   # 또는 focus-display:<모니터 이름>
+"$APP" --ctl mode:pomodoro|timer|stopwatch
+"$APP" --ctl timer:10|1:30|1:00:00       # 타이머 길이(타이머 모드로 바뀜)
+"$APP" --ctl adjust:60|-300              # 스크롤과 같음: 더하거나 뺄 초
+"$APP" --ctl background:off|cycle|<파일 이름>   # 또는 background-folder:<경로>, drift:on|off
 ```
 
 플래그(이번 실행에만 적용, 저장 안 됨): `--display main|all|follow|<번호>|<이름>`,
 `--style border|traveler`, `--pace even|physical`, `--thickness 2..4`, `--last5`, `--focus <분>`, `--rest <분>`,
+`--mode pomodoro|timer|stopwatch`, `--timer <길이>`, `--background off|cycle|<파일 이름>`,
 `--no-lotus`, `--char <id>`, `--state-dir <폴더>`, `-v`(stderr에 로그). 시연·테스트용:
 `--focus-mode`(실행하며 열기), `--focus-frame x,y,w,h`(전체 화면 대신 창), `--appearance dark|light`.
 
@@ -171,7 +208,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 
 ```sh
 ./build.sh      # Command Line Tools의 swiftc로 앱 빌드
-./test.sh       # 움직임 수학 테스트(Swift Testing): 정확한 시각, 다시 걸어도 튀지 않음, 스프라이트 박자, 집중 모드 배치
+./test.sh       # 움직임 수학 테스트(Swift Testing): 정확한 시각, 다시 걸어도 튀지 않음, 스프라이트 박자, 집중 모드 배치, 타이머 모드와 시간 조절
 ```
 
 | 경로 | 라이선스 | 내용 |
@@ -181,6 +218,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 | `hooks/` | MIT | Claude Code 훅과 상태 줄 스크립트, 설정 조각 |
 | `tools/` | MIT | 그림 생성기(`make_odysseus.py`, `make_icon.py`), 시트 빌더, `svg2png.swift` |
 | `assets/` | 모든 권리 보유, 개인 사용 허락: [`assets/LICENSE`](assets/LICENSE) | 캐릭터, 아이콘, 스크린샷, 스케치, 소리 |
+| `assets/backgrounds/` | 퍼블릭 도메인(미국 정부 저작물): [`PROVENANCE.md`](assets/backgrounds/PROVENANCE.md) | 집중 모드 사진 |
 
 코드는 MIT([`LICENSE`](LICENSE))입니다. 그림은 아닙니다. 이 저장소를 직접 빌드해 쓰는 것은
 괜찮지만, 그림을 재배포하거나 파생 캐릭터를 만들 수는 없습니다. 포크는 자기 그림으로 환영합니다.
