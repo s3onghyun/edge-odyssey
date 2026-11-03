@@ -1,15 +1,28 @@
-<p align="center"><img src="assets/icon/AppIcon-256.png" width="128" alt="Edge Odyssey 아이콘: 돛단배를 탄 오디세우스"></p>
+<p align="center"><img src="assets/icon/AppIcon-256.png" width="112" alt="Edge Odyssey 아이콘: 돛단배를 탄 오디세우스"></p>
 
-# Edge Odyssey
+<h1 align="center">Edge Odyssey</h1>
 
-Mac 화면 가장자리에 사는 얇은 집중 타이머입니다. 클릭을 막지 않습니다. 집중 시간이 흐르는 동안
-오디세우스가 아래 가장자리에서 노를 젓고, 오른쪽 벽을 오르고, 위쪽에 매달려 가다가 왼쪽으로
-미끄러져 내려옵니다. Claude Code가 나를 부르면 가장자리가 은은하게 빛납니다.
+<p align="center"><b>화면 가장자리에 사는 뽀모도로 타이머.</b><br>
+집중 시간이 흐르는 동안 오디세우스가 Mac 화면 가장자리를 노 저어 가고, 오르고, 매달리고,
+미끄러져 내려옵니다. Claude Code가 나를 부르면 가장자리가 은은하게 빛납니다.</p>
 
-[English README](README.md)
+<p align="center">
+  <a href="README.md">English</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · 한국어
+</p>
 
-<p align="center"><img src="assets/screenshots/voyage.gif" width="480" alt="화면 가장자리를 노 젓고, 오르고, 매달리고, 미끄러지며 도는 오디세우스"></p>
-<p align="center"><sub>25분 한 바퀴를 75배속으로, 카메라가 오디세우스를 따라갑니다.</sub></p>
+<p align="center">
+  <a href="https://github.com/s3onghyun/edge-odyssey/releases/latest"><img src="https://img.shields.io/github/v/release/s3onghyun/edge-odyssey?style=flat-square" alt="최신 릴리스"></a>
+  <img src="https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20silicon-0a0a0c?style=flat-square" alt="macOS 13 이상, Apple silicon">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/code-MIT-6e5aff?style=flat-square" alt="코드: MIT"></a>
+  <img src="https://img.shields.io/badge/telemetry-none-2e8b57?style=flat-square" alt="텔레메트리 없음">
+</p>
+
+<p align="center"><img src="assets/screenshots/voyage.gif" width="720" alt="화면 전체의 얇은 가장자리가 청록색으로 차오르는 동안 오디세우스가 아래쪽을 노 저어 가고, 오른쪽을 오르고, 위쪽을 짚라인으로 건너고, 왼쪽을 미끄러져 이타카에 닿자 금빛 물결이 가장자리를 돕니다. 가운데 돋보기가 그를 따라갑니다"></p>
+<p align="center"><sub>25분 한 바퀴를 75배속으로, 앱 자체 창만 녹화했습니다. 화면 전체와, 오디세우스를 따라가는 돋보기.</sub></p>
+
+**설치** (macOS 13 이상, Apple silicon): [Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest)에서
+ZIP을 받아 풀고 **Edge Odyssey**를 응용 프로그램 폴더로 옮기세요. 아직 공증을 받지 않아서 처음
+실행할 때 한 번 허락이 필요합니다: [처음 실행](#처음-실행)을 보세요.
 
 - **가장자리 뽀모도로.** 집중 25분, 휴식 5분, 네 번째 휴식은 깁니다. 오디세우스의 위치가 곧
   지난 시간이고(일정한 속도로 가므로 반 바퀴면 절반이 지난 것), 지나온 길이 진행 막대입니다.
@@ -39,10 +52,10 @@ Mac 화면 가장자리에 사는 얇은 집중 타이머입니다. 클릭을 �
 
 ## 설치
 
-Edge Odyssey는 Apple silicon Mac의 macOS 13 이상에서 쓸 수 있습니다. [Releases
-페이지](https://github.com/s3onghyun/edge-odyssey/releases)에서 최신
-`Edge-Odyssey-<version>-arm64.zip`와 짝이 되는 `.sha256` 파일을 받으세요. 첫 공개 릴리스는
-Apple silicon 전용이며, 아직 universal 빌드는 제공하지 않습니다.
+Edge Odyssey는 Apple silicon Mac의 macOS 13 이상에서 쓸 수 있습니다. [최신
+릴리스](https://github.com/s3onghyun/edge-odyssey/releases/latest)에서
+`Edge-Odyssey-<version>-arm64.zip`와 짝이 되는 `.sha256` 파일을 받으세요. 릴리스는 아직 Apple
+silicon 전용이며, universal 빌드는 제공하지 않습니다.
 
 설치하기 전에 내려받은 파일을 확인합니다.
 
@@ -53,10 +66,17 @@ ditto -x -k "Edge-Odyssey-<version>-arm64.zip" .
 mv "Edge Odyssey.app" /Applications/
 ```
 
-앱은 ad-hoc 서명만 되어 있고 **아직 공증(notarization)을 받지 않았습니다**. 처음 실행할 때
-응용 프로그램 폴더에서 **Edge Odyssey**를 Control-클릭해 **열기**를 고른 뒤 다시 **열기**를
-누르세요. 그래도 차단되면 **시스템 설정 → 개인정보 보호 및 보안**에서 **그래도 열기**를
-누르세요. 공증은 추후 릴리스에 추가할 예정입니다.
+### 처음 실행
+
+앱은 ad-hoc 서명만 되어 있고 **아직 공증(notarization)을 받지 않아서** macOS가 한 번 묻습니다.
+
+1. 응용 프로그램 폴더에서 **Edge Odyssey**를 엽니다. macOS가 앱을 확인할 수 없다고 하면 **완료**를 누릅니다.
+2. **시스템 설정 → 개인정보 보호 및 보안**을 열고 아래로 내려 Edge Odyssey 옆의 **그래도 열기**를
+   누른 뒤 Touch ID나 암호로 확인합니다.
+3. macOS 13-14에서는 대신 응용 프로그램 폴더에서 앱을 Control-클릭해 **열기**를 골라도 됩니다
+   (macOS 15부터는 이 방법이 없습니다).
+
+코드를 먼저 보고 싶다면 직접 빌드하세요(아래). 공증은 추후 릴리스에 추가할 예정입니다.
 
 ### 소스에서 빌드
 
@@ -64,7 +84,7 @@ mv "Edge Odyssey.app" /Applications/
 프로젝트는 없습니다.
 
 ```sh
-git clone <이 저장소> && cd edge-odyssey
+git clone https://github.com/s3onghyun/edge-odyssey.git && cd edge-odyssey
 ./build.sh                                   # -> build/Edge Odyssey.app
 cp -R "build/Edge Odyssey.app" /Applications/
 open "/Applications/Edge Odyssey.app"
@@ -289,13 +309,17 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 | `Sources/` | MIT | 앱(AppKit, SwiftUI 창, Core Animation) |
 | `Tests/`, `Package.swift`, `test.sh` | MIT | 움직임 수학 테스트 |
 | `hooks/` | MIT | Claude Code 훅과 상태 줄 스크립트, 설정 조각 |
-| `tools/` | MIT | 그림 생성기(`make_odysseus.py`, `make_icon.py`), 시트 빌더, `svg2png.swift` |
+| `tools/` | MIT | 그림 생성기(`make_odysseus.py`, `make_icon.py`, `make_social.py`), 시트 빌더, `svg2png.swift` |
 | `assets/` | 모든 권리 보유, 개인 사용 허락: [`assets/LICENSE`](assets/LICENSE) | 캐릭터, 아이콘, 스크린샷, 스케치, 소리 |
+| `docs/` | `assets/`와 같음(캐릭터를 그림): [`assets/LICENSE`](assets/LICENSE) | 소셜 미리보기 카드, `tools/make_social.py`로 만듦 |
 | `assets/backgrounds/` | 퍼블릭 도메인(미국 정부 저작물): [`PROVENANCE.md`](assets/backgrounds/PROVENANCE.md) | 집중 모드 사진 |
 
-코드는 MIT([`LICENSE`](LICENSE))입니다. 그림은 아닙니다. 이 저장소를 직접 빌드해 쓰는 것은
-괜찮지만, 그림을 재배포하거나 파생 캐릭터를 만들 수는 없습니다. 포크는 자기 그림으로 환영합니다.
-그림을 만든 과정은 [`PROVENANCE.md`](PROVENANCE.md)에 있습니다.
+코드는 MIT([`LICENSE`](LICENSE))입니다: `Sources/`, `Tests/`, `tools/`, `hooks/`, `build.sh`,
+`test.sh`, `Package.swift`. MIT 라이선스는 `assets/` 아래의 캐릭터 그림, 스프라이트와 다른 파일에는
+적용되지 않으며, 그것들은 따로 라이선스가 있습니다([`assets/LICENSE`](assets/LICENSE)). 이 저장소를
+직접 빌드해 쓰는 것은 괜찮지만, 그림을 재배포하거나 파생 캐릭터를 만들 수는 없습니다. 포크는 자기
+그림으로 환영합니다. 그림을 만든 과정은 [`PROVENANCE.md`](PROVENANCE.md)에, 기여 방법은
+[`CONTRIBUTING.md`](CONTRIBUTING.md)에 있습니다.
 
 ### 캐릭터 형식
 

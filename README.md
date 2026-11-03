@@ -1,15 +1,30 @@
-<p align="center"><img src="assets/icon/AppIcon-256.png" width="128" alt="Edge Odyssey icon: Odysseus under sail"></p>
+<p align="center"><img src="assets/icon/AppIcon-256.png" width="112" alt="Edge Odyssey icon: Odysseus under sail"></p>
 
-# Edge Odyssey
+<h1 align="center">Edge Odyssey</h1>
 
-A thin, click-through focus timer that lives on the edge of your Mac's screen. Odysseus rows
-along the bottom, climbs the right side, hangs from the top and slides down the left as your
-focus session passes, and the edge glows softly when Claude Code needs you.
+<p align="center"><b>A pomodoro that lives on the edge of your screen.</b><br>
+Odysseus rows along the bottom, climbs, hangs and slides round your Mac's screen edge as the
+session passes, and the edge glows when Claude Code needs you.</p>
 
-[한국어 README](README.ko.md) · The app speaks English, 한국어, 日本語 and 简体中文 ([Languages](#languages)).
+<p align="center">
+  English · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a> · <a href="README.ko.md">한국어</a>
+</p>
 
-<p align="center"><img src="assets/screenshots/voyage.gif" width="480" alt="Odysseus rowing, climbing, hanging and sliding around the screen edge"></p>
-<p align="center"><sub>One 25-minute lap at 75x speed, the camera following Odysseus.</sub></p>
+<p align="center">
+  <a href="https://github.com/s3onghyun/edge-odyssey/releases/latest"><img src="https://img.shields.io/github/v/release/s3onghyun/edge-odyssey?style=flat-square" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20silicon-0a0a0c?style=flat-square" alt="macOS 13+, Apple silicon">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/code-MIT-6e5aff?style=flat-square" alt="Code: MIT"></a>
+  <img src="https://img.shields.io/badge/telemetry-none-2e8b57?style=flat-square" alt="No telemetry">
+</p>
+
+<p align="center"><img src="assets/screenshots/voyage.gif" width="720" alt="The whole screen with a thin edge filling teal as Odysseus rows along the bottom, climbs the right side, rides a zipline along the top and slides down the left to Ithaca, where a gold wave runs round the edge; a magnifier in the middle follows him"></p>
+<p align="center"><sub>One 25-minute lap at 75x speed, recorded from the app's own windows: the whole screen, and a magnifier following Odysseus.</sub></p>
+
+**Install** (macOS 13+, Apple silicon): download the ZIP from
+[Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest), unzip it and move
+**Edge Odyssey** to Applications. It is not notarized yet, so the first launch needs one approval:
+see [First launch](#first-launch). The app speaks English, 한국어, 日本語 and 简体中文
+([Languages](#languages)).
 
 - **Pomodoro on the edge.** 25 minutes of focus, 5 minutes of break, every fourth break is
   long. Where Odysseus is on the edge is how much of the session has passed (he moves at an
@@ -43,8 +58,8 @@ focus session passes, and the edge glows softly when Claude Code needs you.
 
 Edge Odyssey needs macOS 13 or later on an Apple-silicon Mac. Download the current
 `Edge-Odyssey-<version>-arm64.zip` and its matching `.sha256` file from the
-[Releases page](https://github.com/s3onghyun/edge-odyssey/releases). (This first public
-release is Apple-silicon only; a universal build is not available yet.)
+[latest release](https://github.com/s3onghyun/edge-odyssey/releases/latest). (Releases are
+Apple-silicon only for now; a universal build is not available yet.)
 
 Verify the download before installing:
 
@@ -55,10 +70,18 @@ ditto -x -k "Edge-Odyssey-<version>-arm64.zip" .
 mv "Edge Odyssey.app" /Applications/
 ```
 
-The app is ad-hoc signed but **not notarized yet**. On the first launch, Control-click
-**Edge Odyssey** in Applications, choose **Open**, then choose **Open** again. If macOS still
-blocks it, open **System Settings → Privacy & Security** and select **Open Anyway**. Notarization
-will be added in a later release.
+### First launch
+
+The app is ad-hoc signed but **not notarized yet**, so macOS asks once:
+
+1. Open **Edge Odyssey** from Applications. macOS says it cannot verify the app; click **Done**.
+2. Open **System Settings → Privacy & Security**, scroll down, click **Open Anyway** next to
+   Edge Odyssey and confirm with Touch ID or your password.
+3. On macOS 13-14 you can instead Control-click the app in Applications and choose **Open**
+   (macOS 15 and later no longer offer this).
+
+Prefer to check the code first? Build it yourself (below). Notarization will be added in a later
+release.
 
 ### Build from source
 
@@ -66,7 +89,7 @@ To build your own copy, install the Xcode Command Line Tools (`xcode-select --in
 Xcode project is required.
 
 ```sh
-git clone <this repo> && cd edge-odyssey
+git clone https://github.com/s3onghyun/edge-odyssey.git && cd edge-odyssey
 ./build.sh                                   # -> build/Edge Odyssey.app
 cp -R "build/Edge Odyssey.app" /Applications/
 open "/Applications/Edge Odyssey.app"
@@ -308,13 +331,17 @@ Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--
 | `Sources/` | MIT | The app (AppKit, SwiftUI windows, Core Animation) |
 | `Tests/`, `Package.swift`, `test.sh` | MIT | Motion-math tests |
 | `hooks/` | MIT | Claude Code hook and status-line scripts, settings snippet |
-| `tools/` | MIT | Art generators (`make_odysseus.py`, `make_icon.py`), sheet builder, `svg2png.swift` |
+| `tools/` | MIT | Art generators (`make_odysseus.py`, `make_icon.py`, `make_social.py`), sheet builder, `svg2png.swift` |
 | `assets/` | All rights reserved, personal-use grant: [`assets/LICENSE`](assets/LICENSE) | Characters, icon, screenshots, sketches, sounds |
+| `docs/` | As `assets/` (it draws the character): [`assets/LICENSE`](assets/LICENSE) | Social preview card, made by `tools/make_social.py` |
 | `assets/backgrounds/` | Public domain (US government works): [`PROVENANCE.md`](assets/backgrounds/PROVENANCE.md) | Focus mode photos |
 
-The code is MIT ([`LICENSE`](LICENSE)). The art is not: you may use it in your own builds of
-this repository, but not redistribute it or make derivative characters. Forks are welcome
-with their own art. See [`PROVENANCE.md`](PROVENANCE.md) for how the art was made.
+The code is MIT ([`LICENSE`](LICENSE)): `Sources/`, `Tests/`, `tools/`, `hooks/`, `build.sh`,
+`test.sh` and `Package.swift`. The MIT license does not cover the character art, sprites and other
+files under `assets/`, which have their own license ([`assets/LICENSE`](assets/LICENSE)): you may
+use them in your own builds of this repository, but not redistribute them or make derivative
+characters. Forks are welcome with their own art. See [`PROVENANCE.md`](PROVENANCE.md) for how the
+art was made, and [`CONTRIBUTING.md`](CONTRIBUTING.md) to help.
 
 ### Character format
 

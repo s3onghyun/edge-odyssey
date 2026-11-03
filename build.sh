@@ -5,7 +5,7 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 app="$here/build/Edge Odyssey.app"
 bundle_id=${EDGE_ODYSSEY_BUNDLE_ID:-app.edgeodyssey}
-version=${EDGE_ODYSSEY_VERSION:-0.2.0}
+version=${EDGE_ODYSSEY_VERSION:-0.3.0}
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/characters" "$app/Contents/Resources/sketches" "$app/Contents/Resources/hooks"
 swiftc -swift-version 5 -O -target arm64-apple-macos13 \

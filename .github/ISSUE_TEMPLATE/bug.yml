@@ -1,0 +1,41 @@
+name: Bug report
+description: Something in Edge Odyssey doesn't work as described.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      placeholder: "Focus mode opened on the wrong display; I expected the one I last used."
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start a focus
+        2. ...
+  - type: input
+    id: version
+    attributes:
+      label: Edge Odyssey version
+      description: Finder > Get Info on the app.
+      placeholder: "0.3.0"
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version and Mac
+      placeholder: "macOS 15.4, MacBook Pro M3, one external display"
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log (optional)
+      description: |
+        Run `"/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey" -v` in Terminal, reproduce,
+        and paste the lines around the problem. Remove anything private first.
+      render: text
