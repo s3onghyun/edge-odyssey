@@ -127,9 +127,6 @@ new ZIP from the release page, check its `.sha256` and replace the app as in [In
 
 ### When time is up
 
-<p align="center"><img src="assets/screenshots/arrival.gif" width="480" alt="The end of a focus: a laurel-gold wave runs twice round the screen edge, ripples and sparkles spread from the harbor at the bottom-left, and the border stays gold"></p>
-<p align="center"><sub>The end of a focus: two laps of the gold wave, then the harbor ripples. The border stays gold until you move on.</sub></p>
-
 - **End of a focus session:** Odysseus arrives home at the bottom-left corner exactly on time and
   lands on Ithaca (or on Calypso's island for a long break). A laurel-gold wave runs twice round
   the edge and ripples and sparkles spread from the harbor; the border then **stays gold, and the
