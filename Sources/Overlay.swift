@@ -95,8 +95,14 @@ final class Overlay {
     private var shown = false
     var sceneProvider: (() -> Scene)?
     var log: ((String) -> Void)?
+    /// Set in focus mode: the track and traveler are drawn on this view's stage, inside an
+    /// ordinary window the user opened, instead of on a click-through window over a display.
+    let focusView: FocusView?
+    /// What the route is laid out on: the whole display, or the focus window's stage.
+    var stageSize: CGSize { root.bounds.size }
 
     init(screen: NSScreen, excludeFromCapture: Bool) {
+        focusView = nil
         self.screen = screen
         window = NSWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
         window.setFrame(screen.frame, display: false)
@@ -115,8 +121,39 @@ final class Overlay {
         view.wantsLayer = true
         window.contentView = view
         root.frame = view.bounds
-        root.opacity = 0
+        setUpLayers()
+    }
 
+    /// The focus-mode window on `screen` (or at `frame`, a debug/demo flag), resizable and
+    /// ready for full screen. It takes clicks and keys; FocusView lays out the stage.
+    init(focusOn screen: NSScreen, excludeFromCapture: Bool, frame: CGRect?) {
+        self.screen = screen
+        let v = screen.visibleFrame
+        placement = frame ?? v.insetBy(dx: v.width * 0.15, dy: v.height * 0.15)
+        window = NSWindow(contentRect: placement,
+                          styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
+                          backing: .buffered, defer: false)
+        window.title = "Focus mode"
+        window.titleVisibility = .hidden
+        window.titlebarAppearsTransparent = true
+        window.isReleasedWhenClosed = false
+        window.collectionBehavior = [.fullScreenPrimary]
+        window.minSize = CGSize(width: 480, height: 480)
+        window.sharingType = excludeFromCapture ? .none : .readOnly
+        let view = FocusView(stage: root)
+        focusView = view
+        window.contentView = view
+        place()
+        setUpLayers()
+    }
+
+    /// Where the focus window belongs. Setting the content view and ordering the window front
+    /// both pull a new window onto the main display, so the frame is applied again after them.
+    private var placement = CGRect.zero
+    func place() { window.setFrame(placement, display: true) }
+
+    private func setUpLayers() {
+        root.opacity = 0
         for l in [track, fill, agentRing] {
             l.fillColor = nil
             l.lineCap = .butt
@@ -135,13 +172,14 @@ final class Overlay {
 
     func close() {
         edgeTimer?.invalidate()
-        window.orderOut(nil)
+        focusView == nil ? window.orderOut(nil) : window.close()
     }
 
     /// The same display came back with new parameters (resolution, arrangement, a monitor
     /// connected or disconnected elsewhere): resize in place, so nothing fades or restarts.
     func move(to screen: NSScreen) {
         self.screen = screen
+        guard focusView == nil else { return }   // an ordinary window: macOS places it
         window.setFrame(screen.frame, display: false)
         window.contentView?.frame = CGRect(origin: .zero, size: screen.frame.size)
         CATransaction.begin()
@@ -208,7 +246,7 @@ final class Overlay {
     private func setVisible(_ v: Bool) {
         guard v != shown else { return }
         shown = v
-        if v { window.orderFrontRegardless() }
+        if v, focusView == nil { window.orderFrontRegardless() }
         let a = CABasicAnimation(keyPath: "opacity")
         a.fromValue = root.presentation()?.opacity ?? root.opacity
         a.toValue = v ? 1 : 0
@@ -218,7 +256,7 @@ final class Overlay {
         if !v {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.65) { [weak self] in
                 guard let self, !self.shown else { return }
-                self.window.orderOut(nil)
+                if self.focusView == nil { self.window.orderOut(nil) }
                 // Hidden: leave nothing animating, so the render server has no work for us.
                 for l in [self.fill, self.agentRing, self.mover, self.poser, self.spriteLayer] { l.removeAllAnimations() }
                 self.clearEpisodes()
@@ -327,8 +365,9 @@ final class Overlay {
         switch s.phase {
         case .focus:
             t = s.elapsed / s.duration; total = s.duration; moving = !s.paused && t < 0.999
-        case .rest:   // home again: asleep on the floor at the start corner
-            t = 0; total = s.duration; moving = false
+        case .rest:   // home again: asleep at the start corner; in focus mode, mid-floor under the clock
+            t = focusView == nil ? 0 : Double(size.width) / Double(4 * (size.width + size.height))
+            total = s.duration; moving = false
         case .idle:
             t = s.lapElapsed / s.lapDuration; total = s.lapDuration
             moving = s.agent == .working
@@ -481,7 +520,7 @@ final class Overlay {
 
         switch ep {
         case .cyclops:   // stationary in the world, ahead of the boat on the floor
-            let ahead = CGPoint(x: here.x + cos(angle) * 110, y: here.y + sin(angle) * 110)
+            let ahead = CGPoint(x: here.x + cos(angle) * 110 * sprite.scale, y: here.y + sin(angle) * 110 * sprite.scale)
             prop("ep-cyclops", in: root, at: ahead, rotation: angle, once: true, life: max(seconds, 3))
         case .circe:     // piglets trot behind him
             prop("ep-piglets", in: poser, at: CGPoint(x: -size.width * 0.95, y: 0), once: false, life: seconds)
@@ -490,12 +529,12 @@ final class Overlay {
             let d = CGPoint(x: cos(angle), y: sin(angle))
             let g = CAKeyframeAnimation(keyPath: "position")
             g.isAdditive = true
-            g.values = [0, 70, 55, 25, 0].map { NSValue(point: CGPoint(x: d.x * $0, y: d.y * $0)) }
+            g.values = [0, 70, 55, 25, 0].map { NSValue(point: CGPoint(x: d.x * $0 * sprite.scale, y: d.y * $0 * sprite.scale)) }
             g.keyTimes = [0, 0.12, 0.35, 0.7, 1]
             g.duration = 4
             // On the poser, not the mover: the mover's route animation is rebuilt on every
             // re-apply and, added later, would override an additive gust on the same layer.
-            poser.add(tune(g, rate(70 / (0.12 * 4))), forKey: "gust-\(Date().timeIntervalSince1970)")
+            poser.add(tune(g, rate(70 * sprite.scale / (0.12 * 4))), forKey: "gust-\(Date().timeIntervalSince1970)")
         case .whirlpool: // Charybdis spins him round the corner
             prop("ep-whirl", in: poser, at: .zero, once: false, life: 1.8)
             let spin = CABasicAnimation(keyPath: "transform.rotation.z")

@@ -26,26 +26,30 @@ final class SpriteSheet {
     private(set) var devicePixels = 3
     /// Folder of a vector character (its SVG frames can be drawn at any size), else nil.
     private(set) var folder: URL?
+    /// Drawn this many times larger than on the edge (focus mode). Vector frames are
+    /// rasterised at that size, so they stay sharp.
+    let scale: CGFloat
 
     /// Size of one sprite unit in points on a display with this backing scale.
     func unitPoints(backing: CGFloat) -> CGFloat {
-        pixelated ? CGFloat(devicePixels) / max(backing, 1) : 1
+        (pixelated ? CGFloat(devicePixels) / max(backing, 1) : 1) * scale
     }
 
     /// Loads a `.sprite` grid file, or a vector character folder.
-    convenience init(url: URL) throws {
+    convenience init(url: URL, scale: CGFloat = 1) throws {
         var isDir: ObjCBool = false
         FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
-        if isDir.boolValue { try self.init(vectorFolder: url) } else { try self.init(gridFile: url) }
+        if isDir.boolValue { try self.init(vectorFolder: url, scale: scale) } else { try self.init(gridFile: url, scale: scale) }
     }
 
-    init(vectorFolder url: URL) throws {
+    init(vectorFolder url: URL, scale: CGFloat = 1) throws {
         id = url.lastPathComponent
         folder = url
+        self.scale = scale
         pixelated = false
         let text = try String(contentsOf: url.appendingPathComponent("character.txt"), encoding: .utf8)
         // Rasterise at the sharpest display's backing scale: 1 pt per unit maps 1:1 to pixels.
-        let renderScale = Int(NSScreen.screens.map(\.backingScaleFactor).max() ?? 2)
+        let renderScale = (NSScreen.screens.map(\.backingScaleFactor).max() ?? 2) * scale
         for raw in text.components(separatedBy: .newlines) {
             let line = raw.trimmingCharacters(in: .whitespaces)
             if line.hasPrefix("name:") {
@@ -60,7 +64,7 @@ final class SpriteSheet {
                 let files = parts.first { $0.hasPrefix("frames=") }.map { $0.dropFirst(7).split(separator: ",") } ?? []
                 let frames = files.compactMap { f -> CGImage? in
                     guard let img = NSImage(contentsOf: url.appendingPathComponent(String(f))) else { return nil }
-                    let r = CGRect(x: 0, y: 0, width: width * renderScale, height: height * renderScale)
+                    let r = CGRect(x: 0, y: 0, width: (CGFloat(width) * renderScale).rounded(), height: (CGFloat(height) * renderScale).rounded())
                     let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(r.width), pixelsHigh: Int(r.height),
                                                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                                                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
@@ -78,8 +82,9 @@ final class SpriteSheet {
         }
     }
 
-    init(gridFile url: URL) throws {
+    init(gridFile url: URL, scale: CGFloat = 1) throws {
         id = url.deletingPathExtension().lastPathComponent
+        self.scale = scale
         let text = try String(contentsOf: url, encoding: .utf8)
         var palette: [Character: CGColor] = [:]
         var inPalette = false

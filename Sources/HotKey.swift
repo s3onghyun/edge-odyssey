@@ -1,19 +1,29 @@
 import Carbon
 
-/// Global "hide now" hotkey (Control-Option-Command-H). Carbon hotkeys need no
-/// Accessibility permission.
+/// Global Control-Option-Command hotkeys: H hides now, F toggles focus mode. Carbon hotkeys
+/// need no Accessibility permission.
 enum HotKey {
-    static var handler: (() -> Void)?
-    private static var ref: EventHotKeyRef?
+    private static var handlers: [UInt32: () -> Void] = [:]
+    private static var refs: [EventHotKeyRef?] = []
 
-    static func register() {
-        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
-            DispatchQueue.main.async { HotKey.handler?() }
-            return noErr
-        }, 1, &spec, nil, nil)
-        let id = EventHotKeyID(signature: OSType(0x4544_4C47), id: 1)
-        RegisterEventHotKey(UInt32(kVK_ANSI_H), UInt32(cmdKey | optionKey | controlKey), id,
+    /// Control-Option-Command plus `key` (a kVK_ code).
+    static func register(_ key: Int, _ handler: @escaping () -> Void) {
+        if handlers.isEmpty {
+            var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+            InstallEventHandler(GetApplicationEventTarget(), { _, event, _ in
+                var hk = EventHotKeyID()
+                GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
+                                  nil, MemoryLayout<EventHotKeyID>.size, nil, &hk)
+                let id = hk.id
+                DispatchQueue.main.async { HotKey.handlers[id]?() }
+                return noErr
+            }, 1, &spec, nil, nil)
+        }
+        let id = UInt32(handlers.count + 1)
+        handlers[id] = handler
+        var ref: EventHotKeyRef?
+        RegisterEventHotKey(UInt32(key), UInt32(cmdKey | optionKey | controlKey), EventHotKeyID(signature: OSType(0x4544_4C47), id: id),
                             GetApplicationEventTarget(), 0, &ref)
+        refs.append(ref)
     }
 }

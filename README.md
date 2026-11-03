@@ -23,6 +23,9 @@ focus session passes, and the edge glows softly when Claude Code needs you.
   Charybdis and Athena's owl visit different laps and fill a 24-book logbook.
 - **Claude Code signals (optional).** Quiet blue edge while it works, the Sirens and one soft
   gold swell when it is waiting for you, Poseidon's storm near the 5-hour usage limit.
+- **Focus mode.** When you want the time front and centre: Control-Option-Command-F opens a
+  calm full-screen view with a large countdown, a track around it that fills as time passes,
+  and Odysseus at three times the size sailing round it. Made for a second or vertical monitor.
 - **Out of your way.** A 2-4 px border, never takes a click, hides in full-screen apps and
   while the screen is shared or recorded, and on Control-Option-Command-H.
 - **Smooth and light.** All motion runs in the macOS render server; the app wakes only at
@@ -72,6 +75,8 @@ menu bar (the dashed circle).
 |---|---|
 | Start focus / Pause / Resume / Skip / Stop | The timer. The menu bar counts down to the second (`12:50`) |
 | Timer | Focus 15/25/45/50/90 min or custom (1-240), break 5/10/15 min or custom (1-60), a long break (15 min) every 2-6 sessions, and what happens when time is up (below). A new length applies from the next session |
+| Focus mode | Control-Option-Command-F, from anywhere: the full-screen focus view (below). Again to close |
+| Focus mode on | With more than one display: which one focus mode opens on (remembered) |
 | Mode | Odysseus voyage (border + traveler) or a thin border only; Speed: Even (default) or Physical |
 | Show on | Main display, all displays (Odysseus follows the display you work on), follow me, or one named display |
 | Border | 2, 3 or 4 px |
@@ -97,6 +102,32 @@ Settings are remembered between launches.
 - *Timer > Sound*: **Harp** (two short phrases written for this app), **Glass** (the macOS
   system sound) or **Off** (default), and a low or medium volume. Picking one plays it once.
 - Notifications follow macOS Focus / Do Not Disturb, so they stay silent while that is on.
+
+### Focus mode
+
+<p align="center">
+  <img src="assets/screenshots/focus-mode.gif" width="270" alt="Focus mode in a vertical window: a large countdown, Odysseus sailing round the track as it fills, then Ithaca">
+  <img src="assets/screenshots/focus-mode.png" width="270" alt="Focus mode full screen on a vertical display in the light appearance">
+</p>
+<p align="center"><sub>One lap at 40x speed in a vertical window, and full screen on a vertical display.</sub></p>
+
+*Focus mode* (Control-Option-Command-F, or the menu) opens a full-screen view on the display
+you last used for it, or the one you are working on. The remaining time sits in the middle in
+large digits; the track around it is the progress bar (teal, coral near the end, lavender
+draining during a break), and a 3x Odysseus voyages round it at an even pace, so halfway round
+is halfway through. Episodes, Ithaca and Calypso's island play at the same size, and Claude
+Code signals still show on the track (the gold swell, the Sirens, the storm).
+
+- **Keys:** Space starts, pauses or resumes; S skips to the break (or ends it); Esc exits.
+  Moving the pointer shows Start/Pause, Skip and Exit buttons. Once the window is in front, a
+  click on the background also exits.
+- **Where:** *Focus mode on* picks the display. It is an ordinary full-screen window, so you
+  can switch Spaces, leave full screen and resize it, or close it.
+- While focus mode is open it replaces the edge on its display (other displays keep their
+  border); the light or dark look follows macOS.
+- While the screen is shared or recorded (and on Control-Option-Command-H) the countdown and
+  track are hidden and only the plain background shows; the window is also left out of
+  screenshots and recordings.
 
 <p align="center"><img src="assets/screenshots/logbook.png" width="720" alt="Logbook window with found and uncharted books"></p>
 
@@ -124,7 +155,7 @@ watches the folder (no polling). Nothing leaves your Mac.
 ## Privacy
 
 No network access, no analytics. The overlay windows are excluded from screenshots and
-screen recordings, and the whole edge hides while the macOS screen-capture indicator is on
+screen recordings, and the whole edge (and focus mode's content) hides while the macOS screen-capture indicator is on
 (Zoom, Meet, QuickTime and so on). Local files: `~/.edge-odyssey/` (hook states, logbook) and
 the app's preferences (`app.edgeodyssey`).
 
@@ -134,17 +165,19 @@ the app's preferences (`app.edgeodyssey`).
 APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --speed 75 --autostart     # demo: 25 minutes in 20 seconds
 "$APP" --ctl start|pause|resume|stop|skip|logbook|welcome|hide|show|quit
+"$APP" --ctl focus-mode:on|off|toggle   # or focus-display:<display name>
 ```
 
 Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--style border|traveler`, `--pace even|physical`,
 `--thickness 2..4`, `--last5`, `--focus <min>`, `--rest <min>`, `--no-lotus`, `--char <id>`,
-`--state-dir <dir>`, `-v` (log to stderr).
+`--state-dir <dir>`, `-v` (log to stderr). For demos and tests: `--focus-mode` (open it at launch),
+`--focus-frame x,y,w,h` (a window instead of full screen), `--appearance dark|light`.
 
 ## Development
 
 ```sh
 ./build.sh      # the app, with swiftc from the Command Line Tools
-./test.sh       # motion-math tests (Swift Testing): exact timing, no jumps on re-apply, sprite timing
+./test.sh       # motion-math tests (Swift Testing): exact timing, no jumps on re-apply, sprite timing, focus-mode layout
 ```
 
 | Path | License | What |

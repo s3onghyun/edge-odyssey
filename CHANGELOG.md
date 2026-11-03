@@ -6,6 +6,15 @@ First public downloadable build, for Apple silicon Macs running macOS 13 or late
 
 - Downloadable, ad-hoc-signed release archives with SHA-256 checksums. The app is not yet
   notarized; first launch requires the standard Gatekeeper override.
+- Focus mode (opt-in): Control-Option-Command-F or *Focus mode* in the menu opens a calm
+  full-screen view on the chosen display (remembered; *Focus mode on* when there are several):
+  a large countdown in the middle, a screen-shaped track around it that fills as time passes,
+  and Odysseus at 3x voyaging round it at an even pace, with the episodes, Ithaca and Calypso's
+  island at the same size and Claude Code signals still on the track. Space starts, pauses or
+  resumes, S skips, Esc or a click exits; buttons appear while the pointer moves. Light and dark
+  follow macOS. It replaces the edge on its own display, is left out of screenshots and
+  recordings, and blanks its content while the screen is shared. CPU at real speed: about 0.7%
+  of one core in focus mode vs 0.5% for the edge on the same machine.
 
 ## 0.1.0
 

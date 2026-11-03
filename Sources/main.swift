@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import ServiceManagement
 import UserNotifications
 
@@ -36,13 +37,18 @@ struct Options {
     var soundVolume = "low"         // Chime.volumes: low or medium
     var autoNextFocus = false       // start the next focus by itself when a break ends
     var physicalPace = false        // traveler pace: even (position = elapsed share) or physical per-edge speeds
+    var focusDisplay = ""           // focus mode opens on this display (by name), else the one you work on
+    var focusAtLaunch = false       // demo/test: open focus mode at launch
+    var focusFrame: CGRect?         // demo/test: focus mode as a window at x,y,w,h instead of full screen
+    var appearance: String?         // demo/test: "dark" or "light" instead of the system appearance
 
     /// Settings the menu changes are kept in UserDefaults; command-line flags override them
     /// for one run without being saved.
     static let saved: [String: Any] = ["style": "traveler", "display": "main", "thickness": 3.0, "onlyLast5": false,
                                        "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true,
                                        "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4,
-                                       "notifyAtEnd": true, "soundVolume": "low", "autoNextFocus": false, "pace": "even"]   // "sound" unregistered: see init
+                                       "notifyAtEnd": true, "soundVolume": "low", "autoNextFocus": false, "pace": "even",
+                                       "focusDisplay": ""]   // "sound" unregistered: see init
 
     init(_ args: [String], defaults d: UserDefaults = .standard) {
         d.register(defaults: Self.saved)
@@ -62,6 +68,7 @@ struct Options {
         soundVolume = Chime.volume(d.string(forKey: "soundVolume"))
         autoNextFocus = d.bool(forKey: "autoNextFocus")
         physicalPace = d.string(forKey: "pace") == "physical"
+        focusDisplay = d.string(forKey: "focusDisplay") ?? ""
         var it = args.dropFirst().makeIterator()
         while let a = it.next() {
             switch a {
@@ -86,6 +93,11 @@ struct Options {
             case "--ceiling": ceilingVariant = it.next()
             case "--pace": physicalPace = it.next() == "physical"
             case "--episodes": episodes = (it.next() ?? "").split(separator: ",").compactMap { Episode(rawValue: String($0)) }
+            case "--focus-mode": focusAtLaunch = true
+            case "--appearance": appearance = it.next()
+            case "--focus-frame":
+                let v = (it.next() ?? "").split(separator: ",").compactMap { Double($0) }
+                if v.count == 4 { focusFrame = CGRect(x: v[0], y: v[1], width: v[2], height: v[3]) }
             case "--fps": Overlay.maxFPS = Float(it.next() ?? "") ?? 0
             case "-v", "--verbose": verbose = true
             default: break
@@ -119,10 +131,15 @@ final class MenuAction: NSMenuItem {
     @objc private func fire() { handler?() }
 }
 
-final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
     var o: Options
     var sprites: [String: SpriteSheet] = [:]
+    var spriteURLs: [String: URL] = [:]
     var overlays: [Overlay] = []
+    /// Focus mode's window, while it is open. It hosts the traveler (3x, `focusSprites`).
+    var focusOverlay: Overlay?
+    var focusSprites: [String: SpriteSheet] = [:]
+    var allOverlays: [Overlay] { overlays + (focusOverlay.map { [$0] } ?? []) }
     var phase: Phase = .idle
     var phaseStart = Date()
     var pausedAt: Date?
@@ -164,6 +181,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: lifecycle
 
     func applicationDidFinishLaunching(_ n: Notification) {
+        if let a = o.appearance { NSApp.appearance = NSAppearance(named: a == "dark" ? .darkAqua : .aqua) }
         loadSprites()
         buildStatusItem()
         for b in o.demoBackdrop { showBackdrop(on: b) }
@@ -193,8 +211,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self.refresh()
         }
         watcher.start()
-        HotKey.handler = { [weak self] in self?.toggleHidden() }
-        HotKey.register()
+        HotKey.register(kVK_ANSI_H) { [weak self] in self?.toggleHidden() }
+        HotKey.register(kVK_ANSI_F) { [weak self] in self?.toggleFocusMode() }
         DistributedNotificationCenter.default().addObserver(forName: ctlNotification, object: nil, queue: .main) { [weak self] n in
             if let cmd = n.object as? String { self?.control(cmd) }
         }
@@ -215,6 +233,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
         if o.autostart { start() }
+        if o.focusAtLaunch { openFocusMode() }
         refresh()
         if !UserDefaults.standard.bool(forKey: "onboarded") && !o.autostart { showWelcome() }
         log("launched: state dir \(o.stateDir.path), speed \(o.speed)")
@@ -241,7 +260,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let isVector = { (u: URL) in FileManager.default.fileExists(atPath: u.appendingPathComponent("character.txt").path) }
             for f in files where (f.pathExtension == "sprite" || isVector(f))
                 && sprites[f.pathExtension == "sprite" ? f.deletingPathExtension().lastPathComponent : f.lastPathComponent] == nil {
-                do { let s = try SpriteSheet(url: f); sprites[s.id] = s } catch { log("sprite error: \(error)") }
+                do { let s = try SpriteSheet(url: f); sprites[s.id] = s; spriteURLs[s.id] = f } catch { log("sprite error: \(error)") }
             }
         }
         if sprites[o.character] == nil { o.character = sprites["odysseus-vector"] != nil ? "odysseus-vector" : sprites.keys.sorted().first ?? "" }
@@ -259,6 +278,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return Overlay(screen: scr, excludeFromCapture: o.excludeFromCapture)
         }
         kept.values.forEach { $0.close() }
+        if let f = focusOverlay, let s = f.window.screen { f.move(to: s) }
         for ov in overlays {
             ov.sceneProvider = { [weak self, weak ov] in ov.flatMap { self?.scene(for: $0) } ?? Scene() }
             ov.log = { [weak self] in self?.log($0) }
@@ -292,9 +312,17 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         s.restIsLong = restIsLong
         s.dozing = lotus && phase == .focus
         s.overrideAnim = overrideAnim
+        if ov === focusOverlay {   // opened by the user: no last-5-minutes or covered-display hiding
+            s.hostsTraveler = true
+            s.thickness = FocusLayout.trackWidth
+            s.sprite = focusSprite
+            s.visible = phase != .idle || s.agent != .idle
+            return s
+        }
         let (borderScreens, travelerScreen) = targetScreens()
-        s.hostsTraveler = ov.screen == travelerScreen
-        let onThisDisplay = borderScreens.contains(ov.screen)
+        s.hostsTraveler = focusOverlay == nil && ov.screen == travelerScreen
+        // Focus mode replaces the edge on its own display.
+        let onThisDisplay = borderScreens.contains(ov.screen) && focusOverlay.map { displayID($0.screen) != displayID(ov.screen) } ?? true
         let hasContent = (phase != .idle || s.agent != .idle) && onThisDisplay
         let hiddenForLast5 = o.onlyLast5 && phase == .focus && remaining > 300 / o.speed && s.agent != .waiting
         s.visible = hasContent && !manualHidden && !hiddenForLast5
@@ -330,7 +358,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func refresh() {
-        for ov in overlays { ov.apply(scene(for: ov)) }
+        for ov in allOverlays { ov.apply(scene(for: ov)) }
         updateTitle()
     }
 
@@ -350,21 +378,21 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     // MARK: episodes
 
-    var hostOverlay: Overlay? { overlays.first { scene(for: $0).hostsTraveler } }
+    var hostOverlay: Overlay? { allOverlays.first { scene(for: $0).hostsTraveler } }
 
     func cancelEpisodes() {
         episodeTimers.forEach { $0.invalidate() }
         episodeTimers.removeAll()
         overrideAnim = nil
-        overlays.forEach { $0.clearEpisodes() }
+        allOverlays.forEach { $0.clearEpisodes() }
     }
 
     func planEpisodes() {
         cancelEpisodes()
         guard phase == .focus, pausedAt == nil, o.style == .traveler, let host = hostOverlay,
-              let sprite = sprites[o.character] else { return }
+              let sprite = scene(for: host).sprite else { return }
         let pt = sprite.unitPoints(backing: host.screen.backingScaleFactor)
-        let j = Journey(size: host.screen.frame.size, inset: CGFloat(sprite.height) * pt / 2, weights: Journey.weights(physical: o.physicalPace))
+        let j = Journey(size: host.stageSize, inset: CGFloat(sprite.height) * pt / 2, weights: Journey.weights(physical: o.physicalPace))
         let plan = EpisodePlanner.plan(seed: UInt64(phaseStart.timeIntervalSince1970) &+ UInt64(focusCount),
                                        journey: j, focusSeconds: phaseDuration,
                                        lastFiveShare: (300 / o.speed) / phaseDuration, forced: o.episodes)
@@ -380,7 +408,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func fire(_ ep: Episode) {
-        guard phase == .focus, pausedAt == nil, let host = hostOverlay, let sprite = sprites[o.character] else { return }
+        guard phase == .focus, pausedAt == nil, let host = hostOverlay, let sprite = scene(for: host).sprite else { return }
         log("episode: \(ep.rawValue)")
         logbook.record(ep)
         switch ep {
@@ -476,7 +504,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func focusEnded() {
         log("focus ended: \(restIsLong ? "Calypso" : "Ithaca"), notify=\(o.notifyAtEnd) sound=\(o.sound)")
         startRest()
-        overlays.forEach { $0.glow() }
+        allOverlays.forEach { $0.glow() }
         chime(focusEnded: true)
         notify(endMessage(focusEnded: true, longBreak: restIsLong, breakMinutes: Int(breakMinutes), korean: korean))
     }
@@ -584,6 +612,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case "welcome": showWelcome()
         case "episode": if let e = Episode(rawValue: arg) { fire(e) }
         case "login": setLoginItem(arg == "on")
+        case "focus-mode": arg == "on" ? openFocusMode() : arg == "off" ? closeFocusMode() : toggleFocusMode()
+        case "focus-display": openFocusMode(on: arg)
         case "quit": NSApp.terminate(nil)
         default: log("unknown ctl \(cmd)")
         }
@@ -602,6 +632,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func updateTitle() {
+        updateFocus()
         guard let b = statusItem?.button else { return }
         if phase == .idle {
             b.title = ""
@@ -644,6 +675,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             menu.addItem(MenuAction(phase == .focus ? "Skip to break" : "End break") { [weak self] in self?.control("skip") })
             menu.addItem(MenuAction("Stop") { [weak self] in self?.stop() })
         }
+        let fm = MenuAction(focusOverlay == nil ? "Focus mode" : "Close focus mode") { [weak self] in self?.toggleFocusMode() }
+        fm.keyEquivalent = "f"
+        fm.keyEquivalentModifierMask = [.control, .option, .command]
+        menu.addItem(fm)
         menu.addItem(.separator())
 
         func submenu(_ title: String, _ items: [NSMenuItem]) -> NSMenuItem {
@@ -674,6 +709,12 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
             })
         }
         menu.addItem(submenu("Show on", displays))
+        if NSScreen.screens.count > 1 {
+            menu.addItem(submenu("Focus mode on", NSScreen.screens.map { scr in
+                let name = scr.localizedName
+                return MenuAction(name, checked: o.focusDisplay == name) { [weak self] in self?.control("focus-display:\(name)") }
+            }))
+        }
         menu.addItem(submenu("Border", [2, 3, 4].map { t in
             MenuAction("\(t) px\(t == 2 ? " (thinnest)" : "")", checked: Int(o.thickness) == t) { [weak self] in self?.control("thickness:\(t)") }
         }))
@@ -760,6 +801,100 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(hide)
         menu.addItem(.separator())
         menu.addItem(MenuAction("Quit Edge Odyssey", key: "q") { NSApp.terminate(nil) })
+    }
+
+    // MARK: focus mode
+
+    /// The 3x traveler, rasterised once per character the first time focus mode needs it.
+    var focusSprite: SpriteSheet? {
+        if let s = focusSprites[o.character] { return s }
+        guard let url = spriteURLs[o.character], let s = try? SpriteSheet(url: url, scale: FocusLayout.travelerScale) else { return sprites[o.character] }
+        focusSprites[o.character] = s
+        return s
+    }
+
+    /// Opens focus mode full screen on the remembered display (else the one you work on),
+    /// or moves it to the display named `name`.
+    func openFocusMode(on name: String? = nil) {
+        let screens = NSScreen.screens
+        guard let screen = screens.first(where: { $0.localizedName == (name ?? o.focusDisplay) }) ?? activeScreen ?? screens.first else { return }
+        if let f = focusOverlay {
+            if name == nil || f.screen == screen {
+                NSApp.activate(ignoringOtherApps: true)
+                f.window.makeKeyAndOrderFront(nil)
+                return
+            }
+            closeFocusMode()
+        }
+        o.focusDisplay = screen.localizedName
+        remember("focusDisplay", o.focusDisplay)
+        cancelEpisodes()
+        let f = Overlay(focusOn: screen, excludeFromCapture: o.excludeFromCapture, frame: o.focusFrame)
+        focusOverlay = f
+        f.log = { [weak self] in self?.log($0) }
+        f.sceneProvider = { [weak self, weak f] in f.flatMap { self?.scene(for: $0) } ?? Scene() }
+        f.window.delegate = self
+        if let v = f.focusView {
+            if let sp = focusSprite { v.spriteHeight = CGFloat(sp.height) * sp.unitPoints(backing: screen.backingScaleFactor) }
+            v.onAction = { [weak self] in self?.focusAction($0) }
+            v.onResize = { [weak self] in self?.refresh() }
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        f.window.makeKeyAndOrderFront(nil)
+        f.place()   // full screen goes to the display the window is on
+        if let s = f.window.screen { f.move(to: s) }
+        f.window.makeFirstResponder(f.focusView)
+        if o.focusFrame == nil { f.window.toggleFullScreen(nil) }
+        log("focus mode: open on \(screen.localizedName) window=\(f.window.windowNumber) frame=\(f.window.frame) now on \(f.window.screen?.localizedName ?? "-")")
+        refresh()
+        planEpisodes()
+    }
+
+    func closeFocusMode() {
+        guard let f = focusOverlay else { return }
+        cancelEpisodes()
+        focusOverlay = nil
+        f.close()
+        log("focus mode: closed")
+        refresh()
+        planEpisodes()
+    }
+
+    func toggleFocusMode() { focusOverlay == nil ? openFocusMode() : closeFocusMode() }
+
+    /// Space, S, Esc and the buttons in the focus window.
+    func focusAction(_ a: String) {
+        switch a {
+        case "toggle": phase == .idle ? start() : pausedAt == nil ? pause() : resume()
+        case "skip": if phase != .idle { control("skip") }
+        default: closeFocusMode()
+        }
+    }
+
+    /// The big countdown, caption and buttons; ticks with the menu-bar text.
+    func updateFocus() {
+        guard let v = focusOverlay?.focusView else { return }
+        let paused = pausedAt != nil
+        let caption: String
+        switch phase {
+        case .idle: caption = "Space to start a \(Int(o.focusMinutes))-minute focus"
+        case .focus: caption = paused ? "Focus paused" : lotus ? "Focus · the Lotus-eaters beckon" : "Focus · sailing home to Ithaca"
+        case .rest: caption = paused ? "Break paused" : restIsLong ? "Long break · Calypso's island" : "Break · home on Ithaca"
+        }
+        v.show(time: countdown(phase == .idle ? o.focusMinutes * 60 : remaining * o.speed), caption: caption,
+               primary: phase == .idle ? "Start (Space)" : paused ? "Resume (Space)" : "Pause (Space)",
+               skip: phase == .idle ? nil : phase == .focus ? "Skip to break (S)" : "End break (S)",
+               contentHidden: manualHidden || (o.hideWhenCaptured && detector.result.capturing))
+    }
+
+    func windowWillClose(_ n: Notification) {
+        if (n.object as? NSWindow) === focusOverlay?.window { closeFocusMode() }
+    }
+
+    func windowDidChangeScreen(_ n: Notification) {
+        guard let f = focusOverlay, (n.object as? NSWindow) === f.window, let s = f.window.screen else { return }
+        f.move(to: s)
+        refresh()
     }
 
     // MARK: login item (off unless the user turns it on)
