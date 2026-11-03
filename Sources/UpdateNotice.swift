@@ -18,6 +18,7 @@ extension App {
         logbookWindow.retitle(logbookTitle)
         historyWindow.retitle(historyTitle)
         welcomeWindow.retitle(welcomeTitle)
+        settingsWindow.retitle(settingsTitle)
         focusOverlay?.window.title = L.t("Focus mode", "집중 모드", "集中モード", "专注模式")
         registerArrivalActions()
         LanguageWatch.shared.changed()
@@ -72,6 +73,7 @@ extension App {
 
     private func learned(_ latest: SemVer?) {
         updateStatus = latest == nil ? .failed : .upToDate
+        LanguageWatch.shared.changed()   // the Settings window's Check now button
         log("update check: latest \(latest?.description ?? "unknown"), running \(Self.version?.description ?? "-")")
         guard let latest else { return }
         UserDefaults.standard.set(latest.description, forKey: "update.latest")
