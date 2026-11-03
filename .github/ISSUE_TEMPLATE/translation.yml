@@ -1,0 +1,30 @@
+name: Translation
+description: A wrong or awkward string in 日本語, 简体中文, 한국어 or English.
+labels: [translation]
+body:
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      options: [日本語, 简体中文, 한국어, English]
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: Where does it appear?
+      placeholder: "Menu > Timer > If I don't answer at Ithaca / README.ja.md, Install"
+    validations:
+      required: true
+  - type: textarea
+    id: now
+    attributes:
+      label: What it says now
+    validations:
+      required: true
+  - type: textarea
+    id: better
+    attributes:
+      label: What it should say (and why, if it helps)
+    validations:
+      required: true

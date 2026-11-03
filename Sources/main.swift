@@ -1731,14 +1731,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         }
         mockWindow(CGRect(x: size.width * 0.08, y: size.height * 0.18, width: size.width * 0.5, height: size.height * 0.62), dark: true)
         mockWindow(CGRect(x: size.width * 0.52, y: size.height * 0.28, width: size.width * 0.38, height: size.height * 0.5), dark: false)
-        let label = CATextLayer()
-        label.string = "Edge Odyssey - demo backdrop (timer at \(Int(o.speed))x speed)"
-        label.fontSize = 15
-        label.foregroundColor = NSColor(white: 0.25, alpha: 1).cgColor
-        label.contentsScale = scr.backingScaleFactor
-        label.frame = CGRect(x: size.width * 0.08, y: size.height * 0.1, width: size.width * 0.8, height: 22)
-        root.addSublayer(label)
-        w.contentView = v
+        w.contentView = v   // no caption here: recordings say their speed in their own caption
         w.orderFrontRegardless()
         backdrops.append(w)
     }

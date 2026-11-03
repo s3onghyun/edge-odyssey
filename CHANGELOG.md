@@ -1,7 +1,21 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 (unreleased)
 
+- **Ready to share.** The README opens with a short pitch, badges, a one-paragraph install and
+  language links, and has full [简体中文](README.zh-CN.md) and [日本語](README.ja.md) versions
+  (AI-assisted; corrections welcome). A new hero GIF shows the whole screen with a magnifier
+  following Odysseus round one lap to Ithaca, recorded from the app's own windows; the demo
+  backdrop no longer prints a caption into recordings.
+- **First launch on macOS 15 and later:** the install steps now lead with *System Settings ›
+  Privacy & Security › Open Anyway* (Control-click › Open is gone since macOS 15) in every
+  README. Build-from-source uses the real clone URL.
+- `LICENSE` is the plain MIT text, so GitHub detects it; which files it covers, and the separate
+  license for the art, are now in the README and `assets/LICENSE`.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md), issue forms for bugs and translations, and a 1280x640
+  social preview card drawn by `tools/make_social.py` (`docs/social-preview.png`).
+- Release notes start with what the app is, how to install it and what it sends over the
+  network, before the changes.
 - **The arrival explains itself and always ends.** The badge reads `⚓ Arrived +0:42` (was
   "Done"), with a tooltip. Clicking it opens a menu that starts with one line ("Ithaca! 25-min
   focus done — start the break to stop the clock") and three large choices: *☕ Start break*,
