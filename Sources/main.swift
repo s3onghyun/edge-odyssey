@@ -970,6 +970,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
 
     func control(_ cmd: String) {
         log("ctl: \(cmd)")
+        defer { if settingsWindow.isOpen { LanguageWatch.shared.changed() } }   // the Settings window shows the new value
         let parts = cmd.split(separator: ":", maxSplits: 1).map(String.init)
         let arg = parts.count > 1 ? parts[1] : ""
         switch parts[0] {
@@ -978,7 +979,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         case "resume": resume()
         case "stop": stop()
         case "skip": (phase == .focus && o.mode == .pomodoro) || phase == .arrived ? startRest() : stop()
-        case "rest": confirmArrival(.rest)
+        case "rest" where arg.isEmpty: confirmArrival(.rest)   // "rest:10" (a break length) is below
         case "extend": confirmArrival(.extend)
         case "seek":   // demo only: jump to a share of the current phase, e.g. seek:0.4
             if let f = Double(arg), phase != .idle {
@@ -1014,6 +1015,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         case "lotus": lotus = arg == "on"; if lotus { logbook.record(.lotus) }; refresh()
         case "logbook": showLogbook()
         case "welcome": showWelcome()
+        case "settings": showSettings()
         case "episode": if let e = Episode(rawValue: arg) { fire(e) }
         case "login": setLoginItem(arg == "on")
         case "focus-mode": arg == "on" ? openFocusMode() : arg == "off" ? closeFocusMode() : toggleFocusMode()
@@ -1206,6 +1208,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         fm.keyEquivalentModifierMask = [.control, .option, .command]
         menu.addItem(fm)
         menu.addItem(.separator())
+        menu.addItem(MenuAction(L.t("Settings…", "설정…", "設定…", "设置…"), key: ",") { [weak self] in self?.showSettings() })
 
         func submenu(_ title: String, _ items: [NSMenuItem]) -> NSMenuItem {
             let m = NSMenu()
@@ -1374,7 +1377,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         }, .separator()] + Lang.allCases.map { l in
             MenuAction(l.name, checked: pref == l.rawValue) { [weak self] in self?.control("language:\(l.rawValue)") }
         }
-        menu.addItem(submenu(L.t("Settings", "설정", "設定", "设置"), [
+        menu.addItem(submenu(L.t("General", "일반", "一般", "通用"), [
             submenu(L.t("Language", "언어", "言語", "语言"), languages),
             .separator(),
             MenuAction(L.t("Show Claude Code signals", "Claude Code 신호 표시", "Claude Code のシグナルを表示", "显示 Claude Code 信号"), checked: o.agentEnabled) { [weak self] in
@@ -1638,6 +1641,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     // MARK: windows
 
     let logbookWindow = PanelWindow()
+    let settingsWindow = PanelWindow()
     var logbookTitle: String { L.t("Logbook", "항해 일지", "航海日誌", "航海日志") }
     var historyTitle: String { L.t("History", "기록", "記録", "记录") }
     var welcomeTitle: String { L.t("Welcome to Edge Odyssey", "Edge Odyssey에 오신 걸 환영해요", "Edge Odyssey へようこそ", "欢迎使用 Edge Odyssey") }

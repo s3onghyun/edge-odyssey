@@ -117,7 +117,8 @@ brass in its last five minutes and empties during a break).
 | History… | Today's focus, a 7/30-day chart against your daily goal, the latest runs, CSV export, clear (below). The line under the menu header shows today's total |
 | Label this session… | A one-line note kept with the run in the history (before starting: for the next one) |
 | Logbook… | The 24 books of the Odyssey you have collected |
-| Settings | **Language** (below), Claude Code signals, doze while a game/video/social app is in front, hide while sharing, count down in seconds (turn off for whole minutes, `13m`), **Check for updates once a day** and *Check now* (below), **Launch at login** (off until you turn it on), Welcome guide |
+| Settings… (⌘,) | A window with every option of this menu, grouped (Timer, When time is up, On screen, Focus mode, General). It stays open, so you can change several in a row; each change applies at once |
+| General | **Language** (below), Claude Code signals, doze while a game/video/social app is in front, hide while sharing, count down in seconds (turn off for whole minutes, `13m`), **Check for updates once a day** and *Check now* (below), **Launch at login** (off until you turn it on), Welcome guide |
 | Hide now | Control-Option-Command-H, from anywhere |
 
 Settings are remembered between launches.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0 (unreleased)
+
+- **A Settings window** (*Settings…*, ⌘, in the menu): every option of the menu in one window,
+  grouped as Timer, When time is up, On screen, Focus mode and General, in all four languages.
+  It stays open, so changing several settings no longer means reopening the menu each time;
+  each change applies at once and is saved under the same key as the menu's. The menu keeps
+  its quick actions and options; its old *Settings* submenu is now *General*.
+- Fixed: picking a break length in *Timer › Break* did nothing in 0.3.0 (the arrival's
+  *Start break* command had taken the same name).
+
 ## 0.3.0 (unreleased)
 
 - **Ready to share.** The README opens with a short pitch, badges, a one-paragraph install and
