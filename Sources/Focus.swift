@@ -28,9 +28,9 @@ final class FocusView: NSView {
     private let time = CATextLayer()
     private let caption = CATextLayer()
     private let footer = CATextLayer()   // today's total, at the foot of the voyage
-    private let primary = NSButton(title: "Start", target: nil, action: nil)
-    private let skip = NSButton(title: "Skip", target: nil, action: nil)
-    private let exit = NSButton(title: "Exit (Esc)", target: nil, action: nil)
+    private let primary = NSButton(title: "", target: nil, action: nil)   // titled by show()
+    private let skip = NSButton(title: "", target: nil, action: nil)
+    private let exit = NSButton(title: "", target: nil, action: nil)
     private let controls: NSStackView
     private var glyphs = 5
     private var lastStage = CGSize.zero
@@ -178,10 +178,12 @@ final class FocusView: NSView {
         content.isHidden = contentHidden
         CATransaction.commit()
         if t.count != glyphs { glyphs = t.count; needsLayout = true }
-        if primary.title != p { primary.title = p }
-        skip.title = s ?? "Skip"
+        if primary.title != p { primary.title = p; needsLayout = true }   // the buttons are centred by width
+        if skip.title != s ?? "" { skip.title = s ?? ""; needsLayout = true }
         skip.isHidden = s == nil
-        setAccessibilityLabel(contentHidden ? "Focus mode" : "\(c), \(t)")
+        let x = L.t("Exit (Esc)", "나가기 (Esc)", "終了 (Esc)", "退出 (Esc)")
+        if exit.title != x { exit.title = x; needsLayout = true }
+        setAccessibilityLabel(contentHidden ? L.t("Focus mode", "집중 모드", "集中モード", "专注模式") : "\(c), \(t)")
     }
 
     // MARK: input

@@ -87,6 +87,6 @@ import Testing
 }
 
 @Test func timerDoneMessages() {
-    #expect(timerDoneMessage(seconds: 600, korean: false) == ("Time's up", "Your 10:00 timer is done"))
-    #expect(timerDoneMessage(seconds: 90, korean: true) == ("시간 종료", "1:30 타이머가 끝났어요"))
+    #expect(timerDoneMessage(seconds: 600, lang: .en) == ("Time's up", "Your 10:00 timer is done"))
+    #expect(timerDoneMessage(seconds: 90, lang: .ko) == ("시간 종료", "1:30 타이머가 끝났어요"))
 }

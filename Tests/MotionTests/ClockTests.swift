@@ -21,9 +21,10 @@ import Testing
 }
 
 @Test func minutesLeftKeepsTheOldStyle() {
-    #expect(minutesLeft(12 * 60 + 50) == "13m")
-    #expect(minutesLeft(60) == "1m")
-    #expect(minutesLeft(59) == "59s")
+    #expect(minutesLeft(12 * 60 + 50, lang: .en) == "13m")
+    #expect(minutesLeft(60, lang: .en) == "1m")
+    #expect(minutesLeft(59, lang: .en) == "59s")
+    #expect(minutesLeft(12 * 60 + 50, lang: .ko) == "13분" && minutesLeft(59, lang: .ja) == "59秒")
 }
 
 @Test func customMinutesAreValidated() {
@@ -49,7 +50,9 @@ func longBreakComesEveryNthSession(every: Int) {
 }
 
 @Test func endMessages() {
-    #expect(endMessage(focusEnded: true, longBreak: false, breakMinutes: 5, korean: true) == ("이타카!", "5분 쉬어요"))
-    #expect(endMessage(focusEnded: true, longBreak: true, breakMinutes: 15, korean: false).title == "Calypso's island!")
-    #expect(endMessage(focusEnded: false, longBreak: false, breakMinutes: 5, korean: false).title == "Break's over")
+    #expect(endMessage(focusEnded: true, longBreak: false, breakMinutes: 5, lang: .ko) == ("이타카!", "5분 쉬어요"))
+    #expect(endMessage(focusEnded: true, longBreak: true, breakMinutes: 15, lang: .en).title == "Calypso's island!")
+    #expect(endMessage(focusEnded: false, longBreak: false, breakMinutes: 5, lang: .en).title == "Break's over")
+    #expect(endMessage(focusEnded: true, longBreak: false, breakMinutes: 5, lang: .ja).body == "5分休みましょう")
+    #expect(endMessage(focusEnded: true, longBreak: false, breakMinutes: 5, lang: .zh).body == "休息 5 分钟")
 }

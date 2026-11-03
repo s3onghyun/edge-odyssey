@@ -89,10 +89,31 @@ open "/Applications/Edge Odyssey.app"
 | History… | 오늘의 집중, 하루 목표와 비교한 7일/30일 그래프, 최근 기록, CSV 내보내기, 지우기(아래). 메뉴 머리글 아래 줄에 오늘 합계 |
 | Label this session… | 기록에 함께 남길 한 줄 메모(시작 전이면 다음 세션용) |
 | Logbook… | 모은 오디세이아 24권 |
-| Settings | Claude Code 신호, 게임·영상·SNS 앱이 앞에 있으면 졸기, 화면 공유 중 숨기기, 초 단위 카운트다운(끄면 `13m`처럼 분 단위), **로그인 시 실행**(켜기 전까지 꺼짐), 환영 안내 |
+| Settings | **언어**(아래), Claude Code 신호, 게임·영상·SNS 앱이 앞에 있으면 졸기, 화면 공유 중 숨기기, 초 단위 카운트다운(끄면 `13m`처럼 분 단위), **하루 한 번 업데이트 확인**과 *지금 확인*(아래), **로그인 시 실행**(켜기 전까지 꺼짐), 환영 안내 |
 | Hide now | 어디서든 Control-Option-Command-H |
 
-설정은 다시 실행해도 유지됩니다.
+설정은 다시 실행해도 유지됩니다. 위 표의 항목 이름은 영어 화면 기준이고, 한국어를 고르면 메뉴도 한국어로 나옵니다.
+
+### 언어
+
+*설정 › 언어*에서 시스템(기본), English, 한국어, 日本語, 简体中文 중에 고릅니다. 고르는 즉시 메뉴, 열려
+있는 창, 집중 모드, 알림이 그 언어로 바뀌고 다시 실행할 필요가 없습니다. *시스템*은 시스템 설정 › 일반 ›
+언어 및 지역의 선호 언어를 위에서부터 보고 앱에 있는 첫 언어를 씁니다(`Français, 한국어`면 한국어).
+번체 중국어에는 간체를 보여 주지 않고 다음 선호 언어로 넘어갑니다. *언어 및 지역 › 응용 프로그램*에서
+앱별 언어로 고를 수도 있습니다. 날짜·요일·시간 길이도 고른 언어를 따릅니다(`2시간 15분`, `2時間15分`).
+
+일본어와 중국어 문구는 AI의 도움을 받아 옮겼습니다. 고칠 곳을 알려 주시면 반영합니다. 모든 문구는
+`L.t(en, ko, ja, zh)` 호출 하나이고, 번역이 빠졌거나 비었거나 다른 문자로 쓰였거나 영어 문구가 그대로
+화면에 들어가면 `./test.sh`가 실패합니다.
+
+### 업데이트
+
+하루 한 번 GitHub에 최신 릴리스를 묻습니다. `api.github.com/repos/s3onghyun/edge-odyssey/releases/latest`에
+HTTPS GET 한 번이고, 보내는 것은 `User-Agent: EdgeOdyssey/<버전>`, `Accept`, 고정된 `Accept-Language: en`뿐이며
+쿠키와 캐시는 쓰지 않습니다. 확인이 실패하면 다음 날까지 기다립니다. 새 버전이 나오면 메뉴 맨 위에
+**Edge Odyssey <버전>이 나왔어요: 릴리스 페이지…**와 **이 버전 건너뛰기**가 생기고, 그 버전에 대해 알림이 한 번
+옵니다. 앱이 스스로 내려받거나 설치하지는 않습니다. 릴리스 페이지에서 새 ZIP을 받아 `.sha256`을 확인하고
+[설치](#설치)처럼 앱을 바꾸세요. *설정 › 하루 한 번 업데이트 확인*으로 끄고, *지금 확인*으로 바로 물을 수 있습니다.
 
 ### 시간이 다 되면
 
@@ -201,7 +222,8 @@ open "/Applications/Edge Odyssey.app"
 
 ## 개인정보
 
-네트워크 접속도, 분석 도구도 없습니다. 오버레이 창은 스크린샷과 화면 녹화에서 빠지고, macOS
+분석 도구도 텔레메트리도 없습니다. 네트워크는 하루 한 번의 업데이트 확인([업데이트](#업데이트))에만 쓰고,
+이것도 끌 수 있습니다. 오버레이 창은 스크린샷과 화면 녹화에서 빠지고, macOS
 화면 캡처 표시등이 켜져 있는 동안(Zoom, Meet, QuickTime 등)에는 가장자리 전체(와 집중 모드의
 내용)가 숨습니다.
 로컬 파일은 `~/.edge-odyssey/`(훅 상태, 항해 일지, 집중 기록)와 앱 환경설정(`app.edgeodyssey`)뿐입니다.
@@ -218,19 +240,22 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl adjust:60|-300              # 스크롤과 같음: 더하거나 뺄 초
 "$APP" --ctl history|label:<메모>|goal:<시간>|clear-history
 "$APP" --ctl background:off|cycle|<파일 이름>   # 또는 background-folder:<경로>, drift:on|off
+"$APP" --ctl language:auto|en|ko|ja|zh
+"$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```
 
 플래그(이번 실행에만 적용, 저장 안 됨): `--display main|all|follow|<번호>|<이름>`,
 `--style border|traveler`, `--pace even|physical`, `--thickness 2..4`, `--last5`, `--focus <분>`, `--rest <분>`,
 `--mode pomodoro|timer|stopwatch`, `--timer <길이>`, `--background off|cycle|<파일 이름>`,
-`--no-lotus`, `--char <id>`, `--state-dir <폴더>`, `-v`(stderr에 로그). 시연·테스트용:
-`--focus-mode`(실행하며 열기), `--focus-frame x,y,w,h`(전체 화면 대신 창), `--appearance dark|light`.
+`--no-lotus`, `--char <id>`, `--state-dir <폴더>`, `--lang en|ko|ja|zh|auto`, `-v`(stderr에 로그). 시연·테스트용:
+`--focus-mode`(실행하며 열기), `--focus-frame x,y,w,h`(전체 화면 대신 창), `--appearance dark|light`,
+`--lang pseudo`(모든 문구를 40%쯤 늘리고 악센트를 붙여 잘림 확인), `--capture-visible`(스크린샷에 가장자리와 집중 모드 포함).
 
 ## 개발
 
 ```sh
 ./build.sh      # Command Line Tools의 swiftc로 앱 빌드
-./test.sh       # 움직임 수학 테스트(Swift Testing): 정확한 시각, 다시 걸어도 튀지 않음, 스프라이트 박자, 집중 모드 배치, 타이머 모드와 시간 조절, 기록 합계
+./test.sh       # Swift Testing: 정확한 시각, 다시 걸어도 튀지 않음, 스프라이트 박자, 집중 모드 배치, 타이머 모드와 시간 조절, 기록 합계, 모든 번역, 업데이트 알림 규칙
 ```
 
 | 경로 | 라이선스 | 내용 |

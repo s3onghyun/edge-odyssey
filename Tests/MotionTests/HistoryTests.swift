@@ -82,10 +82,12 @@ import Testing
 }
 
 @Test func spansAreHoursAndMinutes() {
-    #expect(History.span(0) == "0m")
-    #expect(History.span(59) == "0m")
-    #expect(History.span(45 * 60) == "45m")
-    #expect(History.span(135 * 60 + 30) == "2h 15m")
+    #expect(History.span(0, lang: .en) == "0m")
+    #expect(History.span(59, lang: .en) == "0m")
+    #expect(History.span(45 * 60, lang: .en) == "45m")
+    #expect(History.span(135 * 60 + 30, lang: .en) == "2h 15m")
+    #expect(History.span(135 * 60, lang: .ko) == "2시간 15분" && History.span(135 * 60, lang: .ja) == "2時間15分")
+    #expect(History.span(45 * 60, lang: .zh) == "45分钟")
 }
 
 @Test func logSurvivesARelaunchAndSkipsBrokenLines() {

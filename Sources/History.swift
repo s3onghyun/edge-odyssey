@@ -73,9 +73,10 @@ enum History {
 
 extension History {
     /// "2h 15m", "45m", "0m": whole minutes, rounded down.
-    static func span(_ seconds: Double) -> String {
-        let m = Int(max(seconds, 0) / 60)
-        return m >= 60 ? "\(m / 60)h \(m % 60)m" : "\(m)m"
+    static func span(_ seconds: Double, lang: Lang? = nil) -> String {
+        let m = Int(max(seconds, 0) / 60), h = m / 60, r = m % 60
+        return m >= 60 ? L.t("\(h)h \(r)m", "\(h)시간 \(r)분", "\(h)時間\(r)分", "\(h)小时\(r)分", in: lang)
+                       : L.t("\(m)m", "\(m)분", "\(m)分", "\(m)分钟", in: lang)
     }
 }
 

@@ -9,8 +9,9 @@ func countdown(_ seconds: Double) -> String {
 }
 
 /// The older, quieter style: whole minutes ("13m"), seconds only in the last minute.
-func minutesLeft(_ seconds: Double) -> String {
-    seconds >= 60 ? "\(Int((seconds / 60).rounded(.up)))m" : "\(Int(max(seconds, 0)))s"
+func minutesLeft(_ seconds: Double, lang: Lang? = nil) -> String {
+    let m = Int((seconds / 60).rounded(.up)), s = Int(max(seconds, 0))
+    return seconds >= 60 ? L.t("\(m)m", "\(m)분", "\(m)分", "\(m)分", in: lang) : L.t("\(s)s", "\(s)초", "\(s)秒", "\(s)秒", in: lang)
 }
 
 /// Session lengths the menu offers, and the bounds a typed custom length is held to.
@@ -36,19 +37,22 @@ enum Durations {
 }
 
 /// The notification at the end of a focus session (arrival) or of a break.
-func endMessage(focusEnded: Bool, longBreak: Bool, breakMinutes: Int, korean: Bool) -> (title: String, body: String) {
-    switch (focusEnded, korean) {
-    case (true, true): return (longBreak ? "칼립소의 섬!" : "이타카!", "\(breakMinutes)분 쉬어요")
-    case (true, false): return (longBreak ? "Calypso's island!" : "Ithaca!", "Take a \(breakMinutes)-minute break")
-    case (false, true): return ("쉬는 시간 끝", "준비되면 메뉴에서 다음 집중을 시작하세요")
-    case (false, false): return ("Break's over", "Start the next focus from the menu when you're ready")
+func endMessage(focusEnded: Bool, longBreak: Bool, breakMinutes m: Int, lang: Lang? = nil) -> (title: String, body: String) {
+    guard focusEnded else {
+        return (L.t("Break's over", "쉬는 시간 끝", "休憩おわり", "休息结束", in: lang),
+                L.t("Start the next focus from the menu when you're ready", "준비되면 메뉴에서 다음 집중을 시작하세요",
+                    "準備ができたらメニューから次の集中を始めましょう", "准备好后，从菜单开始下一次专注", in: lang))
     }
+    return (longBreak ? L.t("Calypso's island!", "칼립소의 섬!", "カリュプソの島！", "卡吕普索之岛！", in: lang)
+                      : L.t("Ithaca!", "이타카!", "イタケ！", "伊萨卡！", in: lang),
+            L.t("Take a \(m)-minute break", "\(m)분 쉬어요", "\(m)分休みましょう", "休息 \(m) 分钟", in: lang))
 }
 
 /// The notification when a countdown timer reaches 0:00.
-func timerDoneMessage(seconds: Int, korean: Bool) -> (title: String, body: String) {
+func timerDoneMessage(seconds: Int, lang: Lang? = nil) -> (title: String, body: String) {
     let t = countdown(Double(seconds))
-    return korean ? ("시간 종료", "\(t) 타이머가 끝났어요") : ("Time's up", "Your \(t) timer is done")
+    return (L.t("Time's up", "시간 종료", "時間です", "时间到", in: lang),
+            L.t("Your \(t) timer is done", "\(t) 타이머가 끝났어요", "\(t) のタイマーが終わりました", "\(t) 的计时已结束", in: lang))
 }
 
 /// The sound played when a focus ends (arrival) or a break ends (setting sail).

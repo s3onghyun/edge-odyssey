@@ -47,6 +47,7 @@ struct Options {
     var backgroundFolder = ""       // the user's own photo folder; empty: the photos that ship with the app
     var backgroundDrift = true      // a slow Ken Burns drift on the backdrop
     var goalHours = 4.0             // daily focus goal in the history; 0: none
+    var lang: String?               // --lang en|ko|ja|zh|auto|pseudo: this run only (the menu's choice is saved)
 
     /// Settings the menu changes are kept in UserDefaults; command-line flags override them
     /// for one run without being saved.
@@ -55,7 +56,8 @@ struct Options {
                                        "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4,
                                        "notifyAtEnd": true, "soundVolume": "low", "autoNextFocus": false, "pace": "even",
                                        "focusDisplay": "", "mode": "pomodoro", "timerSeconds": 600.0,
-                                       "focusBackground": "cycle", "backgroundFolder": "", "backgroundDrift": true, "dailyGoalHours": 4.0]   // "sound" unregistered: see init
+                                       "focusBackground": "cycle", "backgroundFolder": "", "backgroundDrift": true, "dailyGoalHours": 4.0,
+                                       "checkUpdates": true]   // "sound" unregistered: see init
 
     init(_ args: [String], defaults d: UserDefaults = .standard) {
         d.register(defaults: Self.saved)
@@ -114,6 +116,7 @@ struct Options {
             case "--focus-frame":
                 let v = (it.next() ?? "").split(separator: ",").compactMap { Double($0) }
                 if v.count == 4 { focusFrame = CGRect(x: v[0], y: v[1], width: v[2], height: v[3]) }
+            case "--lang": lang = it.next()
             case "--fps": Overlay.maxFPS = Float(it.next() ?? "") ?? 0
             case "-v", "--verbose": verbose = true
             default: break
@@ -186,6 +189,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     lazy var history = HistoryLog(url: o.stateDir.appendingPathComponent("history.jsonl"))
     var runStart: Date?                  // the focus, timer or stopwatch now running started then
     var runLabel: String?                // the user's one-line note for this (or the next) run
+    var updateStatus: UpdateStatus?      // the update check this run: checking, up to date or failed
 
     init(_ o: Options) { self.o = o }
 
@@ -246,6 +250,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         }
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
             self?.refresh()
+            self?.checkForUpdate()
         }
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] n in
             guard let self, let app = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
@@ -266,6 +271,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             return nil
         }
         refresh()
+        scheduleUpdateChecks()
         if !UserDefaults.standard.bool(forKey: "onboarded") && !o.autostart { showWelcome() }
         log("launched: state dir \(o.stateDir.path), speed \(o.speed)")
     }
@@ -562,7 +568,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         updateTitle()
         allOverlays.forEach { $0.glow() }
         chime(focusEnded: true)
-        notify(timerDoneMessage(seconds: Int(phaseDuration * o.speed), korean: korean))
+        notify(timerDoneMessage(seconds: Int(phaseDuration * o.speed)))
         let ended = phaseStart
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in   // a new start in between wins
             guard let self, self.phaseStart == ended, self.phase == .focus else { return }
@@ -602,16 +608,28 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     /// "Today 2h 15m · 4 sessions · longest 50m · 27 leagues · 56% of 4h"; `short` leaves out the
     /// sessions and the longest run.
     func todayLine(short: Bool = false) -> String {
-        let t = today
-        var parts = ["Today \(History.span(t.seconds))", "\(History.leagues(t.seconds)) leagues"]
-        if !short { parts.insert(contentsOf: ["\(t.sessions) session\(t.sessions == 1 ? "" : "s")", "longest \(History.span(t.longest))"], at: 1) }
-        if o.goalHours > 0 { parts.append("\(Int(t.seconds / (o.goalHours * 36)))% of \(Int(o.goalHours))h") }
+        let t = today, n = t.sessions, longest = History.span(t.longest), lg = History.leagues(t.seconds)
+        var parts = [L.t("Today \(History.span(t.seconds))", "오늘 \(History.span(t.seconds))", "今日 \(History.span(t.seconds))", "今天 \(History.span(t.seconds))"),
+                     L.t("\(lg) leagues", "\(lg)리그", "\(lg) リーグ", "\(lg) 里格")]
+        if !short {
+            parts.insert(contentsOf: [L.t(n == 1 ? "1 session" : "\(n) sessions", "\(n)회", "\(n)回", "\(n) 次"),
+                                      L.t("longest \(longest)", "최장 \(longest)", "最長 \(longest)", "最长 \(longest)")], at: 1)
+        }
+        if o.goalHours > 0 {
+            let pct = Int(t.seconds / (o.goalHours * 36)), h = Int(o.goalHours)
+            parts.append(L.t("\(pct)% of \(h)h", "\(h)시간의 \(pct)%", "\(h)時間の \(pct)%", "\(h) 小时的 \(pct)%"))
+        }
         return parts.joined(separator: " · ")
     }
 
     func askLabel() {
-        guard let t = ask(phase == .focus ? "Label this session" : "Label the next session",
-                          hint: "One line, kept in your history on this Mac (empty clears it).", current: runLabel ?? "") else { return }
+        guard let t = ask(phase == .focus ? L.t("Label this session", "이 세션의 이름", "このセッションのラベル", "本次的标签")
+                                          : L.t("Label the next session", "다음 세션의 이름", "次のセッションのラベル", "下一次的标签"),
+                          hint: L.t("One line, kept in your history on this Mac (empty clears it).",
+                                    "한 줄로, 이 Mac의 기록에 남아요(비우면 지워져요).",
+                                    "1行で。この Mac の記録に残ります（空にすると消えます）。",
+                                    "一行文字，保存在这台 Mac 的记录里（留空即清除）。"),
+                          current: runLabel ?? "", wide: true) else { return }
         let line = t.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: " ")
         runLabel = line.isEmpty ? nil : String(line.prefix(120))
     }
@@ -621,7 +639,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     func showHistory() {
         let cal = Calendar.current, now = Date()
         let recs = history.records + (currentRun().map { [$0] } ?? [])
-        historyWindow.show(title: "History", HistoryView(
+        historyWindow.show(title: historyTitle, HistoryView(
             today: today, goalHours: o.goalHours,
             week: History.days(recs, endingOn: now, count: 7, calendar: cal),
             month: History.days(recs, endingOn: now, count: 30, calendar: cal),
@@ -644,10 +662,14 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
 
     func clearHistory() {
         let a = NSAlert()
-        a.messageText = "Clear your focus history?"
-        a.informativeText = "All \(history.records.count) recorded sessions are deleted from this Mac. This can't be undone. (The logbook of the Odyssey is kept.)"
-        a.addButton(withTitle: "Clear History")
-        a.addButton(withTitle: "Cancel")
+        let n = history.records.count
+        a.messageText = L.t("Clear your focus history?", "집중 기록을 지울까요?", "集中の記録を消去しますか？", "清除你的专注记录？")
+        a.informativeText = L.t("All \(n) recorded sessions are deleted from this Mac. This can't be undone. (The logbook of the Odyssey is kept.)",
+                                "기록된 세션 \(n)개가 모두 이 Mac에서 지워져요. 되돌릴 수 없어요. (오디세이아 항해 일지는 남아요.)",
+                                "記録された \(n) 件のセッションがすべてこの Mac から削除されます。元に戻せません。（オデュッセイアの航海日誌は残ります。）",
+                                "将从这台 Mac 删除全部 \(n) 条记录，且无法撤销。（奥德赛航海日志会保留。）")
+        a.addButton(withTitle: L.t("Clear History", "기록 지우기", "記録を消去", "清除记录"))
+        a.addButton(withTitle: L.t("Cancel", "취소", "キャンセル", "取消"))
         a.buttons[0].hasDestructiveAction = true
         NSApp.activate(ignoringOtherApps: true)
         guard a.runModal() == .alertFirstButtonReturn else { return }
@@ -661,14 +683,14 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         startRest()
         allOverlays.forEach { $0.glow() }
         chime(focusEnded: true)
-        notify(endMessage(focusEnded: true, longBreak: restIsLong, breakMinutes: Int(breakMinutes), korean: korean))
+        notify(endMessage(focusEnded: true, longBreak: restIsLong, breakMinutes: Int(breakMinutes)))
     }
 
     /// The break is over: wait for a click (default) or start the next focus by itself.
     func breakEnded(startNext: Bool) {
         log("break ended: autoNextFocus=\(startNext)")
         chime(focusEnded: false)
-        if !startNext { notify(endMessage(focusEnded: false, longBreak: false, breakMinutes: 0, korean: korean)) }
+        if !startNext { notify(endMessage(focusEnded: false, longBreak: false, breakMinutes: 0)) }
         startNext ? start() : stop()
     }
 
@@ -681,11 +703,13 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         snd.play()
     }
 
-    var korean: Bool { Locale.preferredLanguages.first?.hasPrefix("ko") == true }
+    /// The end-of-time notification, when the user wants it.
+    func notify(_ m: (title: String, body: String)) {
+        if o.notifyAtEnd { post(m, id: "edge-odyssey-end") }
+    }
 
     /// Asks for permission the first time; if the user declines, nothing is shown.
-    func notify(_ m: (title: String, body: String)) {
-        guard o.notifyAtEnd else { return }
+    func post(_ m: (title: String, body: String), id: String) {
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert]) { granted, error in
             if let error { self.log("notification: \(error)") }
@@ -694,28 +718,28 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             let c = UNMutableNotificationContent()
             c.title = m.title
             c.body = m.body
-            center.add(UNNotificationRequest(identifier: "edge-odyssey-end", content: c, trigger: nil)) { e in if let e { self.log("notification: \(e)") } }
+            center.add(UNNotificationRequest(identifier: id, content: c, trigger: nil)) { e in if let e { self.log("notification: \(e)") } }
         }
     }
 
     /// Asks for a custom length in whole minutes; nil when cancelled or out of range.
-    func askMinutes(_ what: String, current: Double, range: ClosedRange<Double>) -> Double? {
-        askLength(what, hint: "Minutes, \(Int(range.lowerBound)) to \(Int(range.upperBound)). Applies from the next session.",
-                  current: String(Int(current))).flatMap { Durations.minutes($0, in: range) }
+    func askMinutes(_ title: String, current: Double, range: ClosedRange<Double>) -> Double? {
+        let lo = Int(range.lowerBound), hi = Int(range.upperBound)
+        return ask(title, hint: L.t("Minutes, \(lo) to \(hi). Applies from the next session.", "\(lo)~\(hi)분. 다음 세션부터 적용돼요.",
+                                    "\(lo)〜\(hi) 分。次のセッションから適用されます。", "\(lo) 到 \(hi) 分钟，从下一次开始生效。"),
+                   current: String(Int(current))).flatMap { Durations.minutes($0, in: range) }
     }
 
-    func askLength(_ what: String, hint: String, current: String) -> String? { ask("\(what) length", hint: hint, current: current) }
-
     /// The typed text, or nil when cancelled.
-    func ask(_ title: String, hint: String, current: String) -> String? {
+    func ask(_ title: String, hint: String, current: String, wide: Bool = false) -> String? {
         let alert = NSAlert()
         alert.messageText = title
         alert.informativeText = hint
         let field = NSTextField(string: current)
-        field.frame = NSRect(x: 0, y: 0, width: current.count > 8 || title.hasPrefix("Label") ? 280 : 80, height: 24)
+        field.frame = NSRect(x: 0, y: 0, width: current.count > 8 || wide ? 280 : 80, height: 24)
         alert.accessoryView = field
-        alert.addButton(withTitle: "Set")
-        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: L.t("Set", "설정", "設定", "设定"))
+        alert.addButton(withTitle: L.t("Cancel", "취소", "キャンセル", "取消"))
         NSApp.activate(ignoringOtherApps: true)
         alert.window.initialFirstResponder = field
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
@@ -846,6 +870,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         case "background": o.background = arg; remember("focusBackground", arg); applyBackground()
         case "background-folder": o.backgroundFolder = arg; remember("backgroundFolder", arg); applyBackground()
         case "drift": o.backgroundDrift = arg != "off"; remember("backgroundDrift", o.backgroundDrift); applyBackground()
+        case "language": setLanguage(arg)
+        case "updates": UserDefaults.standard.set(arg != "off", forKey: "checkUpdates"); if arg != "off" { checkForUpdate() }
+        case "update-check": checkForUpdate(asked: true)
+        case "skip-update": if let v = updateOffer { UserDefaults.standard.set(v.description, forKey: "update.skipped") }
+        case "release-page": if let v = updateOffer { NSWorkspace.shared.open(Update.page(v)) }
         case "quit": NSApp.terminate(nil)
         default: log("unknown ctl \(cmd)")
         }
@@ -877,32 +906,38 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Edge Odyssey")
             titleSymbol = symbol
         }
-        let title = pausedAt != nil ? " paused" : " " + left
+        let title = " " + (pausedAt != nil ? L.t("paused", "일시정지", "一時停止", "暂停") : left)
         if b.title != title { b.title = title }
         if let h = headerItem, h.title != header { h.title = header }
     }
 
     /// Time left in the user's chosen style, nominal even at demo speed.
     var left: String {
-        if o.mode == .stopwatch { let e = elapsed * o.speed; return o.showSeconds ? elapsedClock(e) : "\(Int(e / 60))m" }
+        if o.mode == .stopwatch { let e = elapsed * o.speed; return o.showSeconds ? elapsedClock(e) : History.span(e) }
         return o.showSeconds ? countdown(remaining * o.speed) : minutesLeft(remaining * o.speed)
     }
 
     var header: String {
         let paused = pausedAt != nil
+        let t = left, n = idleLength
         switch (phase, o.mode) {
-        case (.idle, .pomodoro): return "Ready"
-        case (.idle, .timer): return "Timer: \(idleLength)"
-        case (.idle, .stopwatch): return "Stopwatch: ready"
-        case (_, .timer): return paused ? "Timer paused: \(left) left" : "Timer: \(left) left"
-        case (_, .stopwatch): return paused ? "Stopwatch paused: \(left)" : "Stopwatch: \(left)"
-        case (.focus, _): return paused ? "Focus paused: \(left) left" : "Focus: \(left) left"
-        case (.rest, _): return paused ? "Break paused: \(left) left" : "Break: \(left) left"
+        case (.idle, .pomodoro): return L.t("Ready", "준비", "準備完了", "就绪")
+        case (.idle, .timer): return L.t("Timer: \(n)", "타이머: \(n)", "タイマー：\(n)", "计时器：\(n)")
+        case (.idle, .stopwatch): return L.t("Stopwatch: ready", "스톱워치: 준비", "ストップウォッチ：準備完了", "秒表：就绪")
+        case (_, .timer): return paused ? L.t("Timer paused: \(t) left", "타이머 일시정지: \(t) 남음", "タイマー一時停止：残り \(t)", "计时器已暂停：剩余 \(t)")
+                                        : L.t("Timer: \(t) left", "타이머: \(t) 남음", "タイマー：残り \(t)", "计时器：剩余 \(t)")
+        case (_, .stopwatch): return paused ? L.t("Stopwatch paused: \(t)", "스톱워치 일시정지: \(t)", "ストップウォッチ一時停止：\(t)", "秒表已暂停：\(t)")
+                                            : L.t("Stopwatch: \(t)", "스톱워치: \(t)", "ストップウォッチ：\(t)", "秒表：\(t)")
+        case (.focus, _): return paused ? L.t("Focus paused: \(t) left", "집중 일시정지: \(t) 남음", "集中一時停止：残り \(t)", "专注已暂停：剩余 \(t)")
+                                        : L.t("Focus: \(t) left", "집중: \(t) 남음", "集中：残り \(t)", "专注：剩余 \(t)")
+        case (.rest, _): return paused ? L.t("Break paused: \(t) left", "휴식 일시정지: \(t) 남음", "休憩一時停止：残り \(t)", "休息已暂停：剩余 \(t)")
+                                       : L.t("Break: \(t) left", "휴식: \(t) 남음", "休憩：残り \(t)", "休息：剩余 \(t)")
         }
     }
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
+        updateMenuItems().forEach(menu.addItem)
         let h = NSMenuItem(title: header, action: nil, keyEquivalent: "")
         h.isEnabled = false
         menu.addItem(h)
@@ -913,23 +948,30 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         if phase == .idle {
             let title: String
             switch o.mode {
-            case .pomodoro: title = "Start focus (\(Int(o.focusMinutes)) min)"
-            case .timer: title = "Start timer (\(idleLength))"
-            case .stopwatch: title = "Start stopwatch"
+            case .pomodoro:
+                let m = Int(o.focusMinutes)
+                title = L.t("Start focus (\(m) min)", "집중 시작 (\(m)분)", "集中を開始（\(m)分）", "开始专注（\(m) 分钟）")
+            case .timer:
+                let n = idleLength
+                title = L.t("Start timer (\(n))", "타이머 시작 (\(n))", "タイマーを開始（\(n)）", "开始计时（\(n)）")
+            case .stopwatch: title = L.t("Start stopwatch", "스톱워치 시작", "ストップウォッチを開始", "开始秒表")
             }
             menu.addItem(MenuAction(title, key: "s") { [weak self] in self?.start() })
         } else {
-            if pausedAt == nil { menu.addItem(MenuAction("Pause") { [weak self] in self?.pause() }) }
-            else { menu.addItem(MenuAction("Resume") { [weak self] in self?.resume() }) }
+            if pausedAt == nil { menu.addItem(MenuAction(L.t("Pause", "일시정지", "一時停止", "暂停")) { [weak self] in self?.pause() }) }
+            else { menu.addItem(MenuAction(L.t("Resume", "재개", "再開", "继续")) { [weak self] in self?.resume() }) }
             if o.mode == .pomodoro {
-                menu.addItem(MenuAction(phase == .focus ? "Skip to break" : "End break") { [weak self] in self?.control("skip") })
+                menu.addItem(MenuAction(phase == .focus ? L.t("Skip to break", "휴식으로 건너뛰기", "休憩へスキップ", "跳到休息")
+                                                        : L.t("End break", "휴식 끝내기", "休憩を終える", "结束休息")) { [weak self] in self?.control("skip") })
             }
-            menu.addItem(MenuAction("Stop") { [weak self] in self?.stop() })
+            menu.addItem(MenuAction(L.t("Stop", "정지", "停止", "停止")) { [weak self] in self?.stop() })
         }
-        menu.addItem(MenuAction(runLabel.map { "Label: \($0)…" } ?? (phase == .focus ? "Label this session…" : "Label the next session…")) { [weak self] in
-            self?.askLabel()
-        })
-        let fm = MenuAction(focusOverlay == nil ? "Focus mode" : "Close focus mode") { [weak self] in self?.toggleFocusMode() }
+        let labelTitle = runLabel.map { l in L.t("Label: \(l)…", "이름: \(l)…", "ラベル：\(l)…", "标签：\(l)…") }
+            ?? (phase == .focus ? L.t("Label this session…", "이 세션에 이름 붙이기…", "このセッションにラベルを付ける…", "为本次添加标签…")
+                                : L.t("Label the next session…", "다음 세션에 이름 붙이기…", "次のセッションにラベルを付ける…", "为下一次添加标签…"))
+        menu.addItem(MenuAction(labelTitle) { [weak self] in self?.askLabel() })
+        let fm = MenuAction(focusOverlay == nil ? L.t("Focus mode", "집중 모드", "集中モード", "专注模式")
+                                                : L.t("Close focus mode", "집중 모드 닫기", "集中モードを閉じる", "关闭专注模式")) { [weak self] in self?.toggleFocusMode() }
         fm.keyEquivalent = "f"
         fm.keyEquivalentModifierMask = [.control, .option, .command]
         menu.addItem(fm)
@@ -942,17 +984,22 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             item.submenu = m
             return item
         }
-        menu.addItem(submenu("Mode", [
-            MenuAction("Odysseus voyage (border + traveler)", checked: o.style == .traveler) { [weak self] in self?.control("style:traveler") },
-            MenuAction("Thin border only", checked: o.style == .border) { [weak self] in self?.control("style:border") },
+        menu.addItem(submenu(L.t("Mode", "모드", "モード", "模式"), [
+            MenuAction(L.t("Odysseus voyage (border + traveler)", "오디세우스 항해 (테두리 + 여행자)", "オデュッセウスの航海（枠＋旅人）", "奥德修斯航行（边框＋旅人）"),
+                       checked: o.style == .traveler) { [weak self] in self?.control("style:traveler") },
+            MenuAction(L.t("Thin border only", "얇은 테두리만", "細い枠だけ", "只显示细边框"), checked: o.style == .border) { [weak self] in self?.control("style:border") },
             .separator(),
-            MenuAction("Speed: Even (halfway round = halfway through)", checked: !o.physicalPace) { [weak self] in self?.control("pace:even") },
-            MenuAction("Speed: Physical (slow climb, fast slide)", checked: o.physicalPace) { [weak self] in self?.control("pace:physical") },
+            MenuAction(L.t("Speed: Even (halfway round = halfway through)", "속도: 고르게 (반 바퀴 = 절반 지남)", "速さ：一定（半周＝半分経過）", "速度：匀速（走到一半＝过了一半）"),
+                       checked: !o.physicalPace) { [weak self] in self?.control("pace:even") },
+            MenuAction(L.t("Speed: Physical (slow climb, fast slide)", "속도: 물리적 (오르막은 느리게, 미끄럼은 빠르게)", "速さ：物理的（登りはゆっくり、滑りは速く）", "速度：物理（攀爬慢，滑下快）"),
+                       checked: o.physicalPace) { [weak self] in self?.control("pace:physical") },
         ]))
         var displays: [NSMenuItem] = [
-            MenuAction("Main display", checked: o.display == "main") { [weak self] in self?.control("display:main") },
-            MenuAction("All displays (Odysseus follows you)", checked: o.display == "all") { [weak self] in self?.control("display:all") },
-            MenuAction("Follow me (the display I'm working on)", checked: o.display == "follow") { [weak self] in self?.control("display:follow") },
+            MenuAction(L.t("Main display", "주 모니터", "メインディスプレイ", "主显示器"), checked: o.display == "main") { [weak self] in self?.control("display:main") },
+            MenuAction(L.t("All displays (Odysseus follows you)", "모든 모니터 (오디세우스가 따라와요)", "すべてのディスプレイ（オデュッセウスがついてくる）", "所有显示器（奥德修斯跟着你）"),
+                       checked: o.display == "all") { [weak self] in self?.control("display:all") },
+            MenuAction(L.t("Follow me (the display I'm working on)", "나를 따라 (작업 중인 모니터)", "自分についてくる（作業中のディスプレイ）", "跟随我（正在使用的显示器）"),
+                       checked: o.display == "follow") { [weak self] in self?.control("display:follow") },
             .separator(),
         ]
         for (i, scr) in NSScreen.screens.enumerated() {
@@ -962,134 +1009,164 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                 self?.control("display:\(name)")
             })
         }
-        menu.addItem(submenu("Show on", displays))
+        menu.addItem(submenu(L.t("Show on", "표시할 곳", "表示先", "显示在"), displays))
         if NSScreen.screens.count > 1 {
-            menu.addItem(submenu("Focus mode on", NSScreen.screens.map { scr in
+            menu.addItem(submenu(L.t("Focus mode on", "집중 모드를 열 곳", "集中モードの表示先", "专注模式显示在"), NSScreen.screens.map { scr in
                 let name = scr.localizedName
                 return MenuAction(name, checked: o.focusDisplay == name) { [weak self] in self?.control("focus-display:\(name)") }
             }))
         }
         var backgrounds: [NSMenuItem] = [
-            MenuAction("Off", checked: o.background == "off") { [weak self] in self?.control("background:off") },
-            MenuAction("A different photo each session", checked: o.background == "cycle") { [weak self] in self?.control("background:cycle") },
+            MenuAction(L.t("Off", "끔", "オフ", "关闭"), checked: o.background == "off") { [weak self] in self?.control("background:off") },
+            MenuAction(L.t("A different photo each session", "세션마다 다른 사진", "セッションごとに別の写真", "每次换一张照片"),
+                       checked: o.background == "cycle") { [weak self] in self?.control("background:cycle") },
         ]
         let files = backgroundFiles()
         if !files.isEmpty { backgrounds.append(.separator()) }
         for f in files {
             let name = f.lastPathComponent
-            backgrounds.append(MenuAction(Self.photoTitle(f), checked: o.background == name) { [weak self] in self?.control("background:\(name)") })
+            backgrounds.append(MenuAction(photoTitle(f), checked: o.background == name) { [weak self] in self?.control("background:\(name)") })
         }
         backgrounds.append(.separator())
         let folder = o.backgroundFolder.isEmpty ? nil : URL(fileURLWithPath: o.backgroundFolder).lastPathComponent
-        backgrounds.append(MenuAction(folder.map { "My folder: \($0)…" } ?? "Use my own folder…", checked: folder != nil) { [weak self] in
-            self?.chooseBackgroundFolder()
-        })
+        let folderTitle = folder.map { f in L.t("My folder: \(f)…", "내 폴더: \(f)…", "自分のフォルダ：\(f)…", "我的文件夹：\(f)…") }
+            ?? L.t("Use my own folder…", "내 폴더 사용…", "自分のフォルダを使う…", "使用我自己的文件夹…")
+        backgrounds.append(MenuAction(folderTitle, checked: folder != nil) { [weak self] in self?.chooseBackgroundFolder() })
         if folder != nil {
-            backgrounds.append(MenuAction("Use the photos that come with the app") { [weak self] in self?.control("background-folder:") })
+            backgrounds.append(MenuAction(L.t("Use the photos that come with the app", "앱에 들어 있는 사진 사용", "アプリ付属の写真を使う", "使用应用自带的照片")) { [weak self] in
+                self?.control("background-folder:")
+            })
         }
-        backgrounds.append(MenuAction("Slow drift", checked: o.backgroundDrift) { [weak self] in
+        backgrounds.append(MenuAction(L.t("Slow drift", "천천히 움직이기", "ゆっくり動かす", "缓慢漂移"), checked: o.backgroundDrift) { [weak self] in
             guard let self else { return }
             self.control(self.o.backgroundDrift ? "drift:off" : "drift:on")
         })
-        menu.addItem(submenu("Focus mode background", backgrounds))
-        menu.addItem(submenu("Border", [2, 3, 4].map { t in
-            MenuAction("\(t) px\(t == 2 ? " (thinnest)" : "")", checked: Int(o.thickness) == t) { [weak self] in self?.control("thickness:\(t)") }
+        menu.addItem(submenu(L.t("Focus mode background", "집중 모드 배경", "集中モードの背景", "专注模式背景"), backgrounds))
+        menu.addItem(submenu(L.t("Border", "테두리", "枠", "边框"), [2, 3, 4].map { t in
+            MenuAction(t == 2 ? L.t("2 px (thinnest)", "2 px (가장 얇게)", "2 px（最も細い）", "2 像素（最细）") : "\(t) px",
+                       checked: Int(o.thickness) == t) { [weak self] in self?.control("thickness:\(t)") }
         }))
-        func choices(_ presets: [Int], current: Double, unit: String, cmd: String, custom: @escaping () -> Void) -> [NSMenuItem] {
+        func mins(_ m: Int) -> String { L.t("\(m) min", "\(m)분", "\(m)分", "\(m) 分钟") }
+        func choices(_ presets: [Int], current: Double, cmd: String, custom: @escaping () -> Void) -> [NSMenuItem] {
             var items: [NSMenuItem] = presets.map { m in
-                MenuAction("\(m) \(unit)", checked: Int(current) == m) { [weak self] in self?.control("\(cmd):\(m)") }
+                MenuAction(mins(m), checked: Int(current) == m) { [weak self] in self?.control("\(cmd):\(m)") }
             }
-            let isCustom = !presets.contains(Int(current))
-            items.append(MenuAction(isCustom ? "Custom (\(Int(current)) \(unit))…" : "Custom…", checked: isCustom, custom))
+            let isCustom = !presets.contains(Int(current)), m = mins(Int(current))
+            items.append(MenuAction(isCustom ? L.t("Custom (\(m))…", "직접 입력 (\(m))…", "カスタム（\(m)）…", "自定义（\(m)）…")
+                                             : L.t("Custom…", "직접 입력…", "カスタム…", "自定义…"), checked: isCustom, custom))
             return items
         }
         let long = Int(Durations.longBreakMinutes(rest: o.restMinutes))
-        menu.addItem(submenu("Timer", [
-            MenuAction("Pomodoro (focus, then a break)", checked: o.mode == .pomodoro) { [weak self] in self?.control("mode:pomodoro") },
-            MenuAction("Countdown timer", checked: o.mode == .timer) { [weak self] in self?.control("mode:timer") },
-            MenuAction("Stopwatch", checked: o.mode == .stopwatch) { [weak self] in self?.control("mode:stopwatch") },
-            submenu("Countdown: \(countdown(o.timerSeconds))", Durations.timerPresets.map { m in
-                MenuAction("\(m) min", checked: o.mode == .timer && o.timerSeconds == Double(m * 60)) { [weak self] in self?.control("timer:\(m)") }
-            } + [MenuAction("Custom…") { [weak self] in
-                guard let self, let t = self.askLength("Timer", hint: "Minutes (10), m:ss (1:30) or h:mm:ss (1:15:00), up to 24 hours. Or scroll over the time.",
-                                                       current: countdown(self.o.timerSeconds)) else { return }
+        let cd = countdown(o.timerSeconds), fmin = mins(Int(o.focusMinutes)), bmin = mins(Int(o.restMinutes)), every = o.longEvery
+        menu.addItem(submenu(L.t("Timer", "타이머", "タイマー", "计时"), [
+            MenuAction(L.t("Pomodoro (focus, then a break)", "뽀모도로 (집중 후 휴식)", "ポモドーロ（集中のあと休憩）", "番茄钟（专注后休息）"),
+                       checked: o.mode == .pomodoro) { [weak self] in self?.control("mode:pomodoro") },
+            MenuAction(L.t("Countdown timer", "카운트다운 타이머", "カウントダウンタイマー", "倒计时"), checked: o.mode == .timer) { [weak self] in self?.control("mode:timer") },
+            MenuAction(L.t("Stopwatch", "스톱워치", "ストップウォッチ", "秒表"), checked: o.mode == .stopwatch) { [weak self] in self?.control("mode:stopwatch") },
+            submenu(L.t("Countdown: \(cd)", "카운트다운: \(cd)", "カウントダウン：\(cd)", "倒计时：\(cd)"), Durations.timerPresets.map { m in
+                MenuAction(mins(m), checked: o.mode == .timer && o.timerSeconds == Double(m * 60)) { [weak self] in self?.control("timer:\(m)") }
+            } + [MenuAction(L.t("Custom…", "직접 입력…", "カスタム…", "自定义…")) { [weak self] in
+                guard let self, let t = self.ask(L.t("Timer length", "타이머 길이", "タイマーの長さ", "计时时长"),
+                                                 hint: L.t("Minutes (10), m:ss (1:30) or h:mm:ss (1:15:00), up to 24 hours. Or scroll over the time.",
+                                                           "분(10), 분:초(1:30) 또는 시:분:초(1:15:00), 24시간까지. 시간 위에서 스크롤해도 돼요.",
+                                                           "分（10）、分:秒（1:30）または 時:分:秒（1:15:00）、24時間まで。時間の上でスクロールしても変えられます。",
+                                                           "分钟（10）、分:秒（1:30）或 时:分:秒（1:15:00），最长 24 小时。也可以在时间上滚动。"),
+                                                 current: countdown(self.o.timerSeconds)) else { return }
                 self.control("timer:\(t)")
             }]),
             .separator(),
-            submenu("Focus: \(Int(o.focusMinutes)) min", choices(Durations.focusPresets, current: o.focusMinutes, unit: "min", cmd: "focus") { [weak self] in
-                guard let self, let m = self.askMinutes("Focus", current: self.o.focusMinutes, range: Durations.focusRange) else { return }
+            submenu(L.t("Focus: \(fmin)", "집중: \(fmin)", "集中：\(fmin)", "专注：\(fmin)"), choices(Durations.focusPresets, current: o.focusMinutes, cmd: "focus") { [weak self] in
+                guard let self, let m = self.askMinutes(L.t("Focus length", "집중 길이", "集中の長さ", "专注时长"), current: self.o.focusMinutes, range: Durations.focusRange) else { return }
                 self.control("focus:\(Int(m))")
             }),
-            submenu("Break: \(Int(o.restMinutes)) min", choices(Durations.breakPresets, current: o.restMinutes, unit: "min", cmd: "rest") { [weak self] in
-                guard let self, let m = self.askMinutes("Break", current: self.o.restMinutes, range: Durations.breakRange) else { return }
+            submenu(L.t("Break: \(bmin)", "휴식: \(bmin)", "休憩：\(bmin)", "休息：\(bmin)"), choices(Durations.breakPresets, current: o.restMinutes, cmd: "rest") { [weak self] in
+                guard let self, let m = self.askMinutes(L.t("Break length", "휴식 길이", "休憩の長さ", "休息时长"), current: self.o.restMinutes, range: Durations.breakRange) else { return }
                 self.control("rest:\(Int(m))")
             }),
-            submenu("Long break (\(long) min): every \(o.longEvery) sessions", Durations.longEveryChoices.map { n in
-                MenuAction("Every \(n) sessions", checked: o.longEvery == n) { [weak self] in self?.control("long-every:\(n)") }
+            submenu(L.t("Long break (\(long) min): every \(every) sessions", "긴 휴식 (\(long)분): \(every)회마다",
+                        "長い休憩（\(long)分）：\(every)回ごと", "长休息（\(long) 分钟）：每 \(every) 次"), Durations.longEveryChoices.map { n in
+                MenuAction(L.t("Every \(n) sessions", "\(n)회마다", "\(n)回ごと", "每 \(n) 次"), checked: o.longEvery == n) { [weak self] in self?.control("long-every:\(n)") }
             }),
             .separator(),
-            MenuAction("Notify when time is up", checked: o.notifyAtEnd) { [weak self] in
+            MenuAction(L.t("Notify when time is up", "시간이 다 되면 알림", "時間になったら通知", "时间到时通知"), checked: o.notifyAtEnd) { [weak self] in
                 guard let self else { return }
                 self.control(self.o.notifyAtEnd ? "notify:off" : "notify:on")
             },
-            submenu("Sound", [
-                MenuAction("Harp", checked: o.sound == "harp") { [weak self] in self?.control("sound:harp") },
-                MenuAction("Glass (system)", checked: o.sound == "glass") { [weak self] in self?.control("sound:glass") },
-                MenuAction("Off", checked: o.sound == "off") { [weak self] in self?.control("sound:off") },
+            submenu(L.t("Sound", "소리", "サウンド", "声音"), [
+                MenuAction(L.t("Harp", "하프", "ハープ", "竖琴"), checked: o.sound == "harp") { [weak self] in self?.control("sound:harp") },
+                MenuAction(L.t("Glass (system)", "유리 (시스템)", "ガラス（システム）", "玻璃（系统）"), checked: o.sound == "glass") { [weak self] in self?.control("sound:glass") },
+                MenuAction(L.t("Off", "끔", "オフ", "关闭"), checked: o.sound == "off") { [weak self] in self?.control("sound:off") },
                 .separator(),
-                MenuAction("Volume: low", checked: o.soundVolume == "low") { [weak self] in self?.control("volume:low") },
-                MenuAction("Volume: medium", checked: o.soundVolume == "medium") { [weak self] in self?.control("volume:medium") },
+                MenuAction(L.t("Volume: low", "음량: 작게", "音量：小", "音量：低"), checked: o.soundVolume == "low") { [weak self] in self?.control("volume:low") },
+                MenuAction(L.t("Volume: medium", "음량: 보통", "音量：中", "音量：中"), checked: o.soundVolume == "medium") { [weak self] in self?.control("volume:medium") },
             ]),
-            MenuAction("Start the next focus after a break", checked: o.autoNextFocus) { [weak self] in
+            MenuAction(L.t("Start the next focus after a break", "휴식이 끝나면 다음 집중 시작", "休憩のあと次の集中を始める", "休息后自动开始下一次专注"),
+                       checked: o.autoNextFocus) { [weak self] in
                 guard let self else { return }
                 self.control(self.o.autoNextFocus ? "autonext:off" : "autonext:on")
             },
         ]))
-        menu.addItem(MenuAction("Only show in the last 5 minutes", checked: o.onlyLast5) { [weak self] in
+        menu.addItem(MenuAction(L.t("Only show in the last 5 minutes", "마지막 5분에만 표시", "最後の5分だけ表示", "只在最后 5 分钟显示"), checked: o.onlyLast5) { [weak self] in
             guard let self else { return }
             self.control(self.o.onlyLast5 ? "last5:off" : "last5:on")
         })
         menu.addItem(.separator())
         let agentTitle: String
         switch agentState {
-        case .idle: agentTitle = "Claude Code: no active session"
-        case .working: agentTitle = "Claude Code: working"
-        case .waiting: agentTitle = "Claude Code: waiting for you"
-        case .limit: agentTitle = "Claude Code: near usage limit"
+        case .idle: agentTitle = L.t("Claude Code: no active session", "Claude Code: 활성 세션 없음", "Claude Code：アクティブなセッションなし", "Claude Code：没有活动会话")
+        case .working: agentTitle = L.t("Claude Code: working", "Claude Code: 작업 중", "Claude Code：作業中", "Claude Code：工作中")
+        case .waiting: agentTitle = L.t("Claude Code: waiting for you", "Claude Code: 당신을 기다리는 중", "Claude Code：あなたを待っています", "Claude Code：在等你")
+        case .limit: agentTitle = L.t("Claude Code: near usage limit", "Claude Code: 사용 한도 가까움", "Claude Code：使用上限が近い", "Claude Code：接近用量上限")
         }
         let ai = NSMenuItem(title: agentTitle, action: nil, keyEquivalent: "")
         ai.isEnabled = false
         menu.addItem(ai)
         menu.addItem(.separator())
-        menu.addItem(MenuAction("History (today \(History.span(today.seconds)))…", key: "y") { [weak self] in self?.showHistory() })
-        menu.addItem(MenuAction("Logbook (\(logbook.found.count) of 24 books)…", key: "l") { [weak self] in self?.showLogbook() })
-        menu.addItem(submenu("Settings", [
-            MenuAction("Show Claude Code signals", checked: o.agentEnabled) { [weak self] in
+        let todaySpan = History.span(today.seconds), books = logbook.found.count
+        menu.addItem(MenuAction(L.t("History (today \(todaySpan))…", "기록 (오늘 \(todaySpan))…", "記録（今日 \(todaySpan)）…", "记录（今天 \(todaySpan)）…"), key: "y") { [weak self] in self?.showHistory() })
+        menu.addItem(MenuAction(L.t("Logbook (\(books) of 24 books)…", "항해 일지 (24권 중 \(books)권)…", "航海日誌（24巻中 \(books) 巻）…", "航海日志（24 卷中 \(books) 卷）…"), key: "l") { [weak self] in
+            self?.showLogbook()
+        })
+        let pref = UserDefaults.standard.string(forKey: "language") ?? "auto"
+        let languages: [NSMenuItem] = [MenuAction(L.t("System", "시스템", "システム", "系统") + " (\(L.resolve("auto").name))", checked: pref == "auto") { [weak self] in
+            self?.control("language:auto")
+        }, .separator()] + Lang.allCases.map { l in
+            MenuAction(l.name, checked: pref == l.rawValue) { [weak self] in self?.control("language:\(l.rawValue)") }
+        }
+        menu.addItem(submenu(L.t("Settings", "설정", "設定", "设置"), [
+            submenu(L.t("Language", "언어", "言語", "语言"), languages),
+            .separator(),
+            MenuAction(L.t("Show Claude Code signals", "Claude Code 신호 표시", "Claude Code のシグナルを表示", "显示 Claude Code 信号"), checked: o.agentEnabled) { [weak self] in
                 guard let self else { return }
                 self.control(self.o.agentEnabled ? "agent:off" : "agent:on")
             },
-            MenuAction("Doze while a game, video or social app is in front", checked: o.lotusEnabled) { [weak self] in
+            MenuAction(L.t("Doze while a game, video or social app is in front", "게임·동영상·SNS 앱이 앞에 있으면 졸기",
+                           "ゲーム・動画・SNS アプリが前面にあるとき居眠りする", "游戏、视频或社交应用在前台时打瞌睡"), checked: o.lotusEnabled) { [weak self] in
                 guard let self else { return }
                 self.control(self.o.lotusEnabled ? "lotus-enabled:off" : "lotus-enabled:on")
             },
-            MenuAction("Hide while the screen is shared or recorded", checked: o.hideWhenCaptured) { [weak self] in
+            MenuAction(L.t("Hide while the screen is shared or recorded", "화면 공유·녹화 중에는 숨기기", "画面の共有・録画中は隠す", "共享或录制屏幕时隐藏"), checked: o.hideWhenCaptured) { [weak self] in
                 guard let self else { return }
                 self.control(self.o.hideWhenCaptured ? "share-hide:off" : "share-hide:on")
             },
-            MenuAction("Count down in seconds (12:50, not 13m)", checked: o.showSeconds) { [weak self] in
+            MenuAction(L.t("Count down in seconds (12:50, not 13m)", "초 단위로 표시 (13분 대신 12:50)", "秒単位で表示（13分ではなく 12:50）", "按秒倒计时（12:50，而非 13 分）"), checked: o.showSeconds) { [weak self] in
                 guard let self else { return }
                 self.control(self.o.showSeconds ? "seconds:off" : "seconds:on")
             },
             .separator(),
-            MenuAction("Launch at login", checked: LoginItem.isOn) { [weak self] in self?.toggleLoginItem() },
-            MenuAction("Welcome guide…") { [weak self] in self?.showWelcome() },
+        ] + updateSettingsItems() + [
+            .separator(),
+            MenuAction(L.t("Launch at login", "로그인할 때 실행", "ログイン時に起動", "登录时启动"), checked: LoginItem.isOn) { [weak self] in self?.toggleLoginItem() },
+            MenuAction(L.t("Welcome guide…", "시작 안내…", "はじめにガイド…", "欢迎指南…")) { [weak self] in self?.showWelcome() },
         ]))
-        let hide = MenuAction(manualHidden ? "Show again" : "Hide now") { [weak self] in self?.toggleHidden() }
+        let hide = MenuAction(manualHidden ? L.t("Show again", "다시 보이기", "再表示", "重新显示") : L.t("Hide now", "지금 숨기기", "今すぐ隠す", "立即隐藏")) { [weak self] in
+            self?.toggleHidden()
+        }
         hide.keyEquivalent = "h"
         hide.keyEquivalentModifierMask = [.control, .option, .command]
         menu.addItem(hide)
         menu.addItem(.separator())
-        menu.addItem(MenuAction("Quit Edge Odyssey", key: "q") { NSApp.terminate(nil) })
+        menu.addItem(MenuAction(L.t("Quit Edge Odyssey", "Edge Odyssey 종료", "Edge Odyssey を終了", "退出 Edge Odyssey"), key: "q") { NSApp.terminate(nil) })
     }
 
     // MARK: focus mode
@@ -1169,19 +1246,37 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         guard let v = focusOverlay?.focusView else { return }
         let paused = pausedAt != nil
         let caption: String
+        let homeward = L.t("sailing home to Ithaca", "이타카로 돌아가는 중", "イタケへ帰航中", "正驶向伊萨卡")
         switch (phase, o.mode) {
-        case (.idle, .pomodoro): caption = "Space to start a \(Int(o.focusMinutes))-minute focus"
-        case (.idle, .timer): caption = "Space to start · scroll to set"
-        case (.idle, .stopwatch): caption = "Space to start the stopwatch"
-        case (_, .timer): caption = paused ? "Timer paused" : remaining <= 0 ? "Time's up · Ithaca!" : "Timer · sailing home to Ithaca"
-        case (_, .stopwatch): caption = paused ? "Stopwatch paused" : "Stopwatch · lap \(Int(elapsed / phaseDuration) + 1) round the edge"
-        case (.focus, _): caption = paused ? "Focus paused" : lotus ? "Focus · the Lotus-eaters beckon" : "Focus · sailing home to Ithaca"
-        case (.rest, _): caption = paused ? "Break paused" : restIsLong ? "Long break · Calypso's island" : "Break · home on Ithaca"
+        case (.idle, .pomodoro):
+            let m = Int(o.focusMinutes)
+            caption = L.t("Space to start a \(m)-minute focus", "Space로 \(m)분 집중 시작", "Space で \(m) 分の集中を開始", "按空格开始 \(m) 分钟专注")
+        case (.idle, .timer): caption = L.t("Space to start · scroll to set", "Space로 시작 · 스크롤로 설정", "Space で開始 · スクロールで設定", "按空格开始 · 滚动设定")
+        case (.idle, .stopwatch): caption = L.t("Space to start the stopwatch", "Space로 스톱워치 시작", "Space でストップウォッチを開始", "按空格开始秒表")
+        case (_, .timer):
+            caption = paused ? L.t("Timer paused", "타이머 일시정지", "タイマー一時停止", "计时器已暂停")
+                : remaining <= 0 ? L.t("Time's up · Ithaca!", "시간 종료 · 이타카!", "時間です · イタケ！", "时间到 · 伊萨卡！")
+                : L.t("Timer", "타이머", "タイマー", "计时器") + " · " + homeward
+        case (_, .stopwatch):
+            let lap = Int(elapsed / phaseDuration) + 1
+            caption = paused ? L.t("Stopwatch paused", "스톱워치 일시정지", "ストップウォッチ一時停止", "秒表已暂停")
+                : L.t("Stopwatch · lap \(lap) round the edge", "스톱워치 · 가장자리 \(lap)바퀴째", "ストップウォッチ · 縁を \(lap) 周目", "秒表 · 绕边缘第 \(lap) 圈")
+        case (.focus, _):
+            caption = paused ? L.t("Focus paused", "집중 일시정지", "集中一時停止", "专注已暂停")
+                : lotus ? L.t("Focus · the Lotus-eaters beckon", "집중 · 로토스 먹는 사람들이 손짓해요", "集中 · ロートパゴスが手招きしている", "专注 · 食莲人在招手")
+                : L.t("Focus", "집중", "集中", "专注") + " · " + homeward
+        case (.rest, _):
+            caption = paused ? L.t("Break paused", "휴식 일시정지", "休憩一時停止", "休息已暂停")
+                : restIsLong ? L.t("Long break · Calypso's island", "긴 휴식 · 칼립소의 섬", "長い休憩 · カリュプソの島", "长休息 · 卡吕普索之岛")
+                : L.t("Break · home on Ithaca", "휴식 · 고향 이타카에서", "休憩 · 故郷イタケで", "休息 · 在家乡伊萨卡")
         }
         v.show(time: phase == .idle ? idleLength : o.mode == .stopwatch ? elapsedClock(elapsed * o.speed) : countdown(remaining * o.speed),
                caption: caption,
-               primary: phase == .idle ? "Start (Space)" : paused ? "Resume (Space)" : "Pause (Space)",
-               skip: phase == .idle || o.mode != .pomodoro ? nil : phase == .focus ? "Skip to break (S)" : "End break (S)",
+               primary: phase == .idle ? L.t("Start (Space)", "시작 (Space)", "開始 (Space)", "开始 (空格)")
+                   : paused ? L.t("Resume (Space)", "재개 (Space)", "再開 (Space)", "继续 (空格)") : L.t("Pause (Space)", "일시정지 (Space)", "一時停止 (Space)", "暂停 (空格)"),
+               skip: phase == .idle || o.mode != .pomodoro ? nil
+                   : phase == .focus ? L.t("Skip to break (S)", "휴식으로 건너뛰기 (S)", "休憩へスキップ (S)", "跳到休息 (S)")
+                   : L.t("End break (S)", "휴식 끝내기 (S)", "休憩を終える (S)", "结束休息 (S)"),
                footer: todayLine(short: true),
                contentHidden: manualHidden || (o.hideWhenCaptured && detector.result.capturing))
     }
@@ -1201,9 +1296,23 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         return []
     }
 
-    /// "storm-over-the-sea.jpg" -> "Storm over the sea".
-    static func photoTitle(_ u: URL) -> String {
-        let t = u.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "-", with: " ")
+    /// The photos that ship with the app by name; anything else from its file name
+    /// ("storm-over-the-sea.jpg" -> "Storm over the sea").
+    func photoTitle(_ u: URL) -> String {
+        let name = u.deletingPathExtension().lastPathComponent
+        if o.backgroundFolder.isEmpty {
+            switch name {
+            case "aegean-islands-from-orbit": return L.t("Aegean islands from orbit", "궤도에서 본 에게해의 섬들", "軌道から見たエーゲ海の島々", "从轨道俯瞰爱琴海诸岛")
+            case "aegean-sunglint-from-orbit": return L.t("Aegean sunglint from orbit", "궤도에서 본 에게해의 햇빛 반사", "軌道から見たエーゲ海のサングリント", "从轨道俯瞰爱琴海的日光反射")
+            case "milky-way-over-still-water": return L.t("Milky Way over still water", "잔잔한 물 위의 은하수", "静かな水面に映る天の川", "静水之上的银河")
+            case "rough-seas-aleutians": return L.t("Rough seas, Aleutians", "알류샨 열도의 거친 바다", "アリューシャンの荒波", "阿留申群岛的汹涌海面")
+            case "sea-cliffs-santa-cruz-island": return L.t("Sea cliffs, Santa Cruz Island", "산타크루즈섬의 해식 절벽", "サンタクルーズ島の海食崖", "圣克鲁斯岛的海崖")
+            case "sea-spray-on-coastal-rocks": return L.t("Sea spray on coastal rocks", "해안 바위에 부서지는 물보라", "海岸の岩に砕ける波しぶき", "海岸礁石上的浪花")
+            case "sunset-over-the-bering-sea": return L.t("Sunset over the Bering Sea", "베링해의 해넘이", "ベーリング海の夕日", "白令海上的日落")
+            default: break
+            }
+        }
+        let t = name.replacingOccurrences(of: "-", with: " ")
         return t.prefix(1).uppercased() + t.dropFirst()
     }
 
@@ -1220,7 +1329,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         let p = NSOpenPanel()
         p.canChooseDirectories = true
         p.canChooseFiles = false
-        p.message = "Choose a folder of photos (JPEG, PNG or HEIC) for the focus mode background."
+        p.message = L.t("Choose a folder of photos (JPEG, PNG or HEIC) for the focus mode background.",
+                        "집중 모드 배경으로 쓸 사진 폴더(JPEG, PNG, HEIC)를 고르세요.",
+                        "集中モードの背景に使う写真のフォルダ（JPEG、PNG、HEIC）を選んでください。",
+                        "选择一个照片文件夹（JPEG、PNG 或 HEIC）作为专注模式背景。")
         NSApp.activate(ignoringOtherApps: true)
         guard p.runModal() == .OK, let url = p.url else { return }
         control("background-folder:\(url.path)")
@@ -1250,10 +1362,14 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         } catch {
             log("login item: \(error)")
             let alert = NSAlert()
-            alert.messageText = "Couldn't change Launch at login"
-            alert.informativeText = "\(error.localizedDescription)\n\nYou can add Edge Odyssey in System Settings > General > Login Items."
-            alert.addButton(withTitle: "Open Login Items")
-            alert.addButton(withTitle: "Cancel")
+            alert.messageText = L.t("Couldn't change Launch at login", "로그인할 때 실행을 바꾸지 못했어요", "ログイン時の起動を変更できませんでした", "无法更改“登录时启动”")
+            alert.informativeText = error.localizedDescription + "\n\n" + L.t(
+                "You can add Edge Odyssey in System Settings > General > Login Items.",
+                "시스템 설정 > 일반 > 로그인 항목에서 Edge Odyssey를 추가할 수 있어요.",
+                "システム設定 > 一般 > ログイン項目 で Edge Odyssey を追加できます。",
+                "可以在“系统设置 > 通用 > 登录项”中添加 Edge Odyssey。")
+            alert.addButton(withTitle: L.t("Open Login Items", "로그인 항목 열기", "ログイン項目を開く", "打开登录项"))
+            alert.addButton(withTitle: L.t("Cancel", "취소", "キャンセル", "取消"))
             NSApp.activate(ignoringOtherApps: true)
             if alert.runModal() == .alertFirstButtonReturn { SMAppService.openSystemSettingsLoginItems() }
         }
@@ -1262,15 +1378,18 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     // MARK: windows
 
     let logbookWindow = PanelWindow()
+    var logbookTitle: String { L.t("Logbook", "항해 일지", "航海日誌", "航海日志") }
+    var historyTitle: String { L.t("History", "기록", "記録", "记录") }
+    var welcomeTitle: String { L.t("Welcome to Edge Odyssey", "Edge Odyssey에 오신 걸 환영해요", "Edge Odyssey へようこそ", "欢迎使用 Edge Odyssey") }
 
     func showLogbook() {
-        logbookWindow.show(title: "Logbook", LogbookView(found: logbook.found, character: sprites["odysseus-vector"]?.folder))
+        logbookWindow.show(title: logbookTitle, LogbookView(found: logbook.found, character: sprites["odysseus-vector"]?.folder))
     }
     let welcomeWindow = PanelWindow()
 
     func showWelcome() {
         UserDefaults.standard.set(true, forKey: "onboarded")
-        welcomeWindow.show(title: "Welcome to Edge Odyssey", WelcomeView(
+        welcomeWindow.show(title: welcomeTitle, WelcomeView(
             character: sprites["odysseus-vector"]?.folder,
             copyHookSnippet: { [weak self] in self?.installHooksAndCopySnippet() ?? "" },
             setLoginItem: { [weak self] in self?.setLoginItem($0) },
@@ -1285,7 +1404,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     func installHooksAndCopySnippet() -> String {
         guard let src = Bundle.main.resourceURL?.appendingPathComponent("hooks"),
               var snippet = try? String(contentsOf: src.appendingPathComponent("claude-settings-snippet.json"), encoding: .utf8)
-        else { return "Hook files are missing from the app bundle." }
+        else { return L.t("Hook files are missing from the app bundle.", "앱 번들에 훅 파일이 없어요.", "アプリにフックのファイルがありません。", "应用包中缺少钩子文件。") }
         let fm = FileManager.default
         let dest = o.stateDir.appendingPathComponent("hooks")
         do {
@@ -1296,7 +1415,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                 try fm.copyItem(at: src.appendingPathComponent(name), to: to)
                 try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: to.path)
             }
-        } catch { return "Couldn't install the hook scripts: \(error.localizedDescription)" }
+        } catch {
+            let e = error.localizedDescription
+            return L.t("Couldn't install the hook scripts: \(e)", "훅 스크립트를 설치하지 못했어요: \(e)", "フックのスクリプトをインストールできませんでした：\(e)", "无法安装钩子脚本：\(e)")
+        }
         let home = fm.homeDirectoryForCurrentUser.appendingPathComponent(".edge-odyssey").path
         if o.stateDir.path != home {   // a custom --state-dir: the hooks must write there too
             let dir = "'" + o.stateDir.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
@@ -1305,7 +1427,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(snippet, forType: .string)
         log("hooks installed in \(dest.path), snippet copied")
-        return "Copied. Hook scripts are in \(dest.path.replacingOccurrences(of: fm.homeDirectoryForCurrentUser.path, with: "~"))."
+        let shown = dest.path.replacingOccurrences(of: fm.homeDirectoryForCurrentUser.path, with: "~")
+        return L.t("Copied. Hook scripts are in \(shown).", "복사했어요. 훅 스크립트는 \(shown) 에 있어요.", "コピーしました。フックのスクリプトは \(shown) にあります。", "已复制。钩子脚本在 \(shown)。")
     }
 
     // MARK: demo backdrop (keeps private screen content out of recordings)
@@ -1361,6 +1484,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
 // MARK: entry
 
 let opts = Options(CommandLine.arguments)
+if let l = opts.lang { if l == "pseudo" { L.pseudo = true } else { L.lang = L.resolve(l) } }
 if let cmd = opts.ctl {
     DistributedNotificationCenter.default().postNotificationName(ctlNotification, object: cmd, userInfo: nil, deliverImmediately: true)
     exit(0)

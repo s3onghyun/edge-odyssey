@@ -133,7 +133,7 @@ final class Overlay {
         window = NSWindow(contentRect: placement,
                           styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
                           backing: .buffered, defer: false)
-        window.title = "Focus mode"
+        window.title = L.t("Focus mode", "집중 모드", "集中モード", "专注模式")
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.isReleasedWhenClosed = false
