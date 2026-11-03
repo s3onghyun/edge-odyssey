@@ -30,9 +30,29 @@ focus session passes, and the edge glows softly when Claude Code needs you.
 
 ## Install
 
-Edge Odyssey is not notarized yet, so for now you build it yourself. It needs macOS 13 or
-later on Apple silicon and the Xcode Command Line Tools (`xcode-select --install`); no Xcode
-project.
+Edge Odyssey needs macOS 13 or later on an Apple-silicon Mac. Download the current
+`Edge-Odyssey-<version>-arm64.zip` and its matching `.sha256` file from the
+[Releases page](https://github.com/s3onghyun/edge-odyssey/releases). (This first public
+release is Apple-silicon only; a universal build is not available yet.)
+
+Verify the download before installing:
+
+```sh
+cd ~/Downloads
+shasum -a 256 -c Edge-Odyssey-<version>-arm64.zip.sha256
+ditto -x -k "Edge-Odyssey-<version>-arm64.zip" .
+mv "Edge Odyssey.app" /Applications/
+```
+
+The app is ad-hoc signed but **not notarized yet**. On the first launch, Control-click
+**Edge Odyssey** in Applications, choose **Open**, then choose **Open** again. If macOS still
+blocks it, open **System Settings → Privacy & Security** and select **Open Anyway**. Notarization
+will be added in a later release.
+
+### Build from source
+
+To build your own copy, install the Xcode Command Line Tools (`xcode-select --install`); no
+Xcode project is required.
 
 ```sh
 git clone <this repo> && cd edge-odyssey
@@ -106,7 +126,7 @@ watches the folder (no polling). Nothing leaves your Mac.
 No network access, no analytics. The overlay windows are excluded from screenshots and
 screen recordings, and the whole edge hides while the macOS screen-capture indicator is on
 (Zoom, Meet, QuickTime and so on). Local files: `~/.edge-odyssey/` (hook states, logbook) and
-the app's preferences (`dev.edgeodyssey.app`).
+the app's preferences (`app.edgeodyssey`).
 
 ## Command line
 

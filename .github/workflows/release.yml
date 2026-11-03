@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Validate tag version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          grep -Fqx "## ${version} (unreleased)" CHANGELOG.md
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+      - name: Test
+        run: ./test.sh
+      - name: Build Apple-silicon app
+        env:
+          EDGE_ODYSSEY_BUNDLE_ID: app.edgeodyssey
+          EDGE_ODYSSEY_VERSION: ${{ steps.version.outputs.version }}
+        run: ./build.sh
+      - name: Ad-hoc sign and package
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          app="build/Edge Odyssey.app"
+          archive="Edge-Odyssey-${VERSION}-arm64.zip"
+          codesign --force --deep --sign - "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          ditto -c -k --sequesterRsrc --keepParent "$app" "$archive"
+          shasum -a 256 "$archive" > "$archive.sha256"
+      - name: Prepare changelog notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk -v heading="## ${VERSION} (unreleased)" '
+            $0 == heading { capture=1; next }
+            capture && /^## / { exit }
+            capture { print }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          test -s RELEASE_NOTES.md
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "v${VERSION}" \
+            --title "Edge Odyssey ${VERSION}" \
+            --notes-file RELEASE_NOTES.md \
+            "Edge-Odyssey-${VERSION}-arm64.zip" \
+            "Edge-Odyssey-${VERSION}-arm64.zip.sha256"
