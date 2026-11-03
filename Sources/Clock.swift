@@ -45,6 +45,12 @@ func endMessage(focusEnded: Bool, longBreak: Bool, breakMinutes: Int, korean: Bo
     }
 }
 
+/// The notification when a countdown timer reaches 0:00.
+func timerDoneMessage(seconds: Int, korean: Bool) -> (title: String, body: String) {
+    let t = countdown(Double(seconds))
+    return korean ? ("시간 종료", "\(t) 타이머가 끝났어요") : ("Time's up", "Your \(t) timer is done")
+}
+
 /// The sound played when a focus ends (arrival) or a break ends (setting sail).
 enum Chime {
     static let choices = ["harp", "glass", "off"]           // menu order; "off" is the default
@@ -61,5 +67,87 @@ enum Chime {
         case "glass": return "Glass"
         default: return nil
         }
+    }
+}
+
+enum Phase { case idle, focus, rest }
+
+/// Pomodoro (focus, then a break), a plain countdown timer, or a stopwatch that counts up.
+enum TimerMode: String, CaseIterable {
+    case pomodoro, timer, stopwatch
+
+    /// A saved or typed choice; Pomodoro when it isn't one.
+    static func named(_ s: String?) -> TimerMode { TimerMode(rawValue: s ?? "") ?? .pomodoro }
+
+    /// What happens when a phase's time is up: the timer state machine.
+    enum TimeUp: Equatable {
+        case arrive              // a Pomodoro focus is over: Ithaca, then a break
+        case breakOver(next: Bool) // the break is over; `next`: the next focus starts by itself
+        case timerDone           // a countdown reached 0:00
+        case lap                 // a stopwatch finished one lap round the edge and carries on
+    }
+
+    func timeUp(in phase: Phase, autoNext: Bool) -> TimeUp? {
+        switch (self, phase) {
+        case (_, .idle): return nil
+        case (.pomodoro, .focus): return .arrive
+        case (.pomodoro, .rest): return .breakOver(next: autoNext)
+        case (.timer, _): return .timerDone
+        case (.stopwatch, _): return .lap
+        }
+    }
+}
+
+/// Time shown by a stopwatch: like `countdown`, but rounded down (0:00 at the start).
+func elapsedClock(_ seconds: Double) -> String { countdown(max(seconds, 0).rounded(.down)) }
+
+/// Changing a time with the scroll wheel, a trackpad or the arrow keys.
+enum TimeAdjust {
+    /// One notch or key press: a minute; Shift five minutes; Option ten seconds.
+    static func step(shift: Bool, option: Bool) -> Double { option ? 10 : shift ? 300 : 60 }
+
+    /// Trackpad scrolling (precise deltas, in points) needed for one step.
+    static let pointsPerNotch = 24.0
+
+    /// Whole steps in one scroll event plus what carries over to the next. A mouse wheel moves one
+    /// step per event whatever its acceleration; a trackpad's small deltas add up.
+    static func notches(carry: Double, delta: Double, precise: Bool) -> (notches: Int, carry: Double) {
+        guard delta != 0 else { return (0, carry) }
+        guard precise else { return (delta > 0 ? 1 : -1, 0) }
+        let total = carry + delta
+        let n = Int(total / pointsPerNotch)   // toward zero: a reversed swipe first uses up the carry
+        return (n, total - Double(n) * pointsPerNotch)
+    }
+
+    /// A countdown of `duration` seconds, `elapsed` of them gone, moved by `delta`: the new
+    /// duration. What is left stays within `range`, except that shortening never lifts a time that
+    /// is already below the range's floor. Idle lengths use elapsed 0.
+    static func duration(_ duration: Double, elapsed: Double, by delta: Double, in range: ClosedRange<Double>) -> Double {
+        let left = max(duration - elapsed, 0)
+        let floor = min(range.lowerBound, left)
+        return elapsed + min(max(left + delta, floor), range.upperBound)
+    }
+}
+
+extension Durations {
+    static let timerPresets = [1, 3, 5, 10, 15, 30, 60]   // minutes
+    static let timerRange = 10.0...86_400.0                // seconds: 10 s to 24 h
+    static let stopwatchLap = 3600.0                       // one lap of the edge per hour
+
+    /// A typed timer length: "10" or "2.5" (minutes), "1:30" (m:ss) or "1:00:00" (h:mm:ss).
+    /// Seconds, or nil when it isn't one or falls outside `range`.
+    static func seconds(_ text: String, in range: ClosedRange<Double>) -> Double? {
+        let parts = text.trimmingCharacters(in: .whitespaces).split(separator: ":", omittingEmptySubsequences: false)
+        let nums = parts.map { Double($0) }
+        guard (1...3).contains(parts.count), nums.allSatisfy({ $0 != nil && $0!.isFinite && $0! >= 0 }) else { return nil }
+        let v = nums.map { $0! }
+        if v.count > 1, v.contains(where: { $0 != $0.rounded() }) || v.dropFirst().contains(where: { $0 >= 60 }) { return nil }
+        let s: Double
+        switch v.count {
+        case 1: s = (v[0] * 60).rounded()
+        case 2: s = v[0] * 60 + v[1]
+        default: s = v[0] * 3600 + v[1] * 60 + v[2]
+        }
+        return range.contains(s) ? s : nil
     }
 }

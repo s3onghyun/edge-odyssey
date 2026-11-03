@@ -25,7 +25,11 @@ focus session passes, and the edge glows softly when Claude Code needs you.
   gold swell when it is waiting for you, Poseidon's storm near the 5-hour usage limit.
 - **Focus mode.** When you want the time front and centre: Control-Option-Command-F opens a
   calm full-screen view with a large countdown, a track around it that fills as time passes,
-  and Odysseus at three times the size sailing round it. Made for a second or vertical monitor.
+  and Odysseus at three times the size sailing round it, over a dimmed public-domain photo of
+  the sea, a coast, the Aegean from orbit or the night sky (or your own). Made for a second or vertical monitor.
+- **Pomodoro, timer or stopwatch.** Besides focus-and-break sessions, a plain countdown of any
+  length (presets from 1 minute to an hour) and a stopwatch. Scroll over the time to change it:
+  a minute per notch, Shift for five, Option for ten seconds.
 - **Out of your way.** A 2-4 px border, never takes a click, hides in full-screen apps and
   while the screen is shared or recorded, and on Control-Option-Command-H.
 - **Smooth and light.** All motion runs in the macOS render server; the app wakes only at
@@ -73,10 +77,11 @@ menu bar (the dashed circle).
 
 | Item | What it does |
 |---|---|
-| Start focus / Pause / Resume / Skip / Stop | The timer. The menu bar counts down to the second (`12:50`) |
-| Timer | Focus 15/25/45/50/90 min or custom (1-240), break 5/10/15 min or custom (1-60), a long break (15 min) every 2-6 sessions, and what happens when time is up (below). A new length applies from the next session |
+| Start focus / Pause / Resume / Skip / Stop | The timer. The menu bar counts down to the second (`12:50`); scroll over it to change the time (below) |
+| Timer | **Pomodoro**, **Countdown timer** or **Stopwatch** (below); the countdown's length (1, 3, 5, 10, 15, 30, 60 min or custom); focus 15/25/45/50/90 min or custom (1-240), break 5/10/15 min or custom (1-60), a long break (15 min) every 2-6 sessions, and what happens when time is up (below). A new length applies from the next session |
 | Focus mode | Control-Option-Command-F, from anywhere: the full-screen focus view (below). Again to close |
 | Focus mode on | With more than one display: which one focus mode opens on (remembered) |
+| Focus mode background | Off, a different photo each session (default), one photo, or **your own folder**; slow drift on or off |
 | Mode | Odysseus voyage (border + traveler) or a thin border only; Speed: Even (default) or Physical |
 | Show on | Main display, all displays (Odysseus follows the display you work on), follow me, or one named display |
 | Border | 2, 3 or 4 px |
@@ -103,6 +108,28 @@ Settings are remembered between launches.
   system sound) or **Off** (default), and a low or medium volume. Picking one plays it once.
 - Notifications follow macOS Focus / Do Not Disturb, so they stay silent while that is on.
 
+### Timer and stopwatch
+
+<p align="center"><img src="assets/screenshots/timer-background.gif" width="300" alt="Focus mode over a dim sunset photo: a countdown timer set by steps to 12:00 and down to 6:40, then run until Time's up with the gold glow"></p>
+<p align="center"><sub>A countdown set in steps (as with the scroll wheel), run at 40x speed in focus mode over a sunset photo.</sub></p>
+
+*Timer* picks what the menu-bar and focus-mode clock is:
+
+- **Pomodoro** (default): focus, then a break, a long break every few sessions.
+- **Countdown timer**: one countdown of any length, 10 seconds to 24 hours: a preset, *Custom…*
+  (`10` for minutes, `1:30`, `1:15:00`) or scrolling. Odysseus sails round once over its length.
+  At 0:00 the edge glows gold, the sound and notification come as at the end of a focus, he
+  rests a moment on Ithaca, and the timer is ready for the next run. No break follows.
+- **Stopwatch**: counts up from 0:00 until you stop it. Odysseus sails one lap of the edge per
+  hour and starts the next; the trail stays teal, since nothing is running out.
+
+Switching mode stops what is running. **Changing the time:** scroll over the time in the menu
+bar or anywhere in focus mode (mouse wheel or trackpad; up adds, down takes away), or press the
+arrow keys in focus mode (Up/Right add, Down/Left take away). One step is a minute, **Shift**
+five minutes, **Option** ten seconds. When nothing runs it sets the next session's length
+(Pomodoro focus lengths stay whole minutes) and is remembered; while one runs it moves what is
+left of that session only.
+
 ### Focus mode
 
 <p align="center">
@@ -118,15 +145,22 @@ draining during a break), and a 3x Odysseus voyages round it at an even pace, so
 is halfway through. Episodes, Ithaca and Calypso's island play at the same size, and Claude
 Code signals still show on the track (the gold swell, the Sirens, the storm).
 
-- **Keys:** Space starts, pauses or resumes; S skips to the break (or ends it); Esc exits.
+- **Keys:** Space starts, pauses or resumes; S skips to the break (or ends it); Esc exits;
+  arrows or scrolling change the time (above).
   Moving the pointer shows Start/Pause, Skip and Exit buttons. Once the window is in front, a
   click on the background also exits.
 - **Where:** *Focus mode on* picks the display. It is an ordinary full-screen window, so you
   can switch Spaces, leave full screen and resize it, or close it.
 - While focus mode is open it replaces the edge on its display (other displays keep their
   border); the light or dark look follows macOS.
-- While the screen is shared or recorded (and on Control-Option-Command-H) the countdown and
-  track are hidden and only the plain background shows; the window is also left out of
+- **Background:** a photo of rough seas, a rocky coast, the Aegean from orbit, a sunset or the night sky behind the
+  voyage, softened and dimmed so the time stays readable, with a slow drift. *Focus mode
+  background* turns it off, keeps one, or uses **your own folder** of JPEG, PNG or HEIC photos
+  (read on your Mac only). The seven photos that ship with the app are public domain (works of
+  NASA, NOAA and the National Park Service); where each comes from is in
+  [`assets/backgrounds/PROVENANCE.md`](assets/backgrounds/PROVENANCE.md).
+- While the screen is shared or recorded (and on Control-Option-Command-H) the countdown, track
+  and photo are hidden and only the plain background shows; the window is also left out of
   screenshots and recordings.
 
 <p align="center"><img src="assets/screenshots/logbook.png" width="720" alt="Logbook window with found and uncharted books"></p>
@@ -166,10 +200,15 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --speed 75 --autostart     # demo: 25 minutes in 20 seconds
 "$APP" --ctl start|pause|resume|stop|skip|logbook|welcome|hide|show|quit
 "$APP" --ctl focus-mode:on|off|toggle   # or focus-display:<display name>
+"$APP" --ctl mode:pomodoro|timer|stopwatch
+"$APP" --ctl timer:10|1:30|1:00:00       # countdown length (switches to the timer)
+"$APP" --ctl adjust:60|-300              # like scrolling: seconds to add or take away
+"$APP" --ctl background:off|cycle|<file name>   # or background-folder:<path>, drift:on|off
 ```
 
 Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--style border|traveler`, `--pace even|physical`,
-`--thickness 2..4`, `--last5`, `--focus <min>`, `--rest <min>`, `--no-lotus`, `--char <id>`,
+`--thickness 2..4`, `--last5`, `--focus <min>`, `--rest <min>`, `--mode pomodoro|timer|stopwatch`,
+`--timer <length>`, `--background off|cycle|<file name>`, `--no-lotus`, `--char <id>`,
 `--state-dir <dir>`, `-v` (log to stderr). For demos and tests: `--focus-mode` (open it at launch),
 `--focus-frame x,y,w,h` (a window instead of full screen), `--appearance dark|light`.
 
@@ -177,7 +216,7 @@ Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--
 
 ```sh
 ./build.sh      # the app, with swiftc from the Command Line Tools
-./test.sh       # motion-math tests (Swift Testing): exact timing, no jumps on re-apply, sprite timing, focus-mode layout
+./test.sh       # motion-math tests (Swift Testing): exact timing, no jumps on re-apply, sprite timing, focus-mode layout, timer modes and time adjustment
 ```
 
 | Path | License | What |
@@ -187,6 +226,7 @@ Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--
 | `hooks/` | MIT | Claude Code hook and status-line scripts, settings snippet |
 | `tools/` | MIT | Art generators (`make_odysseus.py`, `make_icon.py`), sheet builder, `svg2png.swift` |
 | `assets/` | All rights reserved, personal-use grant: [`assets/LICENSE`](assets/LICENSE) | Characters, icon, screenshots, sketches, sounds |
+| `assets/backgrounds/` | Public domain (US government works): [`PROVENANCE.md`](assets/backgrounds/PROVENANCE.md) | Focus mode photos |
 
 The code is MIT ([`LICENSE`](LICENSE)). The art is not: you may use it in your own builds of
 this repository, but not redistribute it or make derivative characters. Forks are welcome

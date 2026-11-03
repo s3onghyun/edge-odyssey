@@ -1,20 +1,30 @@
 import AppKit
+import CoreImage
+import ImageIO
 import QuartzCore
 
 /// Focus mode's window content: a calm background, the large countdown and a caption in the
 /// middle, and Start/Pause, Skip and Exit buttons that appear while the pointer moves. The
 /// track and Odysseus are an Overlay's layers (`stage`), placed by FocusLayout.
-/// Keys: Space starts, pauses or resumes; S skips; Esc exits. A click on the background exits.
+/// Keys: Space starts, pauses or resumes; S skips; Esc exits; arrows (or scrolling) change the
+/// time. A click on the background exits. Behind it all, optionally, a dimmed nature photo.
 final class FocusView: NSView {
     /// "toggle", "skip" or "exit".
     var onAction: ((String) -> Void)?
     /// The stage changed size: the scene has to be laid out again.
     var onResize: (() -> Void)?
+    /// Scrolling anywhere in the window, and the arrow keys (steps, modifiers), change the time.
+    var onScroll: ((NSEvent) -> Void)?
+    var onAdjust: ((Int, NSEvent.ModifierFlags) -> Void)?
     var spriteHeight: CGFloat = 26 * FocusLayout.travelerScale { didSet { needsLayout = true } }
 
     private let stage: CALayer
     private let canvas = NSView()      // layer-hosting: background content; controls sit above it
-    private let content = CALayer()    // everything but the background (hidden while sharing)
+    private let content = CALayer()    // everything but the window colour (hidden while sharing)
+    private let backdrop = CALayer()   // the photo, softened once when it is picked
+    private let scrim = CALayer()      // dims the photo so the time stays readable
+    private var backdropURL: URL?
+    private var hasBackdrop: Bool { backdrop.contents != nil }
     private let time = CATextLayer()
     private let caption = CATextLayer()
     private let primary = NSButton(title: "Start", target: nil, action: nil)
@@ -36,6 +46,11 @@ final class FocusView: NSView {
         canvas.wantsLayer = true
         addSubview(canvas)
         canvas.layer!.addSublayer(content)
+        content.masksToBounds = true   // the drifting photo is a little larger than the window
+        backdrop.contentsGravity = .resizeAspectFill
+        scrim.backgroundColor = NSColor(white: 0, alpha: 0.42).cgColor
+        content.addSublayer(backdrop)
+        content.addSublayer(scrim)
         content.addSublayer(stage)
         for (l, weight) in [(time, NSFont.Weight.light), (caption, .regular)] {
             l.font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: weight)
@@ -65,11 +80,51 @@ final class FocusView: NSView {
     private var dark: Bool { effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua }
 
     /// Light and dark appearance: a deep night sea or a pale sand page, the digits in ink.
+    /// Over a photo the digits are always light, on a dark scrim.
     override func updateLayer() {
+        let night = dark || hasBackdrop
         layer?.backgroundColor = (dark ? NSColor(srgbRed: 0.06, green: 0.07, blue: 0.10, alpha: 1)
                                        : NSColor(srgbRed: 0.97, green: 0.96, blue: 0.93, alpha: 1)).cgColor
-        time.foregroundColor = (dark ? NSColor(white: 0.93, alpha: 1) : NSColor(srgbRed: 0.12, green: 0.13, blue: 0.17, alpha: 1)).cgColor
-        caption.foregroundColor = (dark ? NSColor(white: 0.93, alpha: 0.55) : NSColor(srgbRed: 0.12, green: 0.13, blue: 0.17, alpha: 0.55)).cgColor
+        time.foregroundColor = (night ? NSColor(white: 0.95, alpha: 1) : NSColor(srgbRed: 0.12, green: 0.13, blue: 0.17, alpha: 1)).cgColor
+        caption.foregroundColor = (night ? NSColor(white: 0.95, alpha: hasBackdrop ? 0.75 : 0.55)
+                                         : NSColor(srgbRed: 0.12, green: 0.13, blue: 0.17, alpha: 0.55)).cgColor
+        for l in [time, caption] {
+            l.shadowOpacity = hasBackdrop ? 0.6 : 0
+            l.shadowRadius = 6
+            l.shadowOffset = .zero
+        }
+    }
+
+    /// Shows `url` (nil: none) behind the voyage, blurred a little and dimmed, with an optional
+    /// slow drift. The picture is decoded at most 2048 px wide, so a huge photo costs no more.
+    func setBackdrop(_ url: URL?, drift: Bool) {
+        if url != backdropURL {
+            backdropURL = url
+            backdrop.contents = url.flatMap(Self.softened)
+        }
+        scrim.isHidden = !hasBackdrop
+        backdrop.removeAnimation(forKey: "drift")
+        if drift, hasBackdrop {   // Ken Burns: in the render server, a few frames a second is plenty
+            let a = CABasicAnimation(keyPath: "transform")
+            a.fromValue = CATransform3DMakeScale(1.04, 1.04, 1)
+            a.toValue = CATransform3DConcat(CATransform3DMakeScale(1.12, 1.12, 1), CATransform3DMakeTranslation(-24, 12, 0))
+            a.duration = 90
+            a.autoreverses = true
+            a.repeatCount = .infinity
+            a.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            a.preferredFrameRateRange = CAFrameRateRange(minimum: 4, maximum: 12, preferred: 10)
+            backdrop.add(a, forKey: "drift")
+        }
+        needsDisplay = true
+    }
+
+    static func softened(_ url: URL) -> CGImage? {
+        let opts = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceThumbnailMaxPixelSize: 2048,
+                    kCGImageSourceCreateThumbnailWithTransform: true] as CFDictionary
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let img = CGImageSourceCreateThumbnailAtIndex(src, 0, opts) else { return nil }
+        let ci = CIImage(cgImage: img)
+        return CIContext().createCGImage(ci.clampedToExtent().applyingGaussianBlur(sigma: 3), from: ci.extent)
     }
 
     override func viewDidChangeBackingProperties() {
@@ -87,6 +142,8 @@ final class FocusView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         content.frame = bounds
+        backdrop.frame = bounds
+        scrim.frame = bounds
         stage.frame = st
         time.fontSize = fs
         // CATextLayer draws from the top of its bounds: one line box, centred a little high.
@@ -127,9 +184,13 @@ final class FocusView: NSView {
         case 49: onAction?("toggle")            // Space
         case 1: onAction?("skip")               // S
         case 53: onAction?("exit")              // Esc
+        case 126, 124: onAdjust?(1, e.modifierFlags)    // Up, Right: more time
+        case 125, 123: onAdjust?(-1, e.modifierFlags)   // Down, Left: less
         default: super.keyDown(with: e)
         }
     }
+
+    override func scrollWheel(with e: NSEvent) { onScroll?(e) }
 
     override func cancelOperation(_ sender: Any?) { onAction?("exit") }
 

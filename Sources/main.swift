@@ -41,6 +41,11 @@ struct Options {
     var focusAtLaunch = false       // demo/test: open focus mode at launch
     var focusFrame: CGRect?         // demo/test: focus mode as a window at x,y,w,h instead of full screen
     var appearance: String?         // demo/test: "dark" or "light" instead of the system appearance
+    var mode = TimerMode.pomodoro   // Pomodoro, a plain countdown timer, or a stopwatch
+    var timerSeconds = 600.0        // the countdown timer's length
+    var background = "cycle"        // focus mode backdrop: "off", "cycle" or one photo's file name
+    var backgroundFolder = ""       // the user's own photo folder; empty: the photos that ship with the app
+    var backgroundDrift = true      // a slow Ken Burns drift on the backdrop
 
     /// Settings the menu changes are kept in UserDefaults; command-line flags override them
     /// for one run without being saved.
@@ -48,7 +53,8 @@ struct Options {
                                        "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true,
                                        "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4,
                                        "notifyAtEnd": true, "soundVolume": "low", "autoNextFocus": false, "pace": "even",
-                                       "focusDisplay": ""]   // "sound" unregistered: see init
+                                       "focusDisplay": "", "mode": "pomodoro", "timerSeconds": 600.0,
+                                       "focusBackground": "cycle", "backgroundFolder": "", "backgroundDrift": true]   // "sound" unregistered: see init
 
     init(_ args: [String], defaults d: UserDefaults = .standard) {
         d.register(defaults: Self.saved)
@@ -69,6 +75,11 @@ struct Options {
         autoNextFocus = d.bool(forKey: "autoNextFocus")
         physicalPace = d.string(forKey: "pace") == "physical"
         focusDisplay = d.string(forKey: "focusDisplay") ?? ""
+        mode = TimerMode.named(d.string(forKey: "mode"))
+        timerSeconds = Durations.timerRange.contains(d.double(forKey: "timerSeconds")) ? d.double(forKey: "timerSeconds") : 600
+        background = d.string(forKey: "focusBackground") ?? "cycle"
+        backgroundFolder = d.string(forKey: "backgroundFolder") ?? ""
+        backgroundDrift = d.bool(forKey: "backgroundDrift")
         var it = args.dropFirst().makeIterator()
         while let a = it.next() {
             switch a {
@@ -95,6 +106,9 @@ struct Options {
             case "--episodes": episodes = (it.next() ?? "").split(separator: ",").compactMap { Episode(rawValue: String($0)) }
             case "--focus-mode": focusAtLaunch = true
             case "--appearance": appearance = it.next()
+            case "--mode": mode = TimerMode.named(it.next())
+            case "--timer": timerSeconds = Durations.seconds(it.next() ?? "", in: Durations.timerRange) ?? 600
+            case "--background": background = it.next() ?? "cycle"
             case "--focus-frame":
                 let v = (it.next() ?? "").split(separator: ",").compactMap { Double($0) }
                 if v.count == 4 { focusFrame = CGRect(x: v[0], y: v[1], width: v[2], height: v[3]) }
@@ -164,6 +178,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     var lotus = false
     var overrideAnim: String?
     var restIsLong = false
+    var scrollCarry = 0.0                // trackpad scrolling not yet worth a whole step
+    var lengthShownUntil = Date.distantPast   // idle: the menu bar shows the length just scrolled to
+    var backgroundIndex = Int.random(in: 0..<1000)
 
     init(_ o: Options) { self.o = o }
 
@@ -176,7 +193,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     var phaseDuration: TimeInterval = 25 * 60
     var breakMinutes: Double { restIsLong ? Durations.longBreakMinutes(rest: o.restMinutes) : o.restMinutes }
     var elapsed: TimeInterval { (pausedAt ?? Date()).timeIntervalSince(phaseStart) - pausedTotal }
-    var remaining: TimeInterval { max(phaseDuration - elapsed, 0) }
+    /// Time left; for the stopwatch, until the end of this lap round the edge.
+    var remaining: TimeInterval {
+        o.mode == .stopwatch ? phaseDuration - elapsed.truncatingRemainder(dividingBy: phaseDuration) : max(phaseDuration - elapsed, 0)
+    }
 
     // MARK: lifecycle
 
@@ -234,6 +254,12 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         }
         if o.autostart { start() }
         if o.focusAtLaunch { openFocusMode() }
+        // Scrolling over the menu-bar time changes it, as in focus mode.
+        NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] e in
+            guard let self, let w = e.window, w === self.statusItem.button?.window else { return e }
+            self.scrolled(e)
+            return nil
+        }
         refresh()
         if !UserDefaults.standard.bool(forKey: "onboarded") && !o.autostart { showWelcome() }
         log("launched: state dir \(o.stateDir.path), speed \(o.speed)")
@@ -247,14 +273,19 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             || cat.hasSuffix("social-networking") || cat.hasSuffix("video"))
     }
 
-    func loadSprites() {
-        // characters/ = shipping art; sketches/ = design-discussion drafts (not final).
+    /// --assets, the app's Resources, then the repository's assets/ next to a development build.
+    var resourceRoots: [URL] {
         var roots: [URL] = []
         if let a = o.assets { roots.append(a) }
         if let r = Bundle.main.resourceURL { roots.append(r) }
         let exe = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
         roots.append(exe.deletingLastPathComponent().appendingPathComponent("../../assets"))
-        let dirs = roots.flatMap { [$0.appendingPathComponent("characters"), $0.appendingPathComponent("sketches")] }
+        return roots
+    }
+
+    func loadSprites() {
+        // characters/ = shipping art; sketches/ = design-discussion drafts (not final).
+        let dirs = resourceRoots.flatMap { [$0.appendingPathComponent("characters"), $0.appendingPathComponent("sketches")] }
         for d in dirs {
             let files = (try? FileManager.default.contentsOfDirectory(at: d, includingPropertiesForKeys: nil)) ?? []
             let isVector = { (u: URL) in FileManager.default.fileExists(atPath: u.appendingPathComponent("character.txt").path) }
@@ -296,7 +327,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         var s = Scene()
         s.phase = phase
         s.duration = phaseDuration
-        s.elapsed = min(elapsed, phaseDuration)
+        s.elapsed = o.mode == .stopwatch ? elapsed.truncatingRemainder(dividingBy: phaseDuration) : min(elapsed, phaseDuration)
+        s.calm = o.mode == .stopwatch   // laps never turn coral: nothing is running out
         s.paused = pausedAt != nil
         s.agent = o.agentEnabled ? agentState : .idle
         s.lapDuration = 720 / o.speed
@@ -324,7 +356,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         // Focus mode replaces the edge on its own display.
         let onThisDisplay = borderScreens.contains(ov.screen) && focusOverlay.map { displayID($0.screen) != displayID(ov.screen) } ?? true
         let hasContent = (phase != .idle || s.agent != .idle) && onThisDisplay
-        let hiddenForLast5 = o.onlyLast5 && phase == .focus && remaining > 300 / o.speed && s.agent != .waiting
+        let hiddenForLast5 = o.onlyLast5 && phase == .focus && o.mode != .stopwatch && remaining > 300 / o.speed && s.agent != .waiting
         s.visible = hasContent && !manualHidden && !hiddenForLast5
             && !(o.hideWhenCaptured && detector.result.capturing)
             && !detector.result.coveredDisplays.contains(displayID(ov.screen))
@@ -366,8 +398,13 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
 
     func start() {
         phase = .focus
-        focusCount += 1
-        phaseDuration = o.focusMinutes * 60 / o.speed
+        if o.mode == .pomodoro { focusCount += 1 }   // timers and stopwatches don't bring a long break closer
+        switch o.mode {
+        case .pomodoro: phaseDuration = o.focusMinutes * 60 / o.speed
+        case .timer: phaseDuration = o.timerSeconds / o.speed
+        case .stopwatch: phaseDuration = Durations.stopwatchLap / o.speed
+        }
+        if o.background == "cycle" { backgroundIndex += 1; applyBackground() }
         phaseStart = Date()
         pausedAt = nil
         pausedTotal = 0
@@ -389,7 +426,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
 
     func planEpisodes() {
         cancelEpisodes()
-        guard phase == .focus, pausedAt == nil, o.style == .traveler, let host = hostOverlay,
+        guard phase == .focus, pausedAt == nil, o.style == .traveler, o.mode != .stopwatch, let host = hostOverlay,
               let sprite = scene(for: host).sprite else { return }
         let pt = sprite.unitPoints(backing: host.screen.backingScaleFactor)
         let j = Journey(size: host.stageSize, inset: CGFloat(sprite.height) * pt / 2, weights: Journey.weights(physical: o.physicalPace))
@@ -476,13 +513,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
 
     func schedulePhaseTimers() {
         phaseTimer?.invalidate(); last5Timer?.invalidate()
-        phaseTimer = Timer.scheduledTimer(withTimeInterval: remaining, repeats: false) { [weak self] _ in
-            guard let self else { return }
-            self.phase == .focus ? self.focusEnded() : self.breakEnded()
-        }
+        phaseTimer = Timer.scheduledTimer(withTimeInterval: remaining, repeats: false) { [weak self] _ in self?.timeUp() }
         phaseTimer?.tolerance = 0.1
         let untilLast5 = remaining - 300 / o.speed
-        if phase == .focus, untilLast5 > 0 {
+        if phase == .focus, o.mode != .stopwatch, untilLast5 > 0 {
             last5Timer = Timer.scheduledTimer(withTimeInterval: untilLast5, repeats: false) { [weak self] _ in self?.refresh() }
         }
         scheduleTitleTimer()
@@ -499,6 +533,34 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         titleTimer = t
     }
 
+    func timeUp() {
+        switch o.mode.timeUp(in: phase, autoNext: o.autoNextFocus) {
+        case .arrive: focusEnded()
+        case .breakOver(let next): breakEnded(startNext: next)
+        case .timerDone: timerDone()
+        case .lap: schedulePhaseTimers(); refresh()
+        case nil: break
+        }
+    }
+
+    /// A countdown timer reached 0:00: the same glow, sound and notification as an arrival,
+    /// a moment at Ithaca, then ready for the next one.
+    func timerDone() {
+        log("timer done: notify=\(o.notifyAtEnd) sound=\(o.sound)")
+        phaseTimer?.invalidate(); last5Timer?.invalidate(); titleTimer?.invalidate()
+        cancelEpisodes()
+        refresh()
+        updateTitle()
+        allOverlays.forEach { $0.glow() }
+        chime(focusEnded: true)
+        notify(timerDoneMessage(seconds: Int(phaseDuration * o.speed), korean: korean))
+        let ended = phaseStart
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in   // a new start in between wins
+            guard let self, self.phaseStart == ended, self.phase == .focus else { return }
+            self.stop()
+        }
+    }
+
     /// Time is up: he reaches Ithaca (or Calypso's island), the edge glows gold once, and,
     /// if the user wants them, a notification and a soft sound.
     func focusEnded() {
@@ -510,11 +572,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     }
 
     /// The break is over: wait for a click (default) or start the next focus by itself.
-    func breakEnded() {
-        log("break ended: autoNextFocus=\(o.autoNextFocus)")
+    func breakEnded(startNext: Bool) {
+        log("break ended: autoNextFocus=\(startNext)")
         chime(focusEnded: false)
-        if !o.autoNextFocus { notify(endMessage(focusEnded: false, longBreak: false, breakMinutes: 0, korean: korean)) }
-        o.autoNextFocus ? start() : stop()
+        if !startNext { notify(endMessage(focusEnded: false, longBreak: false, breakMinutes: 0, korean: korean)) }
+        startNext ? start() : stop()
     }
 
     /// Harp: arriving at Ithaca after a focus, setting sail after a break. Silent when off.
@@ -545,10 +607,16 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
 
     /// Asks for a custom length in whole minutes; nil when cancelled or out of range.
     func askMinutes(_ what: String, current: Double, range: ClosedRange<Double>) -> Double? {
+        askLength(what, hint: "Minutes, \(Int(range.lowerBound)) to \(Int(range.upperBound)). Applies from the next session.",
+                  current: String(Int(current))).flatMap { Durations.minutes($0, in: range) }
+    }
+
+    /// The typed text, or nil when cancelled.
+    func askLength(_ what: String, hint: String, current: String) -> String? {
         let alert = NSAlert()
         alert.messageText = "\(what) length"
-        alert.informativeText = "Minutes, \(Int(range.lowerBound)) to \(Int(range.upperBound)). Applies from the next session."
-        let field = NSTextField(string: String(Int(current)))
+        alert.informativeText = hint
+        let field = NSTextField(string: current)
         field.frame = NSRect(x: 0, y: 0, width: 80, height: 24)
         alert.accessoryView = field
         alert.addButton(withTitle: "Set")
@@ -556,7 +624,60 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         NSApp.activate(ignoringOtherApps: true)
         alert.window.initialFirstResponder = field
         guard alert.runModal() == .alertFirstButtonReturn else { return nil }
-        return Durations.minutes(field.stringValue, in: range)
+        return field.stringValue
+    }
+
+    // MARK: adjusting time (scroll wheel, trackpad, arrow keys)
+
+    /// A scroll over the menu-bar time or the focus window: up adds time, down takes it away,
+    /// whichever way the system scrolls content. Shift turns a mouse wheel sideways, so its
+    /// horizontal delta counts too.
+    func scrolled(_ e: NSEvent) {
+        guard e.momentumPhase.isEmpty else { return }   // the glide after a swipe would run away
+        if e.phase == .began { scrollCarry = 0 }
+        let raw = e.scrollingDeltaY != 0 || !e.modifierFlags.contains(.shift) ? e.scrollingDeltaY : e.scrollingDeltaX
+        let r = TimeAdjust.notches(carry: scrollCarry, delta: raw * (e.isDirectionInvertedFromDevice ? -1 : 1),
+                                   precise: e.hasPreciseScrollingDeltas)
+        scrollCarry = r.carry
+        adjust(notches: r.notches, e.modifierFlags)
+    }
+
+    func adjust(notches: Int, _ flags: NSEvent.ModifierFlags) {
+        guard notches != 0 else { return }
+        adjust(by: Double(notches) * TimeAdjust.step(shift: flags.contains(.shift), option: flags.contains(.option)))
+    }
+
+    /// Idle: the length of the next session (saved). Running: this session only, by moving what
+    /// is left. The stopwatch has nothing to set.
+    func adjust(by delta: Double) {
+        switch (phase, o.mode) {
+        case (_, .stopwatch): return
+        case (.idle, .timer):
+            o.timerSeconds = TimeAdjust.duration(o.timerSeconds, elapsed: 0, by: delta, in: Durations.timerRange)
+            remember("timerSeconds", o.timerSeconds)
+        case (.idle, .pomodoro):   // the focus length is whole minutes
+            let r = Durations.focusRange
+            o.focusMinutes = TimeAdjust.duration(o.focusMinutes, elapsed: 0, by: (delta / 60).rounded(.awayFromZero), in: r)
+            remember("focusMinutes", o.focusMinutes)
+        default:
+            let r = Durations.timerRange
+            phaseDuration = TimeAdjust.duration(phaseDuration, elapsed: elapsed, by: delta / o.speed,
+                                                in: (r.lowerBound / o.speed)...(r.upperBound / o.speed))
+            if pausedAt == nil { schedulePhaseTimers(); planEpisodes() }
+        }
+        log("adjust \(delta): \(phase == .idle ? idleLength : left)")
+        lengthShownUntil = Date().addingTimeInterval(2)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.05) { [weak self] in self?.updateTitle() }
+        refresh()
+    }
+
+    /// The length the next start runs for, as the clock shows it.
+    var idleLength: String {
+        switch o.mode {
+        case .pomodoro: return countdown(o.focusMinutes * 60)
+        case .timer: return countdown(o.timerSeconds)
+        case .stopwatch: return elapsedClock(0)
+        }
     }
 
     func toggleHidden() {
@@ -577,7 +698,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         case "pause": pause()
         case "resume": resume()
         case "stop": stop()
-        case "skip": phase == .focus ? startRest() : stop()
+        case "skip": phase == .focus && o.mode == .pomodoro ? startRest() : stop()
         case "seek":   // demo only: jump to a share of the current phase, e.g. seek:0.4
             if let f = Double(arg), phase != .idle {
                 phaseStart = Date().addingTimeInterval(-f * phaseDuration)
@@ -614,6 +735,18 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         case "login": setLoginItem(arg == "on")
         case "focus-mode": arg == "on" ? openFocusMode() : arg == "off" ? closeFocusMode() : toggleFocusMode()
         case "focus-display": openFocusMode(on: arg)
+        case "mode":   // switching stops what is running: its clock means something else
+            if phase != .idle { stop() }
+            o.mode = TimerMode.named(arg); remember("mode", o.mode.rawValue); refresh()
+        case "timer":   // a countdown length ("10", "1:30"); picking one means the timer
+            if let sec = Durations.seconds(arg, in: Durations.timerRange) {
+                o.timerSeconds = sec; remember("timerSeconds", sec)
+                if o.mode != .timer { control("mode:timer") } else { refresh() }
+            }
+        case "adjust": if let d = Double(arg) { adjust(by: d) }   // scripting/demo: seconds, e.g. adjust:60
+        case "background": o.background = arg; remember("focusBackground", arg); applyBackground()
+        case "background-folder": o.backgroundFolder = arg; remember("backgroundFolder", arg); applyBackground()
+        case "drift": o.backgroundDrift = arg != "off"; remember("backgroundDrift", o.backgroundDrift); applyBackground()
         case "quit": NSApp.terminate(nil)
         default: log("unknown ctl \(cmd)")
         }
@@ -635,7 +768,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         updateFocus()
         guard let b = statusItem?.button else { return }
         if phase == .idle {
-            b.title = ""
+            b.title = lengthShownUntil > Date() ? " " + idleLength : ""
             b.image = NSImage(systemSymbolName: agentState == .waiting ? "circle.circle.fill" : "circle.dashed", accessibilityDescription: "Edge Odyssey")
             titleSymbol = nil
             return
@@ -651,13 +784,21 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     }
 
     /// Time left in the user's chosen style, nominal even at demo speed.
-    var left: String { o.showSeconds ? countdown(remaining * o.speed) : minutesLeft(remaining * o.speed) }
+    var left: String {
+        if o.mode == .stopwatch { let e = elapsed * o.speed; return o.showSeconds ? elapsedClock(e) : "\(Int(e / 60))m" }
+        return o.showSeconds ? countdown(remaining * o.speed) : minutesLeft(remaining * o.speed)
+    }
 
     var header: String {
-        switch phase {
-        case .idle: return "Ready"
-        case .focus: return pausedAt != nil ? "Focus paused: \(left) left" : "Focus: \(left) left"
-        case .rest: return pausedAt != nil ? "Break paused: \(left) left" : "Break: \(left) left"
+        let paused = pausedAt != nil
+        switch (phase, o.mode) {
+        case (.idle, .pomodoro): return "Ready"
+        case (.idle, .timer): return "Timer: \(idleLength)"
+        case (.idle, .stopwatch): return "Stopwatch: ready"
+        case (_, .timer): return paused ? "Timer paused: \(left) left" : "Timer: \(left) left"
+        case (_, .stopwatch): return paused ? "Stopwatch paused: \(left)" : "Stopwatch: \(left)"
+        case (.focus, _): return paused ? "Focus paused: \(left) left" : "Focus: \(left) left"
+        case (.rest, _): return paused ? "Break paused: \(left) left" : "Break: \(left) left"
         }
     }
 
@@ -668,11 +809,19 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         menu.addItem(h)
         headerItem = h
         if phase == .idle {
-            menu.addItem(MenuAction("Start focus (\(Int(o.focusMinutes)) min)", key: "s") { [weak self] in self?.start() })
+            let title: String
+            switch o.mode {
+            case .pomodoro: title = "Start focus (\(Int(o.focusMinutes)) min)"
+            case .timer: title = "Start timer (\(idleLength))"
+            case .stopwatch: title = "Start stopwatch"
+            }
+            menu.addItem(MenuAction(title, key: "s") { [weak self] in self?.start() })
         } else {
             if pausedAt == nil { menu.addItem(MenuAction("Pause") { [weak self] in self?.pause() }) }
             else { menu.addItem(MenuAction("Resume") { [weak self] in self?.resume() }) }
-            menu.addItem(MenuAction(phase == .focus ? "Skip to break" : "End break") { [weak self] in self?.control("skip") })
+            if o.mode == .pomodoro {
+                menu.addItem(MenuAction(phase == .focus ? "Skip to break" : "End break") { [weak self] in self?.control("skip") })
+            }
             menu.addItem(MenuAction("Stop") { [weak self] in self?.stop() })
         }
         let fm = MenuAction(focusOverlay == nil ? "Focus mode" : "Close focus mode") { [weak self] in self?.toggleFocusMode() }
@@ -715,6 +864,29 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                 return MenuAction(name, checked: o.focusDisplay == name) { [weak self] in self?.control("focus-display:\(name)") }
             }))
         }
+        var backgrounds: [NSMenuItem] = [
+            MenuAction("Off", checked: o.background == "off") { [weak self] in self?.control("background:off") },
+            MenuAction("A different photo each session", checked: o.background == "cycle") { [weak self] in self?.control("background:cycle") },
+        ]
+        let files = backgroundFiles()
+        if !files.isEmpty { backgrounds.append(.separator()) }
+        for f in files {
+            let name = f.lastPathComponent
+            backgrounds.append(MenuAction(Self.photoTitle(f), checked: o.background == name) { [weak self] in self?.control("background:\(name)") })
+        }
+        backgrounds.append(.separator())
+        let folder = o.backgroundFolder.isEmpty ? nil : URL(fileURLWithPath: o.backgroundFolder).lastPathComponent
+        backgrounds.append(MenuAction(folder.map { "My folder: \($0)…" } ?? "Use my own folder…", checked: folder != nil) { [weak self] in
+            self?.chooseBackgroundFolder()
+        })
+        if folder != nil {
+            backgrounds.append(MenuAction("Use the photos that come with the app") { [weak self] in self?.control("background-folder:") })
+        }
+        backgrounds.append(MenuAction("Slow drift", checked: o.backgroundDrift) { [weak self] in
+            guard let self else { return }
+            self.control(self.o.backgroundDrift ? "drift:off" : "drift:on")
+        })
+        menu.addItem(submenu("Focus mode background", backgrounds))
         menu.addItem(submenu("Border", [2, 3, 4].map { t in
             MenuAction("\(t) px\(t == 2 ? " (thinnest)" : "")", checked: Int(o.thickness) == t) { [weak self] in self?.control("thickness:\(t)") }
         }))
@@ -728,6 +900,17 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         }
         let long = Int(Durations.longBreakMinutes(rest: o.restMinutes))
         menu.addItem(submenu("Timer", [
+            MenuAction("Pomodoro (focus, then a break)", checked: o.mode == .pomodoro) { [weak self] in self?.control("mode:pomodoro") },
+            MenuAction("Countdown timer", checked: o.mode == .timer) { [weak self] in self?.control("mode:timer") },
+            MenuAction("Stopwatch", checked: o.mode == .stopwatch) { [weak self] in self?.control("mode:stopwatch") },
+            submenu("Countdown: \(countdown(o.timerSeconds))", Durations.timerPresets.map { m in
+                MenuAction("\(m) min", checked: o.mode == .timer && o.timerSeconds == Double(m * 60)) { [weak self] in self?.control("timer:\(m)") }
+            } + [MenuAction("Custom…") { [weak self] in
+                guard let self, let t = self.askLength("Timer", hint: "Minutes (10), m:ss (1:30) or h:mm:ss (1:15:00), up to 24 hours. Or scroll over the time.",
+                                                       current: countdown(self.o.timerSeconds)) else { return }
+                self.control("timer:\(t)")
+            }]),
+            .separator(),
             submenu("Focus: \(Int(o.focusMinutes)) min", choices(Durations.focusPresets, current: o.focusMinutes, unit: "min", cmd: "focus") { [weak self] in
                 guard let self, let m = self.askMinutes("Focus", current: self.o.focusMinutes, range: Durations.focusRange) else { return }
                 self.control("focus:\(Int(m))")
@@ -838,7 +1021,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             if let sp = focusSprite { v.spriteHeight = CGFloat(sp.height) * sp.unitPoints(backing: screen.backingScaleFactor) }
             v.onAction = { [weak self] in self?.focusAction($0) }
             v.onResize = { [weak self] in self?.refresh() }
+            v.onScroll = { [weak self] in self?.scrolled($0) }
+            v.onAdjust = { [weak self] in self?.adjust(notches: $0, $1) }
         }
+        if o.background == "cycle" { backgroundIndex += 1 }
+        applyBackground()
         NSApp.activate(ignoringOtherApps: true)
         f.window.makeKeyAndOrderFront(nil)
         f.place()   // full screen goes to the display the window is on
@@ -866,7 +1053,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     func focusAction(_ a: String) {
         switch a {
         case "toggle": phase == .idle ? start() : pausedAt == nil ? pause() : resume()
-        case "skip": if phase != .idle { control("skip") }
+        case "skip": if phase != .idle, o.mode == .pomodoro { control("skip") }
         default: closeFocusMode()
         }
     }
@@ -876,15 +1063,60 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         guard let v = focusOverlay?.focusView else { return }
         let paused = pausedAt != nil
         let caption: String
-        switch phase {
-        case .idle: caption = "Space to start a \(Int(o.focusMinutes))-minute focus"
-        case .focus: caption = paused ? "Focus paused" : lotus ? "Focus · the Lotus-eaters beckon" : "Focus · sailing home to Ithaca"
-        case .rest: caption = paused ? "Break paused" : restIsLong ? "Long break · Calypso's island" : "Break · home on Ithaca"
+        switch (phase, o.mode) {
+        case (.idle, .pomodoro): caption = "Space to start a \(Int(o.focusMinutes))-minute focus"
+        case (.idle, .timer): caption = "Space to start · scroll to set"
+        case (.idle, .stopwatch): caption = "Space to start the stopwatch"
+        case (_, .timer): caption = paused ? "Timer paused" : remaining <= 0 ? "Time's up · Ithaca!" : "Timer · sailing home to Ithaca"
+        case (_, .stopwatch): caption = paused ? "Stopwatch paused" : "Stopwatch · lap \(Int(elapsed / phaseDuration) + 1) round the edge"
+        case (.focus, _): caption = paused ? "Focus paused" : lotus ? "Focus · the Lotus-eaters beckon" : "Focus · sailing home to Ithaca"
+        case (.rest, _): caption = paused ? "Break paused" : restIsLong ? "Long break · Calypso's island" : "Break · home on Ithaca"
         }
-        v.show(time: countdown(phase == .idle ? o.focusMinutes * 60 : remaining * o.speed), caption: caption,
+        v.show(time: phase == .idle ? idleLength : o.mode == .stopwatch ? elapsedClock(elapsed * o.speed) : countdown(remaining * o.speed),
+               caption: caption,
                primary: phase == .idle ? "Start (Space)" : paused ? "Resume (Space)" : "Pause (Space)",
-               skip: phase == .idle ? nil : phase == .focus ? "Skip to break (S)" : "End break (S)",
+               skip: phase == .idle || o.mode != .pomodoro ? nil : phase == .focus ? "Skip to break (S)" : "End break (S)",
                contentHidden: manualHidden || (o.hideWhenCaptured && detector.result.capturing))
+    }
+
+    // MARK: focus mode background
+
+    /// Photos in the user's folder, else the ones that ship with the app (assets/backgrounds).
+    func backgroundFiles() -> [URL] {
+        let dirs = o.backgroundFolder.isEmpty ? resourceRoots.map { $0.appendingPathComponent("backgrounds") }
+                                              : [URL(fileURLWithPath: o.backgroundFolder)]
+        for d in dirs {
+            let files = ((try? FileManager.default.contentsOfDirectory(at: d, includingPropertiesForKeys: nil)) ?? [])
+                .filter { ["jpg", "jpeg", "png", "heic"].contains($0.pathExtension.lowercased()) }
+                .sorted { $0.lastPathComponent < $1.lastPathComponent }
+            if !files.isEmpty { return files }
+        }
+        return []
+    }
+
+    /// "storm-over-the-sea.jpg" -> "Storm over the sea".
+    static func photoTitle(_ u: URL) -> String {
+        let t = u.deletingPathExtension().lastPathComponent.replacingOccurrences(of: "-", with: " ")
+        return t.prefix(1).uppercased() + t.dropFirst()
+    }
+
+    func applyBackground() {
+        guard let v = focusOverlay?.focusView else { return }
+        let files = backgroundFiles()
+        let pick = o.background == "off" || files.isEmpty ? nil
+            : files.first { $0.lastPathComponent == o.background } ?? files[backgroundIndex % files.count]
+        log("background: \(pick?.lastPathComponent ?? "none")")
+        v.setBackdrop(pick, drift: o.backgroundDrift)
+    }
+
+    func chooseBackgroundFolder() {
+        let p = NSOpenPanel()
+        p.canChooseDirectories = true
+        p.canChooseFiles = false
+        p.message = "Choose a folder of photos (JPEG, PNG or HEIC) for the focus mode background."
+        NSApp.activate(ignoringOtherApps: true)
+        guard p.runModal() == .OK, let url = p.url else { return }
+        control("background-folder:\(url.path)")
     }
 
     func windowWillClose(_ n: Notification) {

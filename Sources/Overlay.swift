@@ -2,7 +2,6 @@ import AppKit
 import QuartzCore
 
 enum AgentState: String { case idle, working, waiting, limit }
-enum Phase { case idle, focus, rest }
 enum Style: String { case border, traveler }
 
 /// Everything one screen needs to draw, computed by the app from its model.
@@ -24,6 +23,7 @@ struct Scene {
     var climbAnim = "climb"
     var ceilingAnim = "cling"
     var physical = false            // physical pace: per-edge speeds; even pace: position = elapsed share
+    var calm = false                // stopwatch: the trail stays teal, nothing runs out
     var restIsLong = false          // long break: Calypso's island; short break: Ithaca
     var dozing = false              // a distracting app is in front: the Lotus-eaters
     var overrideAnim: String?       // a short encounter that replaces the pose (the ram)
@@ -291,7 +291,7 @@ final class Overlay {
             return
         }
 
-        fill.strokeColor = Palette.focus(at: t0).cgColor
+        fill.strokeColor = Palette.focus(at: s.calm ? 0 : t0).cgColor
         fill.strokeEnd = CGFloat(j.lengthFraction(t0))
         guard !s.paused else { return }
         // Trail end follows the same per-edge time mapping as the traveler.
@@ -311,6 +311,7 @@ final class Overlay {
         let edgeSeconds = max((j.timeMarks[k0 + 1] - j.timeMarks[k0]) * s.duration, 0.01)
         let tip = Double(j.edges[k0].length) / edgeSeconds * (physical ? profilePeak(j.edges[k0].kind, zip: zip) : 1)
         fill.add(tune(a, rate(tip)), forKey: "progress")
+        guard !s.calm else { return }
 
         let samples = 8
         let c = CAKeyframeAnimation(keyPath: "strokeColor")
