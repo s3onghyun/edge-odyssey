@@ -19,6 +19,7 @@ extension App {
         historyWindow.retitle(historyTitle)
         welcomeWindow.retitle(welcomeTitle)
         focusOverlay?.window.title = L.t("Focus mode", "집중 모드", "集中モード", "专注模式")
+        registerArrivalActions()
         LanguageWatch.shared.changed()
         refresh()
     }

@@ -35,7 +35,8 @@ enum Palette {
     static let warm = NSColor(srgbRed: 1.00, green: 0.54, blue: 0.40, alpha: 0.95)    // coral, last 20%
     static let rest = NSColor(srgbRed: 0.65, green: 0.55, blue: 0.98, alpha: 0.75)    // lavender
     static let working = NSColor(srgbRed: 0.35, green: 0.66, blue: 1.00, alpha: 0.45) // quiet blue
-    static let waiting = NSColor(srgbRed: 1.00, green: 0.75, blue: 0.35, alpha: 0.95) // soft gold
+    static let waiting = NSColor(srgbRed: 1.00, green: 0.75, blue: 0.35, alpha: 0.95) // soft gold: Claude Code waits
+    static let arrive = NSColor(srgbRed: 0.91, green: 0.765, blue: 0.353, alpha: 1)    // #E8C35A laurel gold: home at Ithaca
     static let limit = NSColor(srgbRed: 1.00, green: 0.62, blue: 0.10, alpha: 0.90)   // amber
     static let track = NSColor(white: 0.5, alpha: 0.12)
 
@@ -188,30 +189,105 @@ final class Overlay {
         CATransaction.commit()
     }
 
-    /// A one-time gold pulse along the whole edge when a focus session ends. It sits on its own
-    /// layer and removes itself, so the next scene never sees it.
-    func glow() {
+    /// Arrival: a laurel-gold wave runs twice round the edge from the harbor (bottom-left, where
+    /// the route starts and ends), then ripples and a few sparkles there. One-shot Core Animation
+    /// on throwaway layers: nothing keeps running, and a hidden overlay skips it.
+    func celebrate() {
         guard shown, let path = track.path else { return }
-        let g = CAShapeLayer()
-        g.frame = root.bounds
-        g.path = path
-        g.fillColor = nil
-        g.lineWidth = max(track.lineWidth, 3) * 2 + 2
-        g.strokeColor = Palette.waiting.withAlphaComponent(1).cgColor
-        g.shadowColor = g.strokeColor
-        g.shadowOffset = .zero
-        g.shadowRadius = 22
-        g.shadowOpacity = 1
-        g.opacity = 0
-        root.insertSublayer(g, below: mover)
-        let a = CAKeyframeAnimation(keyPath: "opacity")
-        a.values = [0, 1, 0.35, 0.9, 0]
-        a.keyTimes = [0, 0.18, 0.45, 0.62, 1]
-        a.duration = 3
-        CATransaction.begin()
-        CATransaction.setCompletionBlock { g.removeFromSuperlayer() }
-        g.add(tune(a, 30), forKey: "glow")
-        CATransaction.commit()
+        let size = root.bounds.size, len = 2 * (size.width + size.height), gold = Palette.arrive.cgColor
+        let k = min(max(min(size.width, size.height) / 800, 1), 2)   // focus mode's stage can be larger
+        let now = root.convertTime(CACurrentMediaTime(), from: nil)
+        let wave = CAShapeLayer()
+        wave.frame = root.bounds
+        wave.path = path
+        wave.fillColor = nil
+        wave.lineWidth = max(track.lineWidth, 3) * 2 + 2
+        wave.lineCap = .round
+        wave.strokeColor = gold
+        wave.shadowColor = gold
+        wave.shadowOffset = .zero
+        wave.shadowRadius = 18
+        wave.shadowOpacity = 1
+        let crest = len * 0.28
+        wave.lineDashPattern = [NSNumber(value: Double(crest)), NSNumber(value: Double(len - crest))]
+        wave.opacity = 0
+        root.insertSublayer(wave, below: mover)
+        let run = CABasicAnimation(keyPath: "lineDashPhase")   // a falling phase carries the dash forward
+        run.fromValue = crest
+        run.toValue = crest - 2 * len                           // two laps, ending at the harbor
+        let fade = CAKeyframeAnimation(keyPath: "opacity")
+        fade.values = [0, 1, 1, 0]
+        fade.keyTimes = [0, 0.06, 0.82, 1]
+        let wavesGo = CAAnimationGroup()
+        wavesGo.animations = [run, fade]
+        wavesGo.duration = 2.8
+        wavesGo.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        wave.add(tune(wavesGo, rate(Double(2 * len) / 2.8)), forKey: "arrive")
+
+        let harbor = CALayer()
+        harbor.frame = root.bounds
+        root.insertSublayer(harbor, below: mover)
+        let corner = CGPoint(x: track.lineWidth / 2, y: track.lineWidth / 2)
+        func once(_ l: CALayer, after delay: CFTimeInterval, _ a: CAAnimation) {
+            a.beginTime = now + delay
+            l.add(tune(a, 30), forKey: "arrive")
+        }
+        for i in 0..<3 {   // ripples spreading from the harbor corner
+            let r = 120 * k
+            let ring = CAShapeLayer()
+            ring.bounds = CGRect(x: 0, y: 0, width: 2 * r, height: 2 * r)
+            ring.position = corner
+            ring.path = CGPath(ellipseIn: ring.bounds.insetBy(dx: 2, dy: 2), transform: nil)
+            ring.fillColor = nil
+            ring.strokeColor = gold
+            ring.lineWidth = 2.5
+            ring.opacity = 0
+            harbor.addSublayer(ring)
+            let scale = CABasicAnimation(keyPath: "transform.scale")
+            scale.fromValue = 0.12
+            scale.toValue = 1
+            let fadeOut = CABasicAnimation(keyPath: "opacity")
+            fadeOut.fromValue = 0.95
+            fadeOut.toValue = 0
+            let g = CAAnimationGroup()
+            g.animations = [scale, fadeOut]
+            g.duration = 1.6
+            g.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            once(ring, after: 0.3 + 0.35 * Double(i), g)
+        }
+        for (i, at) in [(46, 92), (104, 40), (88, 128), (150, 82)].enumerated() {   // sparkles round the harbor
+            let star = CAShapeLayer()
+            let r = 7 * k
+            star.bounds = CGRect(x: -r, y: -r, width: 2 * r, height: 2 * r)
+            star.position = CGPoint(x: corner.x + CGFloat(at.0) * k, y: corner.y + CGFloat(at.1) * k)
+            let p = CGMutablePath()   // a four-point star
+            for j in 0..<8 {
+                let a = CGFloat(j) * .pi / 4, d = j % 2 == 0 ? r : r * 0.32
+                let pt = CGPoint(x: sin(a) * d, y: cos(a) * d)
+                j == 0 ? p.move(to: pt) : p.addLine(to: pt)
+            }
+            p.closeSubpath()
+            star.path = p
+            star.fillColor = gold
+            star.shadowColor = gold
+            star.shadowOffset = .zero
+            star.shadowRadius = 4
+            star.shadowOpacity = 1
+            star.opacity = 0
+            harbor.addSublayer(star)
+            let twinkle = CAKeyframeAnimation(keyPath: "opacity")
+            twinkle.values = [0, 1, 0]
+            let grow = CAKeyframeAnimation(keyPath: "transform.scale")
+            grow.values = [0.3, 1.2, 0.6]
+            let g = CAAnimationGroup()
+            g.animations = [twinkle, grow]
+            g.duration = 0.9
+            once(star, after: 0.55 + 0.22 * Double(i), g)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.4) {
+            wave.removeFromSuperlayer()
+            harbor.removeFromSuperlayer()
+        }
     }
 
     // MARK: - apply
@@ -274,6 +350,11 @@ final class Overlay {
         track.isHidden = false
         fill.isHidden = false
         track.strokeColor = Palette.track.cgColor
+        if s.phase == .arrived {   // home: the whole trail in laurel gold, still, until the user moves on
+            fill.strokeColor = Palette.arrive.cgColor
+            fill.strokeEnd = 1
+            return
+        }
         let t0 = min(max(s.elapsed / s.duration, 0), 1)
         let remaining = max(s.duration - s.elapsed, 0.01)
 
@@ -366,7 +447,7 @@ final class Overlay {
         switch s.phase {
         case .focus:
             t = s.elapsed / s.duration; total = s.duration; moving = !s.paused && t < 0.999
-        case .rest:   // home again: asleep at the start corner; in focus mode, mid-floor under the clock
+        case .rest, .arrived:   // home again: at the start corner; in focus mode, mid-floor under the clock
             t = focusView == nil ? 0 : Double(size.width) / Double(4 * (size.width + size.height))
             total = s.duration; moving = false
         case .idle:
@@ -400,6 +481,7 @@ final class Overlay {
         func pick(_ names: String...) -> String { names.first { sprite.anims[$0] != nil } ?? "walk" }
         let animName: String
         if s.agent == .waiting { animName = pick("sirens", "wave") }          // the agent is calling you
+        else if s.phase == .arrived { animName = pick("ithaca", "idle") }
         else if s.phase == .rest { animName = s.restIsLong ? pick("rest", "sleep") : pick("ithaca", "rest", "sleep") }
         else if s.agent == .limit && !moving { animName = pick("storm", "idle") } // near the usage limit
         else if !moving { animName = pick("idle") }

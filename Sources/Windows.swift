@@ -118,11 +118,26 @@ struct WelcomeView: View {
     /// Installs the hook scripts and copies the settings snippet; returns a status line.
     let copyHookSnippet: () -> String
     let setLoginItem: (Bool) -> Void
+    /// The end sound: on (the harp) or off, a toggle that plays it, and a preview button.
+    let setSound: (Bool) -> Void
+    let preview: () -> Void
     let finish: (_ startFocus: Bool) -> Void
+
+    init(character: URL?, copyHookSnippet: @escaping () -> String, setLoginItem: @escaping (Bool) -> Void, sound: Bool,
+         setSound: @escaping (Bool) -> Void, preview: @escaping () -> Void, finish: @escaping (_ startFocus: Bool) -> Void) {
+        self.character = character
+        self.copyHookSnippet = copyHookSnippet
+        self.setLoginItem = setLoginItem
+        self.setSound = setSound
+        self.preview = preview
+        self.finish = finish
+        _sound = State(initialValue: sound)
+    }
 
     @State private var page = 0
     @State private var copied: String?
     @State private var login = LoginItem.isOn
+    @State private var sound: Bool
     @ObservedObject private var language = LanguageWatch.shared
 
     var body: some View {
@@ -223,10 +238,15 @@ struct WelcomeView: View {
                      "边缘从不拦截点击。在全屏应用中、共享或录制屏幕时它会隐藏，随时按 Control-Option-Command-H 也能隐藏。专注时，《奥德赛》的插曲会填满 24 卷的航海日志。"))
             Toggle(L.t("Launch Edge Odyssey at login", "로그인할 때 Edge Odyssey 실행", "ログイン時に Edge Odyssey を起動", "登录时启动 Edge Odyssey"), isOn: $login)
                 .onChange(of: login) { setLoginItem($0); login = LoginItem.isOn }
-            Text(L.t("Off unless you turn it on. You can change it later under Settings in the menu.",
-                     "켜기 전에는 꺼져 있어요. 나중에 메뉴의 설정에서 바꿀 수 있어요.",
-                     "オンにしない限りオフです。あとでメニューの「設定」から変えられます。",
-                     "除非你打开，否则保持关闭。之后可在菜单的“设置”中更改。"))
+            HStack {
+                Toggle(L.t("A soft harp when you reach Ithaca", "이타카에 닿으면 작은 하프 소리", "イタケに着いたら小さなハープの音", "抵达伊萨卡时轻轻的竖琴声"), isOn: $sound)
+                    .onChange(of: sound) { setSound($0) }
+                Button(L.t("Listen", "들어 보기", "試聴", "试听"), action: preview).disabled(!sound)
+            }
+            Text(L.t("Launching at login is off unless you turn it on; the harp is on, quietly. Change either later in the menu (Settings, Timer > Sound).",
+                     "로그인 시 실행은 켜기 전엔 꺼져 있고, 하프는 작게 켜져 있어요. 둘 다 나중에 메뉴(설정, 타이머 > 소리)에서 바꿀 수 있어요.",
+                     "ログイン時の起動はオンにしない限りオフ、ハープは小さな音でオンです。どちらもあとでメニュー（設定、タイマー > サウンド）で変えられます。",
+                     "登录时启动默认关闭，竖琴声默认以小音量开启。两者之后都可在菜单（设置、计时 > 声音）中更改。"))
                 .font(.callout).foregroundStyle(.secondary)
         }
     }
