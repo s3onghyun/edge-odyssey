@@ -38,7 +38,7 @@ enum Durations {
 
 /// The notification at the end of a focus session (arrival) or of a break. `waits`: the break
 /// starts only when the user says so.
-func endMessage(focusEnded: Bool, longBreak: Bool, breakMinutes m: Int, waits: Bool = false, lang: Lang? = nil) -> (title: String, body: String) {
+func endMessage(focusEnded: Bool, longBreak: Bool, breakMinutes m: Int, waits: Bool = false, autoRestMinutes a: Int = 0, lang: Lang? = nil) -> (title: String, body: String) {
     guard focusEnded else {
         return (L.t("Break's over", "쉬는 시간 끝", "休憩おわり", "休息结束", in: lang),
                 L.t("Start the next focus from the menu when you're ready", "준비되면 메뉴에서 다음 집중을 시작하세요",
@@ -46,9 +46,13 @@ func endMessage(focusEnded: Bool, longBreak: Bool, breakMinutes m: Int, waits: B
     }
     return (longBreak ? L.t("Calypso's island!", "칼립소의 섬!", "カリュプソの島！", "卡吕普索之岛！", in: lang)
                       : L.t("Ithaca!", "이타카!", "イタケ！", "伊萨卡！", in: lang),
-            waits ? L.t("Voyage complete. Start your \(m)-minute break when you're ready", "항해 완료. 준비되면 \(m)분 휴식을 시작하세요",
-                        "航海完了。準備ができたら \(m) 分の休憩を始めましょう", "航行完成。准备好后开始 \(m) 分钟休息", in: lang)
-                  : L.t("Take a \(m)-minute break", "\(m)분 쉬어요", "\(m)分休みましょう", "休息 \(m) 分钟", in: lang))
+            !waits ? L.t("Take a \(m)-minute break", "\(m)분 쉬어요", "\(m)分休みましょう", "休息 \(m) 分钟", in: lang)
+            : a > 0 ? L.t("Focus done. Start your \(m)-minute break to stop the clock (it starts by itself in \(a) min).",
+                          "집중 완료. \(m)분 휴식을 시작하면 타이머가 멈춰요 (\(a)분 뒤 자동 시작).",
+                          "集中完了。\(m) 分の休憩を始めるとタイマーが止まります（\(a) 分後に自動で始まります）。",
+                          "专注完成。开始 \(m) 分钟休息，计时就会停止（\(a) 分钟后自动开始）。", in: lang)
+            : L.t("Focus done. Start your \(m)-minute break to stop the clock.", "집중 완료. \(m)분 휴식을 시작하면 타이머가 멈춰요.",
+                  "集中完了。\(m) 分の休憩を始めるとタイマーが止まります。", "专注完成。开始 \(m) 分钟休息，计时就会停止。", in: lang))
 }
 
 /// The notification when a countdown timer reaches 0:00.
@@ -102,6 +106,21 @@ enum ArrivalChoice: String {
         case .rest: return (.rest, breakMinutes * 60)
         case .extend: return (.focus, Self.extraMinutes * 60)
         }
+    }
+}
+
+/// How long Ithaca waits when nobody answers: the break starts by itself after `autoRestMinutes`
+/// (0: never), and the overtime never runs past `cap`: then the voyage ends and the clock goes idle.
+enum ArrivalWait {
+    static let choices = [0, 1, 3, 5, 10]   // minutes; 0 is off
+    static let defaultMinutes = 3
+    static let cap = 3600.0                 // seconds
+
+    static func minutes(_ saved: Int) -> Int { choices.contains(saved) ? saved : defaultMinutes }
+
+    /// When the wait ends (seconds after arrival) and what follows: the break, or idle.
+    static func end(autoRestMinutes m: Int) -> (seconds: Double, then: Phase) {
+        m > 0 ? (min(Double(m) * 60, cap), .rest) : (cap, .idle)
     }
 }
 

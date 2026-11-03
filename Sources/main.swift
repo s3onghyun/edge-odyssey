@@ -37,6 +37,7 @@ struct Options {
     var soundVolume = "low"         // Chime.volumes: low or medium
     var autoNextFocus = false       // start the next focus by itself when a break ends
     var autoStartBreak = false      // start the break by itself when a focus ends (else wait at Ithaca)
+    var autoRestMinutes = ArrivalWait.defaultMinutes   // waiting at Ithaca: the break starts by itself after this (0: never)
     var physicalPace = false        // traveler pace: even (position = elapsed share) or physical per-edge speeds
     var focusDisplay = ""           // focus mode opens on this display (by name), else the one you work on
     var focusAtLaunch = false       // demo/test: open focus mode at launch
@@ -55,7 +56,7 @@ struct Options {
     static let saved: [String: Any] = ["style": "traveler", "display": "main", "thickness": 3.0, "onlyLast5": false,
                                        "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true,
                                        "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4,
-                                       "notifyAtEnd": true, "soundVolume": "low", "autoNextFocus": false, "autoStartBreak": false, "pace": "even",
+                                       "notifyAtEnd": true, "soundVolume": "low", "autoNextFocus": false, "autoStartBreak": false, "autoRestMinutes": ArrivalWait.defaultMinutes, "pace": "even",
                                        "focusDisplay": "", "mode": "pomodoro", "timerSeconds": 600.0,
                                        "focusBackground": "cycle", "backgroundFolder": "", "backgroundDrift": true, "dailyGoalHours": 4.0,
                                        "checkUpdates": true]   // "sound" unregistered: see init
@@ -79,6 +80,7 @@ struct Options {
         soundVolume = Chime.volume(d.string(forKey: "soundVolume"))
         autoNextFocus = d.bool(forKey: "autoNextFocus")
         autoStartBreak = d.bool(forKey: "autoStartBreak")
+        autoRestMinutes = ArrivalWait.minutes(d.integer(forKey: "autoRestMinutes"))
         physicalPace = d.string(forKey: "pace") == "physical"
         focusDisplay = d.string(forKey: "focusDisplay") ?? ""
         mode = TimerMode.named(d.string(forKey: "mode"))
@@ -177,6 +179,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     var last5Timer: Timer?
     var titleTimer: Timer?
     var titleSymbol: String?           // the symbol now in the menu bar
+    var arrivalHint: NSPopover?         // the one-time bubble under the arrival badge
     weak var headerItem: NSMenuItem?   // the "Focus: 12:50 left" line, ticking while the menu is open
     var backdrops: [NSWindow] = []
     // voyage state
@@ -697,8 +700,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         if restNow { startRest() } else { arrive() }
         allOverlays.forEach { $0.celebrate() }
         chime(focusEnded: true)
-        notify(endMessage(focusEnded: true, longBreak: restIsLong, breakMinutes: Int(breakMinutes), waits: !restNow),
-               actions: !restNow)
+        notify(endMessage(focusEnded: true, longBreak: restIsLong, breakMinutes: Int(breakMinutes), waits: !restNow,
+                          autoRestMinutes: o.autoRestMinutes), actions: !restNow)
     }
 
     /// Home at Ithaca, waiting for the user: nothing runs out, only the overtime counts up.
@@ -710,8 +713,45 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         phaseStart = Date()   // `elapsed` is now the time since arrival
         pausedAt = nil
         pausedTotal = 0
+        let end = ArrivalWait.end(autoRestMinutes: o.autoRestMinutes)   // so the overtime never runs forever
+        phaseTimer = Timer.scheduledTimer(withTimeInterval: end.seconds / o.speed, repeats: false) { [weak self] _ in
+            guard let self, self.phase == .arrived else { return }
+            self.log("arrival: nobody answered, \(end.then == .rest ? "break" : "idle")")
+            end.then == .rest ? self.confirmArrival(.rest) : self.stop()
+        }
         scheduleTitleTimer()
         refresh()
+        showArrivalHintOnce()
+    }
+
+    /// Seconds until the break starts by itself, while waiting at Ithaca; nil when it never does.
+    var autoRestLeft: Double? {
+        guard phase == .arrived, o.autoRestMinutes > 0 else { return nil }
+        return max(ArrivalWait.end(autoRestMinutes: o.autoRestMinutes).seconds - elapsed * o.speed, 0)
+    }
+
+    /// The first arrival ever: a bubble under the badge says what it is and how to move on.
+    func showArrivalHintOnce() {
+        guard !UserDefaults.standard.bool(forKey: "arrivalHintShown"), let b = statusItem?.button, b.window != nil else { return }
+        UserDefaults.standard.set(true, forKey: "arrivalHintShown")
+        let text = NSTextField(wrappingLabelWithString: L.t(
+            "Focus done! The badge counts the time since. Click it to start your break (the clock stops), sail on 5 more minutes, or finish.",
+            "집중 완료! 배지는 끝난 뒤 지난 시간이에요. 클릭해서 휴식을 시작하면(타이머가 멈춰요), 5분 더 집중하거나 끝낼 수 있어요.",
+            "集中完了！バッジは終わってからの時間です。クリックして休憩を始める（タイマーが止まります）、あと5分集中する、または終了できます。",
+            "专注完成！徽章显示结束后过去的时间。点击它开始休息（计时停止）、再专注 5 分钟，或结束。"))
+        text.font = Typography.font(.body)
+        text.preferredMaxLayoutWidth = 260
+        let pad: CGFloat = 14, size = text.fittingSize
+        let v = NSView(frame: NSRect(x: 0, y: 0, width: size.width + 2 * pad, height: size.height + 2 * pad))
+        text.frame = NSRect(x: pad, y: pad, width: size.width, height: size.height)
+        v.addSubview(text)
+        let vc = NSViewController()
+        vc.view = v
+        let p = NSPopover()
+        p.behavior = .transient
+        p.contentViewController = vc
+        p.show(relativeTo: b.bounds, of: b, preferredEdge: .minY)
+        arrivalHint = p
     }
 
     /// At Ithaca: start the break, or five more minutes of focus (the same voyage, so the next
@@ -788,6 +828,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
 
     /// Once the user has moved on, the arrival notification has nothing left to say.
     func clearArrivalNotice() {
+        arrivalHint?.close()
         guard phase == .arrived else { return }
         UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [Self.endNotice])
     }
@@ -963,6 +1004,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         case "notify": o.notifyAtEnd = arg != "off"; remember("notifyAtEnd", o.notifyAtEnd)
         case "sound": o.sound = Chime.choice(arg); remember("sound", o.sound); if o.sound != "off" { chime(focusEnded: true) }   // a preview
         case "volume": o.soundVolume = Chime.volume(arg); remember("soundVolume", o.soundVolume); chime(focusEnded: true)
+        case "autorest-after": if let n = Int(arg) { o.autoRestMinutes = ArrivalWait.minutes(n); remember("autoRestMinutes", o.autoRestMinutes) }
         case "autonext": o.autoNextFocus = arg == "on"; remember("autoNextFocus", o.autoNextFocus)
         case "autorest": o.autoStartBreak = arg == "on"; remember("autoStartBreak", o.autoStartBreak)
         case "share-hide": o.hideWhenCaptured = arg != "off"; remember("hideWhenCaptured", o.hideWhenCaptured); refresh()
@@ -1017,6 +1059,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     func updateTitle() {
         updateFocus()
         guard let b = statusItem?.button else { return }
+        let tip = phase == .arrived ? L.t("Focus done: time since. Click to start your break.", "집중 완료 후 지난 시간이에요. 클릭해서 휴식을 시작하세요.",
+                                          "集中が終わってからの時間です。クリックして休憩を始めましょう。", "专注结束后过去的时间。点击开始休息。") : nil
+        if b.toolTip != tip { b.toolTip = tip }
         if phase == .idle {
             b.title = lengthShownUntil > Date() ? " " + idleLength : ""
             b.image = NSImage(systemSymbolName: agentState == .waiting ? "circle.circle.fill" : "circle.dashed", accessibilityDescription: "Edge Odyssey")
@@ -1024,8 +1069,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             menuBarRing = nil
             return
         }
-        if phase == .arrived {   // a gold badge, redrawn once a second: "⚓ Done +0:42"
-            let text = L.t("Done", "완료", "完了", "完成") + " " + overtime(elapsed * o.speed)
+        if phase == .arrived {   // a gold badge, redrawn once a second: "⚓ Arrived +0:42"
+            let text = L.t("Arrived", "도착", "到着", "已到达") + " " + overtime(elapsed * o.speed)
             if b.title != "" { b.title = "" }
             b.image = arrivalBadge(text)
             b.setAccessibilityLabel(header)
@@ -1082,7 +1127,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         case (.idle, .stopwatch): return L.t("Stopwatch: ready", "스톱워치: 준비", "ストップウォッチ：準備完了", "秒表：就绪")
         case (.arrived, _):
             let o = overtime(elapsed * self.o.speed)
-            return L.t("Voyage complete \(o)", "항해 완료 \(o)", "航海完了 \(o)", "航行完成 \(o)")
+            guard let a = autoRestLeft.map(countdown) else { return L.t("Arrived \(o)", "도착 \(o)", "到着 \(o)", "已到达 \(o)") }
+            return L.t("Arrived \(o) · break starts by itself in \(a)", "도착 \(o) · \(a) 뒤 휴식 자동 시작",
+                       "到着 \(o) · \(a) 後に休憩が自動で始まります", "已到达 \(o) · \(a) 后自动开始休息")
         case (_, .timer): return paused ? L.t("Timer paused: \(t) left", "타이머 일시정지: \(t) 남음", "タイマー一時停止：残り \(t)", "计时器已暂停：剩余 \(t)")
                                         : L.t("Timer: \(t) left", "타이머: \(t) 남음", "タイマー：残り \(t)", "计时器：剩余 \(t)")
         case (_, .stopwatch): return paused ? L.t("Stopwatch paused: \(t)", "스톱워치 일시정지: \(t)", "ストップウォッチ一時停止：\(t)", "秒表已暂停：\(t)")
@@ -1094,8 +1141,30 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         }
     }
 
+    /// Waiting at Ithaca: one line on what happened, then the three ways on, in large type.
+    func arrivalMenuItems() -> [NSMenuItem] {
+        let m = Int((phaseDuration * o.speed / 60).rounded()), b = Int(breakMinutes), x = Int(ArrivalChoice.extraMinutes)
+        let what = NSMenuItem(title: restIsLong
+            ? L.t("Calypso's island! \(m)-min focus done — start the break to stop the clock", "칼립소의 섬 도착! 집중 \(m)분 완료 — 휴식을 시작하면 타이머가 멈춰요",
+                  "カリュプソの島に到着！\(m)分の集中完了 — 休憩を始めるとタイマーが止まります", "到达卡吕普索之岛！专注 \(m) 分钟完成 — 开始休息，计时就会停止")
+            : L.t("Ithaca! \(m)-min focus done — start the break to stop the clock", "이타카 도착! 집중 \(m)분 완료 — 휴식을 시작하면 타이머가 멈춰요",
+                  "イタケに到着！\(m)分の集中完了 — 休憩を始めるとタイマーが止まります", "到达伊萨卡！专注 \(m) 分钟完成 — 开始休息，计时就会停止"),
+            action: nil, keyEquivalent: "")
+        what.isEnabled = false
+        let rest = MenuAction(L.t("☕ Start break (\(b) min)", "☕ 휴식 시작 (\(b)분)", "☕ 休憩を始める（\(b)分）", "☕ 开始休息（\(b) 分钟）"), key: "s") { [weak self] in
+            self?.control("rest")
+        }
+        let more = MenuAction(L.t("+\(x) min more focus", "+\(x)분 더 집중", "+\(x)分 集中を続ける", "再专注 +\(x) 分钟")) { [weak self] in self?.control("extend") }
+        let end = MenuAction(L.t("Finish", "끝내기", "終了する", "结束")) { [weak self] in self?.stop() }
+        for (item, weight) in [(rest, NSFont.Weight.semibold), (more, .regular), (end, .regular)] {
+            item.attributedTitle = NSAttributedString(string: item.title, attributes: [.font: NSFont.systemFont(ofSize: 15, weight: weight)])
+        }
+        return [what, rest, more, end, .separator()]
+    }
+
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
+        if phase == .arrived { arrivalMenuItems().forEach(menu.addItem) }   // first: what happened and the way out
         updateMenuItems().forEach(menu.addItem)
         let h = NSMenuItem(title: header, action: nil, keyEquivalent: "")
         h.isEnabled = false
@@ -1117,12 +1186,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             }
             menu.addItem(MenuAction(title, key: "s") { [weak self] in self?.start() })
         } else if phase == .arrived {
-            let b = Int(breakMinutes), x = Int(ArrivalChoice.extraMinutes)
-            menu.addItem(MenuAction(L.t("Start break (\(b) min)", "휴식 시작 (\(b)분)", "休憩を始める（\(b)分）", "开始休息（\(b) 分钟）"), key: "s") { [weak self] in
-                self?.control("rest")
-            })
-            menu.addItem(MenuAction(L.t("\(x) more minutes", "\(x)분 더", "あと\(x)分", "再专注 \(x) 分钟")) { [weak self] in self?.control("extend") })
-            menu.addItem(MenuAction(L.t("Stop", "정지", "停止", "停止")) { [weak self] in self?.stop() })
+            // its actions lead the menu (arrivalMenuItems)
         } else {
             if pausedAt == nil { menu.addItem(MenuAction(L.t("Pause", "일시정지", "一時停止", "暂停")) { [weak self] in self?.pause() }) }
             else { menu.addItem(MenuAction(L.t("Resume", "재개", "再開", "继续")) { [weak self] in self?.resume() }) }
@@ -1271,6 +1335,12 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                 guard let self else { return }
                 self.control(self.o.autoStartBreak ? "autorest:off" : "autorest:on")
             },
+            submenu(L.t("If I don't answer at Ithaca", "도착 후 확인이 없으면", "到着後に応答がなければ", "到达后没有回应时"),
+                    ArrivalWait.choices.map { n in
+                MenuAction(n == 0 ? L.t("Keep waiting (up to 60 min)", "계속 기다리기 (최대 60분)", "待ち続ける（最大60分）", "继续等待（最多 60 分钟）")
+                                  : L.t("Start the break after \(n) min", "\(n)분 뒤 자동으로 휴식 시작", "\(n)分後に休憩を自動で始める", "\(n) 分钟后自动开始休息"),
+                           checked: o.autoRestMinutes == n) { [weak self] in self?.control("autorest-after:\(n)") }
+            }),
             MenuAction(L.t("Start the next focus after a break", "휴식이 끝나면 다음 집중 시작", "休憩のあと次の集中を始める", "休息后自动开始下一次专注"),
                        checked: o.autoNextFocus) { [weak self] in
                 guard let self else { return }

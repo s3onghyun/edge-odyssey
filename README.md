@@ -132,12 +132,17 @@ new ZIP from the release page, check its `.sha256` and replace the app as in [In
 - **End of a focus session:** Odysseus arrives home at the bottom-left corner exactly on time and
   lands on Ithaca (or on Calypso's island for a long break). A laurel-gold wave runs twice round
   the edge and ripples and sparkles spread from the harbor; the border then **stays gold, and the
-  menu bar shows a gold `⚓ Done +0:42` that counts the time since**, until you choose: *Start
-  break* (Space in focus mode), *5 more minutes* (S) or *Stop*. A macOS notification says
-  "Ithaca! Voyage complete. Start your 5-minute break when you're ready", with **Start break**
-  and **+5 min** buttons (on by default; the first one asks for permission). A short harp phrase
-  plays at low volume as he arrives (*Timer > Sound*). Turn on *Timer > Start the break by itself
-  when a focus ends* for the old behaviour: the break starts at once.
+  menu bar shows a gold `⚓ Arrived +0:42` that counts the time since**, until you choose. Click
+  it: the menu opens with one line on what happened and, in large type, *☕ Start break* (the
+  clock stops; Space in focus mode), *+5 min more focus* (S) or *Finish*. The first arrival also
+  shows a one-time bubble under the badge saying the same. If you don't answer, the break starts
+  by itself after 3 minutes (*Timer > If I don't answer at Ithaca*: 1, 3, 5 or 10 minutes, or keep
+  waiting), and the overtime never runs past an hour: then the clock goes idle. A macOS
+  notification says "Ithaca! Focus done. Start your 5-minute break to stop the clock (it starts by
+  itself in 3 min).", with **Start break** and **+5 min** buttons (on by default; the first one
+  asks for permission). A short harp phrase plays at low volume as he arrives (*Timer > Sound*).
+  Turn on *Timer > Start the break by itself when a focus ends* for the old behaviour: the break
+  starts at once.
 - Gold has two meanings kept apart: laurel gold (`#E8C35A`) with the anchor is *you arrived*;
   the warmer gold swell is *Claude Code is waiting for you*.
 - **End of a break:** the border goes away, a "Break's over" notification appears, and the

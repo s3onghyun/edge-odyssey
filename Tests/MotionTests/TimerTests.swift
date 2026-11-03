@@ -118,6 +118,22 @@ import Testing
 
 @Test func arrivalMessageWaitsForTheUser() {
     #expect(endMessage(focusEnded: true, longBreak: false, breakMinutes: 5, waits: true, lang: .ko)
-            == ("이타카!", "항해 완료. 준비되면 5분 휴식을 시작하세요"))
+            == ("이타카!", "집중 완료. 5분 휴식을 시작하면 타이머가 멈춰요."))
+    #expect(endMessage(focusEnded: true, longBreak: false, breakMinutes: 5, waits: true, autoRestMinutes: 3, lang: .en).body
+            == "Focus done. Start your 5-minute break to stop the clock (it starts by itself in 3 min).")
     #expect(endMessage(focusEnded: true, longBreak: false, breakMinutes: 5, waits: false, lang: .ko).body == "5분 쉬어요")
+}
+
+@Test func unansweredArrivalStartsTheBreak() {
+    #expect(ArrivalWait.end(autoRestMinutes: 3) == (180, .rest))    // the default
+    #expect(ArrivalWait.end(autoRestMinutes: 1) == (60, .rest))
+    #expect(ArrivalWait.end(autoRestMinutes: 10) == (600, .rest))
+    #expect(ArrivalWait.minutes(0) == 0 && ArrivalWait.minutes(5) == 5)
+    #expect(ArrivalWait.minutes(7) == 3 && ArrivalWait.minutes(-1) == 3)   // not a choice: the default
+}
+
+@Test func overtimeIsCappedAtAnHour() {
+    #expect(ArrivalWait.end(autoRestMinutes: 0) == (3600, .idle))   // off: still never forever
+    for m in ArrivalWait.choices { #expect(ArrivalWait.end(autoRestMinutes: m).seconds <= ArrivalWait.cap) }
+    #expect(ArrivalWait.end(autoRestMinutes: 120).seconds == 3600)   // even a long wait stops at the cap
 }

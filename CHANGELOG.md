@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **The arrival explains itself and always ends.** The badge reads `⚓ Arrived +0:42` (was
+  "Done"), with a tooltip. Clicking it opens a menu that starts with one line ("Ithaca! 25-min
+  focus done — start the break to stop the clock") and three large choices: *☕ Start break*,
+  *+5 min more focus*, *Finish*. The first arrival shows a one-time bubble under the badge. If
+  nobody answers, the break starts by itself after 3 minutes (new *Timer > If I don't answer at
+  Ithaca*: 1, 3, 5, 10 minutes or keep waiting), and the overtime stops at 60 minutes regardless:
+  the clock goes idle. The arrival notification says the same. The wait's length and cap live in
+  `ArrivalWait` and are tested.
 - **Colour pass, palette "Aegean night"** (picked from three options in
   [`assets/screenshots/palette-options.png`](assets/screenshots/palette-options.png)): navy ink, a
   muted sea teal for focus, one warm-brass accent for a session's last fifth and the arrival,
