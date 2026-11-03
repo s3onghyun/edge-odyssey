@@ -24,7 +24,8 @@ focus session passes, and the edge glows softly when Claude Code needs you.
 - **Claude Code signals (optional).** Quiet blue edge while it works, the Sirens and one soft
   gold swell when it is waiting for you, Poseidon's storm near the 5-hour usage limit.
 - **Focus mode.** When you want the time front and centre: Control-Option-Command-F opens a
-  calm full-screen view with a large countdown, a track around it that fills as time passes,
+  calm full-screen view with a Time-Timer-style dial (scroll it, drag it or click a preset), a
+  track around it that fills as time passes,
   and Odysseus at three times the size sailing round it, over a dimmed public-domain photo of
   the sea, a coast, the Aegean from orbit or the night sky (or your own). Made for a second or vertical monitor.
 - **Pomodoro, timer or stopwatch.** Besides focus-and-break sessions, a plain countdown of any
@@ -72,7 +73,8 @@ open "/Applications/Edge Odyssey.app"
 ```
 
 The first launch opens a three-page welcome guide. After that, Edge Odyssey lives in the
-menu bar (the dashed circle).
+menu bar (the dashed circle; while a clock runs, a small ring that fills during a focus, turns
+coral in its last five minutes and empties during a break).
 
 <p align="center"><img src="assets/screenshots/welcome.png" width="720" alt="Welcome guide, pages 1 and 2"></p>
 
@@ -167,9 +169,11 @@ new ZIP from the release page, check its `.sha256` and replace the app as in [In
 Switching mode stops what is running. **Changing the time:** scroll over the time in the menu
 bar or anywhere in focus mode (mouse wheel or trackpad; up adds, down takes away), or press the
 arrow keys in focus mode (Up/Right add, Down/Left take away). One step is a minute, **Shift**
-five minutes, **Option** ten seconds. When nothing runs it sets the next session's length
+five minutes, **Option** ten seconds. In focus mode you can also drag round the dial, click a
+point on it, or click a preset under it. When nothing runs it sets the next session's length
 (Pomodoro focus lengths stay whole minutes) and is remembered; while one runs it moves what is
-left of that session only.
+left of that session only. The dial clicks into 15, 25, 45 and 50 minutes: the wheel holds there
+for two notches, a drag snaps to them, and a Force Touch trackpad gives a tap.
 
 ### Focus mode
 
@@ -178,16 +182,25 @@ left of that session only.
   <img src="assets/screenshots/focus-mode.png" width="270" alt="Focus mode full screen on a vertical display in the light appearance">
 </p>
 <p align="center"><sub>One lap at 40x speed in a vertical window, and full screen on a vertical display.</sub></p>
+<p align="center">
+  <img src="assets/screenshots/dial.png" width="420" alt="Focus mode's dial set to 25 minutes: a teal wedge with its first five minutes coral, gold dots at 15, 25, 45 and 50, a sailboat handle, and preset chips beneath">
+  <img src="assets/screenshots/dial-dark.png" width="420" alt="The dial in the dark appearance during a focus, 8:24 left, the wedge all coral">
+</p>
+<p align="center"><sub>The dial, rendered offscreen from the app's own views.</sub></p>
 
 *Focus mode* (Control-Option-Command-F, or the menu) opens a full-screen view on the display
-you last used for it, or the one you are working on. The remaining time sits in the middle in
-large digits; the track around it is the progress bar (teal, coral near the end, lavender
+you last used for it, or the one you are working on. The middle is a dial with a 60-minute face,
+read clockwise from twelve: the wedge is the time left (teal; the session's last fifth coral, so
+the wedge turns coral as the end nears; lavender during a break), with the countdown in its hub.
+A sailboat marks the wedge's edge; drag it round or click the face to set the time, or pick a
+preset under the dial while nothing runs. Longer than an hour fills the face. The stopwatch keeps
+the large digits. VoiceOver reads the dial as an adjustable slider. The track around it all is the progress bar (teal, coral near the end, lavender
 draining during a break), and a 3x Odysseus voyages round it at an even pace, so halfway round
 is halfway through. Episodes, Ithaca and Calypso's island play at the same size, and Claude
 Code signals still show on the track (the gold swell, the Sirens, the storm).
 
 - **Keys:** Space starts, pauses or resumes; S skips to the break (or ends it); Esc exits;
-  arrows or scrolling change the time (above).
+  arrows, scrolling or the dial change the time (above).
   Moving the pointer shows Start/Pause, Skip and Exit buttons. Once the window is in front, a
   click on the background also exits.
 - **Where:** *Focus mode on* picks the display. It is an ordinary full-screen window, so you

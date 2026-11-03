@@ -54,12 +54,12 @@ struct LogbookView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(L.t("Logbook", "항해 일지", "航海日誌", "航海日志")).font(.system(size: 22, weight: .bold, design: .rounded))
+                Text(L.t("Logbook", "항해 일지", "航海日誌", "航海日志")).type(.title)
                 Text(L.t("\(found.count) of 24 books found. Episodes happen during focus sessions; each one charts a book of the Odyssey.",
                          "24권 중 \(found.count)권을 찾았어요. 에피소드는 집중하는 동안 일어나고, 하나마다 『오디세이아』의 한 권이 기록돼요.",
                          "24巻中 \(found.count) 巻を発見。エピソードは集中中に起こり、それぞれが『オデュッセイア』の一巻を記します。",
                          "已找到 24 卷中的 \(found.count) 卷。插曲在专注时发生，每一段记下《奥德赛》的一卷。"))
-                    .font(.callout).foregroundStyle(.secondary)
+                    .type(.callout).foregroundStyle(.secondary)
             }
             Grid(horizontalSpacing: 10, verticalSpacing: 10) {   // not lazy: the window sizes to fit it
                 ForEach(0..<4, id: \.self) { row in
@@ -70,7 +70,7 @@ struct LogbookView: View {
                      "아직 항해가 없는 권은 미지의 바다예요. 다음 버전에서 에피소드가 늘어나요.",
                      "まだ航海のない巻は未知の海です。今後のバージョンでエピソードが増えます。",
                      "尚无航程的卷是未知水域：以后的版本会加入更多插曲。"))
-                .font(.caption).foregroundStyle(.tertiary)
+                .type(.caption).foregroundStyle(.tertiary)
         }
         .frame(width: 6 * 118 + 5 * 10, alignment: .leading)   // the grid's width: longer translations wrap instead of widening it
         .padding(20)
@@ -93,18 +93,18 @@ struct LogbookView: View {
                         }
                     }
                 } else {
-                    Text(findable ? "?" : "~").font(.system(size: 26, weight: .semibold, design: .rounded))
+                    Text(findable ? "?" : "~").type(.numeral, size: 26, weight: .semibold)
                         .foregroundStyle(.tertiary)
                 }
             }
             .frame(width: 118, height: 70)
             .clipShape(RoundedRectangle(cornerRadius: 8))
-            Text(L.t("Book \(b)", "제\(b)권", "第\(b)巻", "第\(b)卷")).font(.caption.bold())
-            Text(Episode.bookTitle(b)).font(.caption2).multilineTextAlignment(.center)
+            Text(L.t("Book \(b)", "제\(b)권", "第\(b)巻", "第\(b)卷")).type(.caption, weight: .bold)
+            Text(Episode.bookTitle(b)).type(.caption).multilineTextAlignment(.center)
                 .lineLimit(2, reservesSpace: true)
             Text(date.map { $0.formatted(.dateTime.year().month(.abbreviated).day().locale(L.locale)) }
                  ?? (findable ? L.t("not yet found", "아직 못 찾음", "未発見", "尚未找到") : L.t("uncharted", "미지의 바다", "未踏の海", "未知水域")))
-                .font(.caption2).foregroundStyle(.secondary)
+                .type(.caption).foregroundStyle(.secondary)
         }
         .opacity(date != nil ? 1 : findable ? 0.75 : 0.45)
         .accessibilityElement(children: .combine)
@@ -183,7 +183,7 @@ struct WelcomeView: View {
     }
 
     private func title(_ t: String) -> some View {
-        Text(t).font(.system(size: 22, weight: .bold, design: .rounded))
+        Text(t).type(.title)
     }
 
     private var voyage: some View {
@@ -204,7 +204,7 @@ struct WelcomeView: View {
                 Label(L.t("Border 2-4 px, or show only in the last 5 minutes", "테두리 2-4 px, 또는 마지막 5분에만 표시",
                           "枠 2〜4 px、または最後の5分だけ表示", "边框 2-4 像素，或只在最后 5 分钟显示"), systemImage: "square.dashed")
             }
-            .font(.callout).foregroundStyle(.secondary)
+            .type(.callout).foregroundStyle(.secondary)
         }
     }
 
@@ -218,13 +218,13 @@ struct WelcomeView: View {
                      "装上一个小钩子，屏幕边缘就会告诉你 Claude Code 在做什么：工作时是安静的蓝边，等你时是塞壬和一次柔和的金色涌动，接近 5 小时上限时是波塞冬的风暴。任何内容都不会离开你的 Mac。"))
             HStack(spacing: 12) {
                 Button(L.t("Copy hook snippet", "훅 설정 복사", "フック設定をコピー", "复制钩子配置")) { copied = copyHookSnippet() }
-                if let copied { Text(copied).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+                if let copied { Text(copied).type(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
             }
             Text(L.t("Then paste it into ~/.claude/settings.json yourself (merge it with any \"hooks\" you already have). Edge Odyssey never edits that file. Already have a statusLine? Keep yours and set EDGE_ODYSSEY_STATUSLINE_NEXT to it.",
                      "그다음 ~/.claude/settings.json 에 직접 붙여 넣으세요(이미 있는 \"hooks\"와 합쳐서). Edge Odyssey는 그 파일을 고치지 않아요. 이미 statusLine이 있다면 그대로 두고 EDGE_ODYSSEY_STATUSLINE_NEXT 에 지정하세요.",
                      "次に ~/.claude/settings.json へ自分で貼り付けてください（既存の \"hooks\" とまとめて）。Edge Odyssey はそのファイルを編集しません。statusLine がすでにあれば、そのまま残して EDGE_ODYSSEY_STATUSLINE_NEXT に指定してください。",
                      "然后自己把它粘贴到 ~/.claude/settings.json（与已有的 \"hooks\" 合并）。Edge Odyssey 从不修改该文件。已经有 statusLine？保留它，并把它设给 EDGE_ODYSSEY_STATUSLINE_NEXT。"))
-                .font(.callout).foregroundStyle(.secondary)
+                .type(.callout).foregroundStyle(.secondary)
         }
     }
 
@@ -247,7 +247,7 @@ struct WelcomeView: View {
                      "로그인 시 실행은 켜기 전엔 꺼져 있고, 하프는 작게 켜져 있어요. 둘 다 나중에 메뉴(설정, 타이머 > 소리)에서 바꿀 수 있어요.",
                      "ログイン時の起動はオンにしない限りオフ、ハープは小さな音でオンです。どちらもあとでメニュー（設定、タイマー > サウンド）で変えられます。",
                      "登录时启动默认关闭，竖琴声默认以小音量开启。两者之后都可在菜单（设置、计时 > 声音）中更改。"))
-                .font(.callout).foregroundStyle(.secondary)
+                .type(.callout).foregroundStyle(.secondary)
         }
     }
 }
@@ -287,19 +287,19 @@ struct HistoryView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(L.t("Today you sailed \(History.leagues(today.seconds)) leagues", "오늘 \(History.leagues(today.seconds))리그를 항해했어요",
                          "今日は \(History.leagues(today.seconds)) リーグ航海しました", "今天航行了 \(History.leagues(today.seconds)) 里格"))
-                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                    .type(.title)
                 Text(L.t("\(History.span(today.seconds)) of focus · \(sessions(today.sessions)) · longest \(History.span(today.longest))",
                          "집중 \(History.span(today.seconds)) · \(sessions(today.sessions)) · 최장 \(History.span(today.longest))",
                          "集中 \(History.span(today.seconds)) · \(sessions(today.sessions)) · 最長 \(History.span(today.longest))",
                          "专注 \(History.span(today.seconds)) · \(sessions(today.sessions)) · 最长 \(History.span(today.longest))"))
-                    .font(.callout).foregroundStyle(.secondary)
+                    .type(.callout).foregroundStyle(.secondary)
             }
             if goalHours > 0 {
                 ProgressView(value: min(today.seconds / (goalHours * 3600), 1)) {
                     Text(L.t("Daily goal: \(Int(goalHours)) h · \(Int(today.seconds / (goalHours * 36)))%",
                              "하루 목표: \(Int(goalHours))시간 · \(Int(today.seconds / (goalHours * 36)))%",
                              "1日の目標：\(Int(goalHours))時間 · \(Int(today.seconds / (goalHours * 36)))%",
-                             "每日目标：\(Int(goalHours)) 小时 · \(Int(today.seconds / (goalHours * 36)))%")).font(.caption)
+                             "每日目标：\(Int(goalHours)) 小时 · \(Int(today.seconds / (goalHours * 36)))%")).type(.caption)
                 }
             }
             HStack {
@@ -337,13 +337,13 @@ struct HistoryView: View {
             .accessibilityLabel(L.t("Focus hours per day over the last \(span) days", "최근 \(span)일 동안 하루 집중 시간",
                                     "直近 \(span) 日間の1日あたりの集中時間", "最近 \(span) 天每天的专注小时数"))
             VStack(alignment: .leading, spacing: 4) {
-                Text(L.t("Latest", "최근", "最近", "最近")).font(.headline)
+                Text(L.t("Latest", "최근", "最近", "最近")).type(.headline)
                 if recent.isEmpty {
                     Text(L.t("No voyages yet. Each focus, timer and stopwatch run is kept here when it ends.",
                              "아직 항해가 없어요. 집중, 타이머, 스톱워치는 끝날 때마다 여기에 남아요.",
                              "まだ航海がありません。集中・タイマー・ストップウォッチは終わるたびにここに残ります。",
                              "还没有航程。每次专注、计时器和秒表结束时都会记在这里。"))
-                        .font(.callout).foregroundStyle(.secondary)
+                        .type(.callout).foregroundStyle(.secondary)
                 }
                 ForEach(Array(recent.enumerated()), id: \.offset) { _, v in
                     HStack(spacing: 8) {
@@ -353,13 +353,13 @@ struct HistoryView: View {
                         Text(v.completed ? "✓" : L.t("stopped", "중단", "中断", "中止")).foregroundStyle(.secondary).lineLimit(1).frame(width: 60, alignment: .leading)
                         Text(v.label ?? "").lineLimit(1).truncationMode(.tail)
                     }
-                    .font(.callout)
+                    .type(.callout)
                 }
             }
             HStack {
                 Text(L.t("Kept only on this Mac, in ~/.edge-odyssey/history.jsonl.", "이 Mac의 ~/.edge-odyssey/history.jsonl 에만 남아요.",
                          "この Mac の ~/.edge-odyssey/history.jsonl にだけ保存されます。", "只保存在这台 Mac 的 ~/.edge-odyssey/history.jsonl 中。"))
-                    .font(.caption).foregroundStyle(.tertiary)
+                    .type(.caption).foregroundStyle(.tertiary)
                 Spacer()
                 Button(L.t("Export CSV…", "CSV로 내보내기…", "CSV を書き出す…", "导出 CSV…"), action: export)
                 Button(L.t("Clear History…", "기록 지우기…", "記録を消去…", "清除记录…"), role: .destructive, action: clear)

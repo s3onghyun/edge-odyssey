@@ -3,11 +3,12 @@ import CoreImage
 import ImageIO
 import QuartzCore
 
-/// Focus mode's window content: a calm background, the large countdown and a caption in the
-/// middle, and Start/Pause, Skip and Exit buttons that appear while the pointer moves. The
-/// track and Odysseus are an Overlay's layers (`stage`), placed by FocusLayout.
-/// Keys: Space starts, pauses or resumes; S skips; Esc exits; arrows (or scrolling) change the
-/// time. A click on the background exits. Behind it all, optionally, a dimmed nature photo.
+/// Focus mode's window content: a calm background, the dial (or, for the stopwatch, the large
+/// count) with a caption beneath, preset chips while idle, and Start/Pause, Skip and Exit buttons
+/// that appear while the pointer moves. The track and Odysseus are an Overlay's layers (`stage`),
+/// placed by FocusLayout. Keys: Space starts, pauses or resumes; S skips; Esc exits; arrows (or
+/// scrolling, or dragging the dial) change the time. A click on the background exits. Behind it
+/// all, optionally, a dimmed nature photo.
 final class FocusView: NSView {
     /// "toggle", "skip" or "exit".
     var onAction: ((String) -> Void)?
@@ -16,6 +17,9 @@ final class FocusView: NSView {
     /// Scrolling anywhere in the window, and the arrow keys (steps, modifiers), change the time.
     var onScroll: ((NSEvent) -> Void)?
     var onAdjust: ((Int, NSEvent.ModifierFlags) -> Void)?
+    /// A preset chip (minutes) was clicked.
+    var onPreset: ((Double) -> Void)?
+    let dial = DialView()
     var spriteHeight: CGFloat = 26 * FocusLayout.travelerScale { didSet { needsLayout = true } }
 
     private let stage: CALayer
@@ -32,6 +36,11 @@ final class FocusView: NSView {
     private let skip = NSButton(title: "", target: nil, action: nil)
     private let exit = NSButton(title: "", target: nil, action: nil)
     private let controls: NSStackView
+    private let chips = NSStackView()
+    private var presets: [Double] = []
+    private var dialShown = false
+    private var timeText = "", captionText = "", footerText = ""
+    private var sizes = (time: CGFloat(24), caption: CGFloat(14), footer: CGFloat(12))
     private var glyphs = 5
     private var lastStage = CGSize.zero
     private var hideTimer: Timer?
@@ -53,8 +62,7 @@ final class FocusView: NSView {
         content.addSublayer(backdrop)
         content.addSublayer(scrim)
         content.addSublayer(stage)
-        for (l, weight) in [(time, NSFont.Weight.light), (caption, .regular), (footer, .regular)] {
-            l.font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: weight)
+        for l in [time, caption, footer] {   // fonts: Typography, set with the text in paintText()
             l.alignmentMode = .center
             l.truncationMode = .end
             content.addSublayer(l)
@@ -68,6 +76,10 @@ final class FocusView: NSView {
         controls.spacing = 12
         controls.alphaValue = 0
         controls.isHidden = true   // faded-out buttons take no clicks: a click there exits
+        dial.onStep = { [weak self] in self?.onAdjust?($0, []) }
+        addSubview(dial)
+        chips.spacing = 8
+        addSubview(chips)
         addSubview(controls)
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
@@ -83,18 +95,29 @@ final class FocusView: NSView {
     /// Light and dark appearance: a deep night sea or a pale sand page, the digits in ink.
     /// Over a photo the digits are always light, on a dark scrim.
     override func updateLayer() {
-        let night = dark || hasBackdrop
         layer?.backgroundColor = (dark ? NSColor(srgbRed: 0.06, green: 0.07, blue: 0.10, alpha: 1)
                                        : NSColor(srgbRed: 0.97, green: 0.96, blue: 0.93, alpha: 1)).cgColor
-        time.foregroundColor = (night ? NSColor(white: 0.95, alpha: 1) : NSColor(srgbRed: 0.12, green: 0.13, blue: 0.17, alpha: 1)).cgColor
-        caption.foregroundColor = (night ? NSColor(white: 0.95, alpha: hasBackdrop ? 0.75 : 0.55)
-                                         : NSColor(srgbRed: 0.12, green: 0.13, blue: 0.17, alpha: 0.55)).cgColor
-        footer.foregroundColor = caption.foregroundColor
+        dial.night = night
+        paintText()
         for l in [time, caption, footer] {
             l.shadowOpacity = hasBackdrop ? 0.6 : 0
             l.shadowRadius = 6
             l.shadowOffset = .zero
         }
+    }
+
+    private var night: Bool { dark || hasBackdrop }
+    private var ink: NSColor { night ? NSColor(white: 0.95, alpha: 1) : NSColor(srgbRed: 0.12, green: 0.13, blue: 0.17, alpha: 1) }
+    private var soft: NSColor { night ? NSColor(white: 0.95, alpha: hasBackdrop ? 0.75 : 0.6) : ink.withAlphaComponent(0.6) }
+
+    /// The texts in their Typography roles: the hero count, captions in tracked medium.
+    private func paintText() {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        time.string = Typography.string(timeText, .hero, size: sizes.time, color: ink)
+        caption.string = Typography.string(captionText, .caption, size: sizes.caption, color: soft)
+        footer.string = Typography.string(footerText, .caption, size: sizes.footer, color: soft)
+        CATransaction.commit()
     }
 
     /// Shows `url` (nil: none) behind the voyage, blurred a little and dimmed, with an optional
@@ -148,19 +171,26 @@ final class FocusView: NSView {
         backdrop.frame = bounds
         scrim.frame = bounds
         stage.frame = st
-        time.fontSize = fs
+        let fs2 = max(12, (cs * 0.85).rounded())
+        sizes = (fs, cs, fs2)
         // CATextLayer draws from the top of its bounds: one line box, centred a little high.
         // Sized to the room, drawn across everything inside the traveler's band: never clipped.
         let band = st.insetBy(dx: spriteHeight, dy: spriteHeight)
-        time.frame = CGRect(x: band.minX, y: (room.midY - fs * 0.5).rounded(), width: band.width, height: (fs * 1.25).rounded())
-        caption.fontSize = cs
-        caption.frame = CGRect(x: band.minX, y: time.frame.minY - cs * 1.8, width: band.width, height: cs * 1.4)
-        let fs2 = max(12, (cs * 0.85).rounded())
-        footer.fontSize = fs2
+        let c = controls.fittingSize, k = chips.fittingSize
+        if dialShown {   // the dial, then the caption, the chips and the buttons beneath it
+            let d = FocusLayout.dial(room: room, reserve: cs * 2.2 + k.height + c.height + cs * 2)
+            dial.frame = d
+            caption.frame = CGRect(x: band.minX, y: d.minY - cs * 2, width: band.width, height: cs * 1.4)
+        } else {
+            time.frame = CGRect(x: band.minX, y: (room.midY - fs * 0.5).rounded(), width: band.width, height: (fs * 1.25).rounded())
+            caption.frame = CGRect(x: band.minX, y: time.frame.minY - cs * 1.8, width: band.width, height: cs * 1.4)
+        }
         footer.frame = CGRect(x: band.minX, y: band.minY + fs2 * 0.6, width: band.width, height: fs2 * 1.4)
         CATransaction.commit()
-        let c = controls.fittingSize
-        controls.frame = CGRect(x: ((bounds.width - c.width) / 2).rounded(), y: (caption.frame.minY - c.height - cs * 1.5).rounded(),
+        paintText()
+        chips.frame = CGRect(x: ((bounds.width - k.width) / 2).rounded(), y: (caption.frame.minY - k.height - cs).rounded(), width: k.width, height: k.height)
+        controls.frame = CGRect(x: ((bounds.width - c.width) / 2).rounded(),
+                                y: ((dialShown ? chips.frame.minY - cs : caption.frame.minY - cs * 1.5) - c.height).rounded(),
                                 width: c.width, height: c.height)
         if st.size != lastStage {
             lastStage = st.size
@@ -168,15 +198,34 @@ final class FocusView: NSView {
         }
     }
 
-    /// Called once a second while a session runs, and on every state change.
-    func show(time t: String, caption c: String, primary p: String, skip s: String?, footer f: String, contentHidden: Bool) {
+    /// Called once a second while a session runs, and on every state change. `dial`: nil shows the
+    /// large count instead (the stopwatch). `presets`: chips (title, minutes), empty for none.
+    func show(time t: String, caption c: String, primary p: String, skip s: String?, footer f: String, contentHidden: Bool,
+              dial ds: DialView.State?, presets ps: [(title: String, minutes: Double)], selected: Double?) {
+        if (t, c, f) != (timeText, captionText, footerText) { (timeText, captionText, footerText) = (t, c, f); paintText() }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        if time.string as? String != t { time.string = t }
-        if caption.string as? String != c { caption.string = c }
-        if footer.string as? String != f { footer.string = f }
         content.isHidden = contentHidden
+        time.isHidden = ds != nil
         CATransaction.commit()
+        if (ds != nil) != dialShown { dialShown = ds != nil; needsLayout = true }
+        if let ds { dial.show(ds, time: t) }
+        dial.isHidden = contentHidden || ds == nil
+        if ps.map(\.minutes) != presets || chips.arrangedSubviews.map({ ($0 as? NSButton)?.title ?? "" }) != ps.map(\.title) {
+            presets = ps.map(\.minutes)
+            chips.arrangedSubviews.forEach { $0.removeFromSuperview() }
+            for (i, preset) in ps.enumerated() {
+                let b = NSButton(title: preset.title, target: self, action: #selector(presetPressed(_:)))
+                b.tag = i
+                b.bezelStyle = .rounded
+                b.setButtonType(.pushOnPushOff)
+                b.font = Typography.font(.numeral, size: NSFont.systemFontSize)
+                chips.addArrangedSubview(b)
+            }
+            needsLayout = true
+        }
+        for case let b as NSButton in chips.arrangedSubviews { b.state = presets[b.tag] == selected ? .on : .off }
+        chips.isHidden = contentHidden || ps.isEmpty
         if t.count != glyphs { glyphs = t.count; needsLayout = true }
         if primary.title != p { primary.title = p; needsLayout = true }   // the buttons are centred by width
         if skip.title != s ?? "" { skip.title = s ?? ""; needsLayout = true }
@@ -229,6 +278,7 @@ final class FocusView: NSView {
         }
     }
 
+    @objc private func presetPressed(_ b: NSButton) { onPreset?(presets[b.tag]) }
     @objc private func primaryPressed() { onAction?("toggle") }
     @objc private func skipPressed() { onAction?("skip") }
     @objc private func exitPressed() { onAction?("exit") }

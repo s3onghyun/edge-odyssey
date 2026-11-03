@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- Focus mode has a **Time-Timer-style dial**: a 60-minute face read clockwise from twelve, the
+  time left as a wedge (teal, coral for the session's last fifth, lavender on a break), gold
+  detents at 15, 25, 45 and 50 minutes and a sailboat handle at the wedge's edge, with the
+  countdown in its hub. Set it with the wheel or trackpad as before (a minute a notch, Shift five,
+  Option ten seconds; a "+1m" note shows by the boat), by dragging round it or clicking the face
+  (no wrapping past twelve), or with the preset chips beneath it while idle. Detents hold the
+  wheel for two notches, catch a drag within ¾ of a minute and tap a Force Touch trackpad
+  (`NSHapticFeedbackManager`). VoiceOver reads it as an adjustable slider; the arrow keys still
+  work. The stopwatch keeps the large digits. Dial math (angle ↔ minutes, snapping, detents,
+  wheel steps, the wedge) lives in `Dial` and is tested.
+- The menu-bar icon is a **progress ring** while a clock runs: teal filling during a focus, coral
+  (with semibold digits) in its last five minutes, lavender emptying during a break; the gold
+  arrival badge is unchanged.
+- **Typography pass.** One `Typography` scale for every screen (focus mode, the dial, the menu
+  bar, the logbook, the welcome guide, the history): SF Pro for text, SF Pro Rounded for the
+  countdown, titles, numerals and badges, monospaced digits wherever a number changes, and a
+  little tracking (tighter on big digits, looser on small print). System fonts only.
+  Before/after: [`assets/screenshots/type-specimen.png`](assets/screenshots/type-specimen.png).
 - The end of a focus is now unmistakable, and it waits for you. Odysseus reaches Ithaca, a
   laurel-gold wave runs twice round the edge from the harbor and ripples and sparkles spread there
   (Core Animation only, one-shot, nothing left running). Then the session **stays arrived**: the
@@ -19,8 +37,6 @@
   System Settings.
 - Fixed: a notification banner on screen counted as a window covering the display and hid the
   edge (Notification Center hosts banners in a clear, display-sized window).
-- New UI text uses one small type system (`Typography`): SF Pro Rounded with monospaced digits
-  for the menu-bar badge, so the counting time never jitters.
 - `--ctl rest`, `extend`, `autorest:on|off`.
 
 ## 0.2.0 (unreleased)
