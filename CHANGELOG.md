@@ -29,6 +29,13 @@ First public downloadable build, for Apple silicon Macs running macOS 13 or late
   (sources in `assets/backgrounds/PROVENANCE.md`),
   softened and dimmed under the voyage with a slow drift. *Focus mode background*: off, a
   different photo each session (default), one photo, or your own folder; drift on or off.
+- Focus history, kept only on this Mac (`~/.edge-odyssey/history.jsonl`, one JSON line per run):
+  every focus, timer and stopwatch run with start, end, mode, time on the clock, whether it ran
+  to the end and an optional one-line label (*Label this session…*); runs stopped in their
+  first minute and breaks are left out. Today's total, sessions and leagues sailed under the
+  menu header and at the foot of focus mode; *History…* shows a 7/30-day chart against a daily
+  goal (4 h by default), the latest runs, CSV export and Clear History. Runs over midnight are
+  split between the days; days follow the Mac's time zone.
 - Command line: `--mode`, `--timer`, `--background`; `--ctl mode:…`, `timer:…`, `adjust:<seconds>`,
   `background:…`, `background-folder:…`, `drift:on|off`.
 

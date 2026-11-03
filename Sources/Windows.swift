@@ -1,7 +1,8 @@
 import AppKit
+import Charts
 import SwiftUI
 
-// The two ordinary windows: the logbook and the first-run welcome guide.
+// The ordinary windows: the logbook, the focus history and the first-run welcome guide.
 
 /// Opens (or brings back) a small titled window hosting a SwiftUI view.
 final class PanelWindow {
@@ -21,6 +22,7 @@ final class PanelWindow {
     }
 
     func close() { window?.close() }
+    var isOpen: Bool { window?.isVisible == true }
 }
 
 // MARK: - logbook
@@ -190,5 +192,109 @@ struct WelcomeView: View {
             Text("Off unless you turn it on. You can change it later under Settings in the menu.")
                 .font(.callout).foregroundStyle(.secondary)
         }
+    }
+}
+
+// MARK: - history
+
+/// Today's totals, a 7- or 30-day bar chart against the daily goal, the latest runs, and
+/// CSV export / clear. A snapshot: reopen it to refresh.
+struct HistoryView: View {
+    let today: DaySummary
+    @State var goalHours: Double
+    let week: [(day: Date, seconds: Double)]
+    let month: [(day: Date, seconds: Double)]
+    let recent: [Voyage]
+    let setGoal: (Double) -> Void
+    let export: () -> Void
+    let clear: () -> Void
+    @State private var span = 7
+
+    init(today: DaySummary, goalHours: Double, week: [(day: Date, seconds: Double)], month: [(day: Date, seconds: Double)],
+         recent: [Voyage], setGoal: @escaping (Double) -> Void, export: @escaping () -> Void, clear: @escaping () -> Void) {
+        self.today = today
+        _goalHours = State(initialValue: goalHours)
+        self.week = week
+        self.month = month
+        self.recent = recent
+        self.setGoal = setGoal
+        self.export = export
+        self.clear = clear
+    }
+
+    private var days: [(day: Date, seconds: Double)] { span == 7 ? week : month }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Today you sailed \(History.leagues(today.seconds)) leagues")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                Text("\(History.span(today.seconds)) of focus · \(today.sessions) session\(today.sessions == 1 ? "" : "s") · longest \(History.span(today.longest))")
+                    .font(.callout).foregroundStyle(.secondary)
+            }
+            if goalHours > 0 {
+                ProgressView(value: min(today.seconds / (goalHours * 3600), 1)) {
+                    Text("Daily goal: \(Int(goalHours)) h · \(Int(today.seconds / (goalHours * 36)))%").font(.caption)
+                }
+            }
+            HStack {
+                Picker("", selection: $span) {
+                    Text("7 days").tag(7)
+                    Text("30 days").tag(30)
+                }
+                .pickerStyle(.segmented).labelsHidden().frame(width: 160)
+                Spacer()
+                Picker("Daily goal", selection: $goalHours) {
+                    Text("None").tag(0.0)
+                    ForEach([1, 2, 3, 4, 5, 6, 8], id: \.self) { Text("\($0) h").tag(Double($0)) }
+                }
+                .frame(width: 170)
+                .onChange(of: goalHours) { setGoal($0) }
+            }
+            Chart {
+                ForEach(days, id: \.day) { d in
+                    BarMark(x: .value("Day", d.day, unit: .day), y: .value("Hours", d.seconds / 3600))
+                        .foregroundStyle(goalHours > 0 && d.seconds >= goalHours * 3600 ? Color.orange : Color.teal)
+                }
+                if goalHours > 0 {
+                    RuleMark(y: .value("Goal", goalHours))
+                        .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3])).foregroundStyle(.secondary)
+                }
+            }
+            .chartYAxisLabel("hours")
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: span == 7 ? 1 : 5)) { _ in
+                    AxisGridLine()
+                    AxisValueLabel(format: span == 7 ? .dateTime.weekday(.abbreviated) : .dateTime.month(.defaultDigits).day())
+                }
+            }
+            .frame(height: 180)
+            .accessibilityLabel("Focus hours per day over the last \(span) days")
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Latest").font(.headline)
+                if recent.isEmpty {
+                    Text("No voyages yet. Each focus, timer and stopwatch run is kept here when it ends.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+                ForEach(Array(recent.enumerated()), id: \.offset) { _, v in
+                    HStack(spacing: 8) {
+                        Text(v.start, format: .dateTime.month(.abbreviated).day().hour().minute()).monospacedDigit().frame(width: 130, alignment: .leading)
+                        Text(v.mode).frame(width: 70, alignment: .leading)
+                        Text(History.span(v.seconds)).monospacedDigit().frame(width: 60, alignment: .trailing)
+                        Text(v.completed ? "✓" : "stopped").foregroundStyle(.secondary).frame(width: 56, alignment: .leading)
+                        Text(v.label ?? "").lineLimit(1).truncationMode(.tail)
+                    }
+                    .font(.callout)
+                }
+            }
+            HStack {
+                Text("Kept only on this Mac, in ~/.edge-odyssey/history.jsonl.").font(.caption).foregroundStyle(.tertiary)
+                Spacer()
+                Button("Export CSV…", action: export)
+                Button("Clear History…", role: .destructive, action: clear)
+            }
+        }
+        .padding(20)
+        .frame(width: 560)
     }
 }

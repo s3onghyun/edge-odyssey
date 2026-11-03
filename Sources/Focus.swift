@@ -27,6 +27,7 @@ final class FocusView: NSView {
     private var hasBackdrop: Bool { backdrop.contents != nil }
     private let time = CATextLayer()
     private let caption = CATextLayer()
+    private let footer = CATextLayer()   // today's total, at the foot of the voyage
     private let primary = NSButton(title: "Start", target: nil, action: nil)
     private let skip = NSButton(title: "Skip", target: nil, action: nil)
     private let exit = NSButton(title: "Exit (Esc)", target: nil, action: nil)
@@ -52,7 +53,7 @@ final class FocusView: NSView {
         content.addSublayer(backdrop)
         content.addSublayer(scrim)
         content.addSublayer(stage)
-        for (l, weight) in [(time, NSFont.Weight.light), (caption, .regular)] {
+        for (l, weight) in [(time, NSFont.Weight.light), (caption, .regular), (footer, .regular)] {
             l.font = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: weight)
             l.alignmentMode = .center
             l.truncationMode = .end
@@ -88,7 +89,8 @@ final class FocusView: NSView {
         time.foregroundColor = (night ? NSColor(white: 0.95, alpha: 1) : NSColor(srgbRed: 0.12, green: 0.13, blue: 0.17, alpha: 1)).cgColor
         caption.foregroundColor = (night ? NSColor(white: 0.95, alpha: hasBackdrop ? 0.75 : 0.55)
                                          : NSColor(srgbRed: 0.12, green: 0.13, blue: 0.17, alpha: 0.55)).cgColor
-        for l in [time, caption] {
+        footer.foregroundColor = caption.foregroundColor
+        for l in [time, caption, footer] {
             l.shadowOpacity = hasBackdrop ? 0.6 : 0
             l.shadowRadius = 6
             l.shadowOffset = .zero
@@ -131,6 +133,7 @@ final class FocusView: NSView {
         let scale = window?.backingScaleFactor ?? 2
         time.contentsScale = scale
         caption.contentsScale = scale
+        footer.contentsScale = scale
     }
 
     override func layout() {
@@ -152,6 +155,9 @@ final class FocusView: NSView {
         time.frame = CGRect(x: band.minX, y: (room.midY - fs * 0.5).rounded(), width: band.width, height: (fs * 1.25).rounded())
         caption.fontSize = cs
         caption.frame = CGRect(x: band.minX, y: time.frame.minY - cs * 1.8, width: band.width, height: cs * 1.4)
+        let fs2 = max(12, (cs * 0.85).rounded())
+        footer.fontSize = fs2
+        footer.frame = CGRect(x: band.minX, y: band.minY + fs2 * 0.6, width: band.width, height: fs2 * 1.4)
         CATransaction.commit()
         let c = controls.fittingSize
         controls.frame = CGRect(x: ((bounds.width - c.width) / 2).rounded(), y: (caption.frame.minY - c.height - cs * 1.5).rounded(),
@@ -163,11 +169,12 @@ final class FocusView: NSView {
     }
 
     /// Called once a second while a session runs, and on every state change.
-    func show(time t: String, caption c: String, primary p: String, skip s: String?, contentHidden: Bool) {
+    func show(time t: String, caption c: String, primary p: String, skip s: String?, footer f: String, contentHidden: Bool) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         if time.string as? String != t { time.string = t }
         if caption.string as? String != c { caption.string = c }
+        if footer.string as? String != f { footer.string = f }
         content.isHidden = contentHidden
         CATransaction.commit()
         if t.count != glyphs { glyphs = t.count; needsLayout = true }
