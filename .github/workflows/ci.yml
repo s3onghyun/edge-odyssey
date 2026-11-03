@@ -1,0 +1,23 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Run motion tests
+        run: ./test.sh
+      - name: Build isolated test app
+        env:
+          EDGE_ODYSSEY_BUNDLE_ID: dev.edgeodyssey.ci
+          EDGE_ODYSSEY_VERSION: 0.2.0-ci
+        run: ./build.sh
+      - name: Verify app signature
+        run: codesign --verify --deep --strict "build/Edge Odyssey.app"

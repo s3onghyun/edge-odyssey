@@ -1,6 +1,13 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.2.0 (unreleased)
+
+First public downloadable build, for Apple silicon Macs running macOS 13 or later.
+
+- Downloadable, ad-hoc-signed release archives with SHA-256 checksums. The app is not yet
+  notarized; first launch requires the standard Gatekeeper override.
+
+## 0.1.0
 
 The first build meant for daily use.
 
