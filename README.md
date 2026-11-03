@@ -6,7 +6,7 @@ A thin, click-through focus timer that lives on the edge of your Mac's screen. O
 along the bottom, climbs the right side, hangs from the top and slides down the left as your
 focus session passes, and the edge glows softly when Claude Code needs you.
 
-[한국어 README](README.ko.md)
+[한국어 README](README.ko.md) · The app speaks English, 한국어, 日本語 and 简体中文 ([Languages](#languages)).
 
 <p align="center"><img src="assets/screenshots/voyage.gif" width="480" alt="Odysseus rowing, climbing, hanging and sliding around the screen edge"></p>
 <p align="center"><sub>One 25-minute lap at 75x speed, the camera following Odysseus.</sub></p>
@@ -92,10 +92,38 @@ menu bar (the dashed circle).
 | History… | Today's focus, a 7/30-day chart against your daily goal, the latest runs, CSV export, clear (below). The line under the menu header shows today's total |
 | Label this session… | A one-line note kept with the run in the history (before starting: for the next one) |
 | Logbook… | The 24 books of the Odyssey you have collected |
-| Settings | Claude Code signals, doze while a game/video/social app is in front, hide while sharing, count down in seconds (turn off for whole minutes, `13m`), **Launch at login** (off until you turn it on), Welcome guide |
+| Settings | **Language** (below), Claude Code signals, doze while a game/video/social app is in front, hide while sharing, count down in seconds (turn off for whole minutes, `13m`), **Check for updates once a day** and *Check now* (below), **Launch at login** (off until you turn it on), Welcome guide |
 | Hide now | Control-Option-Command-H, from anywhere |
 
 Settings are remembered between launches.
+
+### Languages
+
+*Settings › Language*: System (the default), English, 한국어, 日本語 or 简体中文. The change applies at
+once, in the menu, the open windows, focus mode and notifications, with no restart. *System* picks
+the first of your preferred languages (System Settings › General › Language & Region) that the app
+has, so `Français, 한국어` gives Korean; Traditional Chinese is not shown Simplified, it falls through
+to your next language. Edge Odyssey also appears under *Language & Region › Applications* for a
+per-app choice. Dates, weekdays and durations follow the chosen language (`2h 15m`, `2시간 15분`,
+`2時間15分`, `2小时15分`).
+
+The Japanese and Chinese texts are AI-assisted translations; corrections are welcome. Every string
+is one `L.t(en, ko, ja, zh)` call, and `./test.sh` fails on a missing, empty or wrong-script
+translation or an English string handed straight to the UI.
+
+- 日本語: メニューの「設定 › 言語」で日本語を選ぶと、再起動なしですぐに切り替わります。訳は AI の補助によるもので、修正の提案を歓迎します。
+- 简体中文：在菜单“设置 › 语言”中选择简体中文，无需重启即可切换。译文由 AI 辅助完成，欢迎指正。
+
+### Updates
+
+Once a day the app asks GitHub for the latest release: one HTTPS GET to
+`api.github.com/repos/s3onghyun/edge-odyssey/releases/latest`, with only
+`User-Agent: EdgeOdyssey/<version>`, `Accept` and a fixed `Accept-Language: en`, no cookies and no
+cache. A failed check waits for the next day. When a newer version is out, the top of the menu shows
+**Edge Odyssey <version> is out: release page…** and **Skip this version**, and you get one
+notification for that version. The app never downloads or installs anything itself: download the
+new ZIP from the release page, check its `.sha256` and replace the app as in [Install](#install).
+*Settings › Check for updates once a day* turns it off; *Check now* asks at once.
 
 ### When time is up
 
@@ -212,7 +240,8 @@ watches the folder (no polling). Nothing leaves your Mac.
 
 ## Privacy
 
-No network access, no analytics. The overlay windows are excluded from screenshots and
+No analytics and no telemetry. The only network access is the once-a-day update check
+([Updates](#updates)), which you can turn off. The overlay windows are excluded from screenshots and
 screen recordings, and the whole edge (and focus mode's content) hides while the macOS screen-capture indicator is on
 (Zoom, Meet, QuickTime and so on). Local files: `~/.edge-odyssey/` (hook states, logbook, focus history) and
 the app's preferences (`app.edgeodyssey`).
@@ -229,19 +258,23 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl adjust:60|-300              # like scrolling: seconds to add or take away
 "$APP" --ctl history|label:<text>|goal:<hours>|clear-history
 "$APP" --ctl background:off|cycle|<file name>   # or background-folder:<path>, drift:on|off
+"$APP" --ctl language:auto|en|ko|ja|zh
+"$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```
 
 Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--style border|traveler`, `--pace even|physical`,
 `--thickness 2..4`, `--last5`, `--focus <min>`, `--rest <min>`, `--mode pomodoro|timer|stopwatch`,
 `--timer <length>`, `--background off|cycle|<file name>`, `--no-lotus`, `--char <id>`,
-`--state-dir <dir>`, `-v` (log to stderr). For demos and tests: `--focus-mode` (open it at launch),
-`--focus-frame x,y,w,h` (a window instead of full screen), `--appearance dark|light`.
+`--state-dir <dir>`, `--lang en|ko|ja|zh|auto`, `-v` (log to stderr). For demos and tests: `--focus-mode` (open it at launch),
+`--focus-frame x,y,w,h` (a window instead of full screen), `--appearance dark|light`,
+`--lang pseudo` (every string about 40% longer and accented, to find truncation),
+`--capture-visible` (let screenshots include the edge and focus mode).
 
 ## Development
 
 ```sh
 ./build.sh      # the app, with swiftc from the Command Line Tools
-./test.sh       # motion-math tests (Swift Testing): exact timing, no jumps on re-apply, sprite timing, focus-mode layout, timer modes and time adjustment, history totals
+./test.sh       # Swift Testing: exact timing, no jumps on re-apply, sprite timing, focus-mode layout, timer modes and time adjustment, history totals, every translation, update-notice rules
 ```
 
 | Path | License | What |

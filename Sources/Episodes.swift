@@ -19,15 +19,35 @@ enum Episode: String, CaseIterable {
     }
 
     /// Short names for all 24 books. Only the ones an episode belongs to can be found so far.
-    static let bookTitles: [Int: String] = [
-        1: "Athena's owl", 2: "Telemachus speaks", 3: "Nestor at Pylos", 4: "Menelaus and Helen",
-        5: "Calypso and Poseidon's storm", 6: "Nausicaa", 7: "The Phaeacian court", 8: "Songs of Demodocus",
-        9: "The Lotus-eaters and the Cyclops", 10: "Aeolus' winds and Circe", 11: "The land of the dead",
-        12: "The Sirens, Scylla and Charybdis", 13: "Home to Ithaca", 14: "The swineherd Eumaeus",
-        15: "Telemachus sails home", 16: "Father and son", 17: "Old Argos", 18: "The beggars' fight",
-        19: "Penelope and the scar", 20: "Omens", 21: "The bow", 22: "The suitors fall",
-        23: "The olive-tree bed", 24: "Peace",
-    ]
+    static func bookTitle(_ book: Int, lang: Lang? = nil) -> String {
+        switch book {
+        case 1: return L.t("Athena's owl", "아테나의 올빼미", "アテナのフクロウ", "雅典娜的猫头鹰", in: lang)
+        case 2: return L.t("Telemachus speaks", "텔레마코스의 연설", "テレマコスの演説", "忒勒马科斯发言", in: lang)
+        case 3: return L.t("Nestor at Pylos", "필로스의 네스토르", "ピュロスのネストル", "皮洛斯的涅斯托尔", in: lang)
+        case 4: return L.t("Menelaus and Helen", "메넬라오스와 헬레네", "メネラオスとヘレネ", "墨涅拉俄斯与海伦", in: lang)
+        case 5: return L.t("Calypso and Poseidon's storm", "칼립소와 포세이돈의 폭풍", "カリュプソとポセイドンの嵐", "卡吕普索与波塞冬的风暴", in: lang)
+        case 6: return L.t("Nausicaa", "나우시카", "ナウシカア", "瑙西卡", in: lang)
+        case 7: return L.t("The Phaeacian court", "파이아케스의 궁정", "パイアケスの宮廷", "费埃克斯人的宫廷", in: lang)
+        case 8: return L.t("Songs of Demodocus", "데모도코스의 노래", "デモドコスの歌", "得摩多科斯之歌", in: lang)
+        case 9: return L.t("The Lotus-eaters and the Cyclops", "로토스 먹는 사람들과 키클롭스", "ロートパゴスとキュクロプス", "食莲人与独眼巨人", in: lang)
+        case 10: return L.t("Aeolus' winds and Circe", "아이올로스의 바람과 키르케", "アイオロスの風とキルケ", "埃俄罗斯的风与喀耳刻", in: lang)
+        case 11: return L.t("The land of the dead", "저승", "冥府", "冥府", in: lang)
+        case 12: return L.t("The Sirens, Scylla and Charybdis", "세이렌, 스킬라와 카리브디스", "セイレーン、スキュラとカリュブディス", "塞壬、斯库拉与卡律布狄斯", in: lang)
+        case 13: return L.t("Home to Ithaca", "이타카로 돌아오다", "イタケへの帰郷", "回到伊萨卡", in: lang)
+        case 14: return L.t("The swineherd Eumaeus", "돼지치기 에우마이오스", "豚飼いエウマイオス", "牧猪奴欧迈俄斯", in: lang)
+        case 15: return L.t("Telemachus sails home", "텔레마코스의 귀향", "テレマコスの帰航", "忒勒马科斯返航", in: lang)
+        case 16: return L.t("Father and son", "아버지와 아들", "父と子", "父与子", in: lang)
+        case 17: return L.t("Old Argos", "늙은 개 아르고스", "老犬アルゴス", "老狗阿尔戈斯", in: lang)
+        case 18: return L.t("The beggars' fight", "거지들의 싸움", "乞食の殴り合い", "乞丐之斗", in: lang)
+        case 19: return L.t("Penelope and the scar", "페넬로페와 흉터", "ペネロペと傷跡", "珀涅罗珀与伤疤", in: lang)
+        case 20: return L.t("Omens", "징조", "前兆", "征兆", in: lang)
+        case 21: return L.t("The bow", "활", "弓", "弓", in: lang)
+        case 22: return L.t("The suitors fall", "구혼자들의 최후", "求婚者たちの最期", "求婚者覆灭", in: lang)
+        case 23: return L.t("The olive-tree bed", "올리브나무 침대", "オリーブの木の寝台", "橄榄树婚床", in: lang)
+        case 24: return L.t("Peace", "평화", "和解", "和平", in: lang)
+        default: return ""
+        }
+    }
 
     /// Books that some encounter can unlock today.
     static let findableBooks = Set(allCases.flatMap(\.books))

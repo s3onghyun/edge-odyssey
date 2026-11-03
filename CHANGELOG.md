@@ -4,6 +4,21 @@
 
 First public downloadable build, for Apple silicon Macs running macOS 13 or later.
 
+- Languages: *Settings › Language* offers System, English, 한국어, 日本語 and 简体中文, applied at
+  once (menu, open windows, focus mode, notifications) without a restart. *System* matches the whole
+  preferred-language list, and Traditional Chinese is not shown Simplified. Every string, the 24
+  book titles of the logbook, the photo names and the notifications are translated; dates, weekdays
+  and durations follow the chosen language. The bundle declares `CFBundleLocalizations`, so the
+  app is listed under *Language & Region › Applications*. A test reads every `L.t(en, ko, ja, zh)`
+  call in `Sources/` and fails on a missing, empty or wrong-script translation or an English string
+  passed straight to the UI; `--lang pseudo` stretches every string to check for truncation.
+  Japanese and Chinese are AI-assisted translations.
+- Update notice: once a day, one HTTPS GET to GitHub's latest-release API (fixed headers, no
+  cookies, no cache, no telemetry). A newer version adds a release-page row and *Skip this version*
+  to the top of the menu and posts one notification for that version. *Settings › Check for updates
+  once a day* turns it off, *Check now* asks at once. Nothing is downloaded or installed by the app.
+  This is the app's only network access.
+
 - Downloadable, ad-hoc-signed release archives with SHA-256 checksums. The app is not yet
   notarized; first launch requires the standard Gatekeeper override.
 - Focus mode (opt-in): Control-Option-Command-F or *Focus mode* in the menu opens a calm
