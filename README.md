@@ -30,6 +30,9 @@ focus session passes, and the edge glows softly when Claude Code needs you.
 - **Pomodoro, timer or stopwatch.** Besides focus-and-break sessions, a plain countdown of any
   length (presets from 1 minute to an hour) and a stopwatch. Scroll over the time to change it:
   a minute per notch, Shift for five, Option for ten seconds.
+- **Focus history.** Every focus, timer and stopwatch run is kept on your Mac: today's total
+  in the menu and in focus mode ("today you sailed 22 leagues"), a 7- or 30-day chart against a
+  daily goal, CSV export.
 - **Out of your way.** A 2-4 px border, never takes a click, hides in full-screen apps and
   while the screen is shared or recorded, and on Control-Option-Command-H.
 - **Smooth and light.** All motion runs in the macOS render server; the app wakes only at
@@ -86,6 +89,8 @@ menu bar (the dashed circle).
 | Show on | Main display, all displays (Odysseus follows the display you work on), follow me, or one named display |
 | Border | 2, 3 or 4 px |
 | Only show in the last 5 minutes | Keeps the edge empty until the end of a focus session (Claude Code calls still show) |
+| History… | Today's focus, a 7/30-day chart against your daily goal, the latest runs, CSV export, clear (below). The line under the menu header shows today's total |
+| Label this session… | A one-line note kept with the run in the history (before starting: for the next one) |
 | Logbook… | The 24 books of the Odyssey you have collected |
 | Settings | Claude Code signals, doze while a game/video/social app is in front, hide while sharing, count down in seconds (turn off for whole minutes, `13m`), **Launch at login** (off until you turn it on), Welcome guide |
 | Hide now | Control-Option-Command-H, from anywhere |
@@ -163,6 +168,25 @@ Code signals still show on the track (the gold swell, the Sirens, the storm).
   and photo are hidden and only the plain background shows; the window is also left out of
   screenshots and recordings.
 
+### Focus history
+
+<p align="center"><img src="assets/screenshots/history.png" width="450" alt="History window: today you sailed 22 leagues, 1h 51m of focus, a daily goal bar at 46%, a 7-day bar chart and the latest runs"></p>
+<p align="center"><sub>The history window (sample data).</sub></p>
+
+Each focus session, countdown timer and stopwatch run is recorded when it ends: start, end,
+mode, time on the clock (pauses left out), whether it ran to the end, and an optional one-line
+label (*Label this session…*). A run stopped in its first minute is left out; breaks are not
+recorded.
+
+- **Today:** total time, sessions and the longest run, under the menu header and at the foot
+  of focus mode, with the voyage in leagues (twelve an hour at the oar) and the daily goal.
+- **History…** (Command-Y in the menu): a 7- or 30-day bar chart against the daily goal (none,
+  1-8 hours; 4 by default), the latest runs, **Export CSV…** and **Clear History…**.
+- A run that crosses midnight is split between the two days by wall time; days follow your
+  Mac's time zone.
+- Stored only on this Mac in `~/.edge-odyssey/history.jsonl` (one JSON line per run). Nothing is
+  sent anywhere. Clearing it does not touch the logbook.
+
 <p align="center"><img src="assets/screenshots/logbook.png" width="720" alt="Logbook window with found and uncharted books"></p>
 
 ## Claude Code signals
@@ -190,7 +214,7 @@ watches the folder (no polling). Nothing leaves your Mac.
 
 No network access, no analytics. The overlay windows are excluded from screenshots and
 screen recordings, and the whole edge (and focus mode's content) hides while the macOS screen-capture indicator is on
-(Zoom, Meet, QuickTime and so on). Local files: `~/.edge-odyssey/` (hook states, logbook) and
+(Zoom, Meet, QuickTime and so on). Local files: `~/.edge-odyssey/` (hook states, logbook, focus history) and
 the app's preferences (`app.edgeodyssey`).
 
 ## Command line
@@ -203,6 +227,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl mode:pomodoro|timer|stopwatch
 "$APP" --ctl timer:10|1:30|1:00:00       # countdown length (switches to the timer)
 "$APP" --ctl adjust:60|-300              # like scrolling: seconds to add or take away
+"$APP" --ctl history|label:<text>|goal:<hours>|clear-history
 "$APP" --ctl background:off|cycle|<file name>   # or background-folder:<path>, drift:on|off
 ```
 
@@ -216,7 +241,7 @@ Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--
 
 ```sh
 ./build.sh      # the app, with swiftc from the Command Line Tools
-./test.sh       # motion-math tests (Swift Testing): exact timing, no jumps on re-apply, sprite timing, focus-mode layout, timer modes and time adjustment
+./test.sh       # motion-math tests (Swift Testing): exact timing, no jumps on re-apply, sprite timing, focus-mode layout, timer modes and time adjustment, history totals
 ```
 
 | Path | License | What |

@@ -29,6 +29,8 @@ Mac 화면 가장자리에 사는 얇은 집중 타이머입니다. 클릭을 �
 - **뽀모도로, 타이머, 스톱워치.** 집중과 휴식을 오가는 세션 말고도, 원하는 길이의 일반
   타이머(1분부터 1시간까지 프리셋)와 스톱워치가 있습니다. 시간 위에서 스크롤하면 바뀝니다. 한 칸에
   1분, Shift는 5분, Option은 10초.
+- **집중 기록.** 집중, 타이머, 스톱워치를 쓸 때마다 내 Mac에 기록합니다. 오늘 합계는 메뉴와 집중
+  모드에("오늘 22리그 항해"), 7일·30일 막대 그래프와 하루 목표, CSV 내보내기는 기록 창에 있습니다.
 - **방해하지 않음.** 2-4px 테두리, 클릭은 그대로 통과, 전체 화면 앱과 화면 공유·녹화 중에는
   숨고, Control-Option-Command-H로 언제든 숨깁니다.
 - **매끄럽고 가벼움.** 움직임은 모두 macOS 렌더 서버에서 돌고, 앱은 모서리와 상태 변화 때만
@@ -84,6 +86,8 @@ open "/Applications/Edge Odyssey.app"
 | Show on | 주 모니터, 모든 모니터(오디세우스는 작업 중인 모니터로 따라옴), 따라오기, 또는 이름으로 고른 모니터 |
 | Border | 2, 3, 4px |
 | Only show in the last 5 minutes | 집중의 마지막 5분 전까지 가장자리를 비워 둠(Claude Code 호출은 표시) |
+| History… | 오늘의 집중, 하루 목표와 비교한 7일/30일 그래프, 최근 기록, CSV 내보내기, 지우기(아래). 메뉴 머리글 아래 줄에 오늘 합계 |
+| Label this session… | 기록에 함께 남길 한 줄 메모(시작 전이면 다음 세션용) |
 | Logbook… | 모은 오디세이아 24권 |
 | Settings | Claude Code 신호, 게임·영상·SNS 앱이 앞에 있으면 졸기, 화면 공유 중 숨기기, 초 단위 카운트다운(끄면 `13m`처럼 분 단위), **로그인 시 실행**(켜기 전까지 꺼짐), 환영 안내 |
 | Hide now | 어디서든 Control-Option-Command-H |
@@ -155,6 +159,23 @@ open "/Applications/Edge Odyssey.app"
 - 화면 공유·녹화 중(그리고 Control-Option-Command-H)에는 남은 시간, 트랙, 사진을 숨기고 빈 배경만
   보여 줍니다. 창 자체도 스크린샷과 녹화에서 빠집니다.
 
+### 집중 기록
+
+<p align="center"><img src="assets/screenshots/history.png" width="450" alt="기록 창: 오늘 22리그 항해, 집중 1시간 51분, 하루 목표 46%, 7일 막대 그래프와 최근 기록"></p>
+<p align="center"><sub>기록 창(예시 데이터).</sub></p>
+
+집중 세션, 타이머, 스톱워치가 끝날 때마다 기록합니다. 시작·끝 시각, 모드, 실제로 흐른 시간(일시정지
+제외), 끝까지 갔는지, 그리고 선택으로 한 줄 메모(*Label this session…*)를 남깁니다. 첫 1분 안에
+멈춘 것은 남기지 않고, 휴식은 기록하지 않습니다.
+
+- **오늘:** 합계 시간, 세션 수, 가장 긴 한 번을 메뉴 머리글 아래와 집중 모드 아래쪽에 보여 줍니다.
+  항해한 거리(노를 저어 한 시간에 12리그)와 하루 목표 달성률도 함께 나옵니다.
+- **History…**(메뉴에서 Command-Y): 하루 목표(없음, 1-8시간, 기본 4시간)와 비교한 7일 또는 30일
+  막대 그래프, 최근 기록, **Export CSV…**, **Clear History…**.
+- 자정을 넘긴 기록은 실제 시각 비율대로 두 날에 나눠 셉니다. 날짜는 Mac의 시간대를 따릅니다.
+- 이 Mac의 `~/.edge-odyssey/history.jsonl`(한 줄에 기록 하나)에만 저장하고, 어디로도 보내지 않습니다.
+  지워도 항해 일지는 남습니다.
+
 <p align="center"><img src="assets/screenshots/logbook.png" width="720" alt="찾은 책과 아직 미지의 책이 보이는 항해 일지 창"></p>
 
 ## Claude Code 신호
@@ -183,7 +204,7 @@ open "/Applications/Edge Odyssey.app"
 네트워크 접속도, 분석 도구도 없습니다. 오버레이 창은 스크린샷과 화면 녹화에서 빠지고, macOS
 화면 캡처 표시등이 켜져 있는 동안(Zoom, Meet, QuickTime 등)에는 가장자리 전체(와 집중 모드의
 내용)가 숨습니다.
-로컬 파일은 `~/.edge-odyssey/`(훅 상태, 항해 일지)와 앱 환경설정(`app.edgeodyssey`)뿐입니다.
+로컬 파일은 `~/.edge-odyssey/`(훅 상태, 항해 일지, 집중 기록)와 앱 환경설정(`app.edgeodyssey`)뿐입니다.
 
 ## 명령줄
 
@@ -195,6 +216,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl mode:pomodoro|timer|stopwatch
 "$APP" --ctl timer:10|1:30|1:00:00       # 타이머 길이(타이머 모드로 바뀜)
 "$APP" --ctl adjust:60|-300              # 스크롤과 같음: 더하거나 뺄 초
+"$APP" --ctl history|label:<메모>|goal:<시간>|clear-history
 "$APP" --ctl background:off|cycle|<파일 이름>   # 또는 background-folder:<경로>, drift:on|off
 ```
 
@@ -208,7 +230,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 
 ```sh
 ./build.sh      # Command Line Tools의 swiftc로 앱 빌드
-./test.sh       # 움직임 수학 테스트(Swift Testing): 정확한 시각, 다시 걸어도 튀지 않음, 스프라이트 박자, 집중 모드 배치, 타이머 모드와 시간 조절
+./test.sh       # 움직임 수학 테스트(Swift Testing): 정확한 시각, 다시 걸어도 튀지 않음, 스프라이트 박자, 집중 모드 배치, 타이머 모드와 시간 조절, 기록 합계
 ```
 
 | 경로 | 라이선스 | 내용 |

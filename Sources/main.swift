@@ -46,6 +46,7 @@ struct Options {
     var background = "cycle"        // focus mode backdrop: "off", "cycle" or one photo's file name
     var backgroundFolder = ""       // the user's own photo folder; empty: the photos that ship with the app
     var backgroundDrift = true      // a slow Ken Burns drift on the backdrop
+    var goalHours = 4.0             // daily focus goal in the history; 0: none
 
     /// Settings the menu changes are kept in UserDefaults; command-line flags override them
     /// for one run without being saved.
@@ -54,7 +55,7 @@ struct Options {
                                        "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4,
                                        "notifyAtEnd": true, "soundVolume": "low", "autoNextFocus": false, "pace": "even",
                                        "focusDisplay": "", "mode": "pomodoro", "timerSeconds": 600.0,
-                                       "focusBackground": "cycle", "backgroundFolder": "", "backgroundDrift": true]   // "sound" unregistered: see init
+                                       "focusBackground": "cycle", "backgroundFolder": "", "backgroundDrift": true, "dailyGoalHours": 4.0]   // "sound" unregistered: see init
 
     init(_ args: [String], defaults d: UserDefaults = .standard) {
         d.register(defaults: Self.saved)
@@ -80,6 +81,7 @@ struct Options {
         background = d.string(forKey: "focusBackground") ?? "cycle"
         backgroundFolder = d.string(forKey: "backgroundFolder") ?? ""
         backgroundDrift = d.bool(forKey: "backgroundDrift")
+        goalHours = min(max(d.double(forKey: "dailyGoalHours"), 0), 16)
         var it = args.dropFirst().makeIterator()
         while let a = it.next() {
             switch a {
@@ -181,6 +183,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     var scrollCarry = 0.0                // trackpad scrolling not yet worth a whole step
     var lengthShownUntil = Date.distantPast   // idle: the menu bar shows the length just scrolled to
     var backgroundIndex = Int.random(in: 0..<1000)
+    lazy var history = HistoryLog(url: o.stateDir.appendingPathComponent("history.jsonl"))
+    var runStart: Date?                  // the focus, timer or stopwatch now running started then
+    var runLabel: String?                // the user's one-line note for this (or the next) run
 
     init(_ o: Options) { self.o = o }
 
@@ -397,6 +402,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     // MARK: timer control
 
     func start() {
+        recordRun()   // a timer still showing 0:00
+        runStart = Date()
         phase = .focus
         if o.mode == .pomodoro { focusCount += 1 }   // timers and stopwatches don't bring a long break closer
         switch o.mode {
@@ -489,6 +496,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     }
 
     func stop() {
+        recordRun()
         phase = .idle
         pausedAt = nil
         lapStart = Date()                                   // agent laps restart from home
@@ -499,6 +507,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     }
 
     func startRest() {
+        recordRun()
         cancelEpisodes()
         restIsLong = Durations.isLongBreak(afterFocus: focusCount, every: o.longEvery)   // long: Calypso's island
         logbook.record(restIsLong ? .calypso : .ithaca)
@@ -561,6 +570,90 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         }
     }
 
+    // MARK: history
+
+    /// Keeps the run that is ending in the local history: a focus, timer or stopwatch, finished
+    /// or stopped early. Under a minute and unfinished, it was a false start and is left out.
+    func recordRun() {
+        guard phase == .focus, let start = runStart else { return }
+        runStart = nil
+        defer { runLabel = nil }
+        let finished = o.mode != .stopwatch && remaining <= 0.5
+        guard let v = currentRun(from: start, finished: finished), finished || v.seconds >= 60 else { return }
+        history.append(v)
+        log("history: \(v.mode) \(Int(v.seconds))s completed=\(v.completed)")
+    }
+
+    /// The run in progress as a history record (nominal seconds, even at demo speed).
+    func currentRun(from start: Date? = nil, finished: Bool = false) -> Voyage? {
+        guard phase == .focus, let s = start ?? runStart else { return nil }
+        let secs = (o.mode == .stopwatch ? elapsed : min(elapsed, phaseDuration)) * o.speed
+        return Voyage(start: s, end: Date(), mode: o.mode == .pomodoro ? "focus" : o.mode.rawValue, seconds: secs,
+                      completed: finished || o.mode == .stopwatch, label: runLabel)
+    }
+
+    /// Today so far, the run in progress included.
+    var today: DaySummary {
+        let dayStart = Calendar.current.startOfDay(for: Date())   // ticks every second: skip older runs cheaply
+        let recent = history.records.filter { $0.end > dayStart } + (currentRun().map { [$0] } ?? [])
+        return History.summary(recent, on: dayStart, calendar: .current)
+    }
+
+    /// "Today 2h 15m · 4 sessions · longest 50m · 27 leagues · 56% of 4h"; `short` leaves out the
+    /// sessions and the longest run.
+    func todayLine(short: Bool = false) -> String {
+        let t = today
+        var parts = ["Today \(History.span(t.seconds))", "\(History.leagues(t.seconds)) leagues"]
+        if !short { parts.insert(contentsOf: ["\(t.sessions) session\(t.sessions == 1 ? "" : "s")", "longest \(History.span(t.longest))"], at: 1) }
+        if o.goalHours > 0 { parts.append("\(Int(t.seconds / (o.goalHours * 36)))% of \(Int(o.goalHours))h") }
+        return parts.joined(separator: " · ")
+    }
+
+    func askLabel() {
+        guard let t = ask(phase == .focus ? "Label this session" : "Label the next session",
+                          hint: "One line, kept in your history on this Mac (empty clears it).", current: runLabel ?? "") else { return }
+        let line = t.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: " ")
+        runLabel = line.isEmpty ? nil : String(line.prefix(120))
+    }
+
+    let historyWindow = PanelWindow()
+
+    func showHistory() {
+        let cal = Calendar.current, now = Date()
+        let recs = history.records + (currentRun().map { [$0] } ?? [])
+        historyWindow.show(title: "History", HistoryView(
+            today: today, goalHours: o.goalHours,
+            week: History.days(recs, endingOn: now, count: 7, calendar: cal),
+            month: History.days(recs, endingOn: now, count: 30, calendar: cal),
+            recent: Array(history.records.suffix(8).reversed()),
+            setGoal: { [weak self] in self?.control("goal:\($0)") },
+            export: { [weak self] in self?.exportHistory() },
+            clear: { [weak self] in self?.clearHistory() }))
+    }
+
+    func exportHistory() {
+        let p = NSSavePanel()
+        let day = ISO8601DateFormatter.string(from: Date(), timeZone: .current, formatOptions: [.withFullDate])
+        p.nameFieldStringValue = "edge-odyssey-history-\(day).csv"
+        p.allowedContentTypes = [.commaSeparatedText]
+        NSApp.activate(ignoringOtherApps: true)
+        guard p.runModal() == .OK, let url = p.url else { return }
+        do { try History.csv(history.records, timeZone: .current).write(to: url, atomically: true, encoding: .utf8) }
+        catch { log("export: \(error)") }
+    }
+
+    func clearHistory() {
+        let a = NSAlert()
+        a.messageText = "Clear your focus history?"
+        a.informativeText = "All \(history.records.count) recorded sessions are deleted from this Mac. This can't be undone. (The logbook of the Odyssey is kept.)"
+        a.addButton(withTitle: "Clear History")
+        a.addButton(withTitle: "Cancel")
+        a.buttons[0].hasDestructiveAction = true
+        NSApp.activate(ignoringOtherApps: true)
+        guard a.runModal() == .alertFirstButtonReturn else { return }
+        control("clear-history")
+    }
+
     /// Time is up: he reaches Ithaca (or Calypso's island), the edge glows gold once, and,
     /// if the user wants them, a notification and a soft sound.
     func focusEnded() {
@@ -611,13 +704,15 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                   current: String(Int(current))).flatMap { Durations.minutes($0, in: range) }
     }
 
+    func askLength(_ what: String, hint: String, current: String) -> String? { ask("\(what) length", hint: hint, current: current) }
+
     /// The typed text, or nil when cancelled.
-    func askLength(_ what: String, hint: String, current: String) -> String? {
+    func ask(_ title: String, hint: String, current: String) -> String? {
         let alert = NSAlert()
-        alert.messageText = "\(what) length"
+        alert.messageText = title
         alert.informativeText = hint
         let field = NSTextField(string: current)
-        field.frame = NSRect(x: 0, y: 0, width: 80, height: 24)
+        field.frame = NSRect(x: 0, y: 0, width: current.count > 8 || title.hasPrefix("Label") ? 280 : 80, height: 24)
         alert.accessoryView = field
         alert.addButton(withTitle: "Set")
         alert.addButton(withTitle: "Cancel")
@@ -743,7 +838,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                 o.timerSeconds = sec; remember("timerSeconds", sec)
                 if o.mode != .timer { control("mode:timer") } else { refresh() }
             }
-        case "adjust": if let d = Double(arg) { adjust(by: d) }   // scripting/demo: seconds, e.g. adjust:60
+        case "adjust": if let d = Double(arg) { adjust(by: d) }
+        case "label": runLabel = arg.isEmpty ? nil : String(arg.prefix(120))
+        case "goal": if let h = Double(arg), (0...16).contains(h) { o.goalHours = h; remember("dailyGoalHours", h); refresh() }
+        case "history": showHistory()
+        case "clear-history": history.clear(); refresh(); if historyWindow.isOpen { showHistory() }   // scripting/demo: seconds, e.g. adjust:60
         case "background": o.background = arg; remember("focusBackground", arg); applyBackground()
         case "background-folder": o.backgroundFolder = arg; remember("backgroundFolder", arg); applyBackground()
         case "drift": o.backgroundDrift = arg != "off"; remember("backgroundDrift", o.backgroundDrift); applyBackground()
@@ -808,6 +907,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         h.isEnabled = false
         menu.addItem(h)
         headerItem = h
+        let td = NSMenuItem(title: todayLine(), action: nil, keyEquivalent: "")
+        td.isEnabled = false
+        menu.addItem(td)
         if phase == .idle {
             let title: String
             switch o.mode {
@@ -824,6 +926,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             }
             menu.addItem(MenuAction("Stop") { [weak self] in self?.stop() })
         }
+        menu.addItem(MenuAction(runLabel.map { "Label: \($0)…" } ?? (phase == .focus ? "Label this session…" : "Label the next session…")) { [weak self] in
+            self?.askLabel()
+        })
         let fm = MenuAction(focusOverlay == nil ? "Focus mode" : "Close focus mode") { [weak self] in self?.toggleFocusMode() }
         fm.keyEquivalent = "f"
         fm.keyEquivalentModifierMask = [.control, .option, .command]
@@ -956,6 +1061,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         ai.isEnabled = false
         menu.addItem(ai)
         menu.addItem(.separator())
+        menu.addItem(MenuAction("History (today \(History.span(today.seconds)))…", key: "y") { [weak self] in self?.showHistory() })
         menu.addItem(MenuAction("Logbook (\(logbook.found.count) of 24 books)…", key: "l") { [weak self] in self?.showLogbook() })
         menu.addItem(submenu("Settings", [
             MenuAction("Show Claude Code signals", checked: o.agentEnabled) { [weak self] in
@@ -1076,6 +1182,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                caption: caption,
                primary: phase == .idle ? "Start (Space)" : paused ? "Resume (Space)" : "Pause (Space)",
                skip: phase == .idle || o.mode != .pomodoro ? nil : phase == .focus ? "Skip to break (S)" : "End break (S)",
+               footer: todayLine(short: true),
                contentHidden: manualHidden || (o.hideWhenCaptured && detector.result.capturing))
     }
 
@@ -1118,6 +1225,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         guard p.runModal() == .OK, let url = p.url else { return }
         control("background-folder:\(url.path)")
     }
+
+    func applicationWillTerminate(_ n: Notification) { recordRun() }   // quitting mid-run still keeps it
 
     func windowWillClose(_ n: Notification) {
         if (n.object as? NSWindow) === focusOverlay?.window { closeFocusMode() }
