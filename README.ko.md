@@ -111,7 +111,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 ```
 
 플래그(이번 실행에만 적용, 저장 안 됨): `--display main|all|follow|<번호>|<이름>`,
-`--style border|traveler`, `--thickness 2..4`, `--last5`, `--focus <분>`, `--rest <분>`,
+`--style border|traveler`, `--pace even|physical`, `--thickness 2..4`, `--last5`, `--focus <분>`, `--rest <분>`,
 `--no-lotus`, `--char <id>`, `--state-dir <폴더>`, `-v`(stderr에 로그).
 
 ## 개발
