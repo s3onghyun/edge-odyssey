@@ -23,7 +23,7 @@
 > この日本語訳は AI の補助によるものです。修正を歓迎します（[翻訳の報告](https://github.com/s3onghyun/edge-odyssey/issues/new?template=translation.yml)）。作者が AI コーディング支援（Claude Code など）を使って作りました。絵もコードで描いたオリジナルです（[`PROVENANCE.md`](PROVENANCE.md)）。
 
 **インストール**（macOS 13 以降、Apple シリコン）：[Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest)
-から ZIP をダウンロードして展開し、**Edge Odyssey** を「アプリケーション」に移します。まだ公証を受けていないため、
+から ZIP をダウンロードして展開し、**Edge Odyssey** を「アプリケーション」に移します。Homebrew なら `brew install --cask s3onghyun/tap/edge-odyssey` です。まだ公証を受けていないため、
 最初の起動で一度だけ許可が必要です：[初回起動](#初回起動)を見てください。表示言語は日本語、English、한국어、
 简体中文で、再起動なしで切り替えられます（[言語](#言語)）。
 
@@ -64,6 +64,17 @@ shasum -a 256 -c Edge-Odyssey-<version>-arm64.zip.sha256
 ditto -x -k "Edge-Odyssey-<version>-arm64.zip" .
 mv "Edge Odyssey.app" /Applications/
 ```
+
+### Homebrew
+
+```sh
+brew install --cask s3onghyun/tap/edge-odyssey
+```
+
+`brew upgrade --cask edge-odyssey` で更新します。初回起動時の許可はこの場合も一度必要です（下記）。
+Homebrew 7 以降は、ほかの tap の cask を信頼（trust）するまで読み込みません。上のようにフルネームで
+インストールすると、この cask だけが自動で信頼されます。インストール前に `brew info --cask s3onghyun/tap/edge-odyssey`
+で確かめたいときは、先に `brew trust --cask s3onghyun/tap/edge-odyssey` を実行してください。
 
 ### 初回起動
 
