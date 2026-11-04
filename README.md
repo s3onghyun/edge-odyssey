@@ -22,7 +22,7 @@ session passes, and the edge glows when Claude Code needs you.</p>
 
 **Install** (macOS 13+, Apple silicon): download the ZIP from
 [Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest), unzip it and move
-**Edge Odyssey** to Applications. It is not notarized yet, so the first launch needs one approval:
+**Edge Odyssey** to Applications, or run `brew install --cask s3onghyun/tap/edge-odyssey`. It is not notarized yet, so the first launch needs one approval:
 see [First launch](#first-launch). The app speaks English, 한국어, 日本語 and 简体中文
 ([Languages](#languages)).
 
@@ -69,6 +69,17 @@ shasum -a 256 -c Edge-Odyssey-<version>-arm64.zip.sha256
 ditto -x -k "Edge-Odyssey-<version>-arm64.zip" .
 mv "Edge Odyssey.app" /Applications/
 ```
+
+### Homebrew
+
+```sh
+brew install --cask s3onghyun/tap/edge-odyssey
+```
+
+`brew upgrade --cask edge-odyssey` updates it. The first launch still needs one approval (below).
+Homebrew 7 and later load casks from other taps only once you trust them; installing by the full
+name, as above, trusts this one cask by itself. To look at it first with
+`brew info --cask s3onghyun/tap/edge-odyssey`, run `brew trust --cask s3onghyun/tap/edge-odyssey` before it.
 
 ### First launch
 
