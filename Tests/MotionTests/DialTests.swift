@@ -85,6 +85,16 @@ import Testing
     #expect(Dial.ring(.focus, left: 0, total: 0) == nil)
 }
 
+@Test func dialTicksKnowMinutesDetentsAndFastGestures() {
+    #expect(DialTick.kind(from: 20, to: 21) == .minute)
+    #expect(DialTick.kind(from: 24, to: 25) == .detent)
+    #expect(DialTick.kind(from: 26, to: 24) == .detent)
+    #expect(DialTick.kind(from: 25.1, to: 25.4) == nil)
+    #expect(DialTick.mayPlay(at: 10, after: nil))
+    #expect(!DialTick.mayPlay(at: 10 + DialTick.minimumInterval / 2, after: 10))
+    #expect(DialTick.mayPlay(at: 10 + DialTick.minimumInterval, after: 10))
+}
+
 @Test(arguments: focusWindows)
 func dialFitsTheRoomAboveItsRows(window: CGSize) {
     let st = FocusLayout.stage(in: window)

@@ -35,6 +35,7 @@ struct Options {
     var notifyAtEnd = true          // macOS notification when a focus or a break ends
     var sound = "off"               // Chime.choices: harp, glass or off, at the end of a focus and a break
     var soundVolume = "low"         // Chime.volumes: low or medium
+    var dialSound = true             // synthesized setting ticks; its volume follows soundVolume
     var autoNextFocus = false       // start the next focus by itself when a break ends
     var autoStartBreak = false      // start the break by itself when a focus ends (else wait at Ithaca)
     var autoRestMinutes = ArrivalWait.defaultMinutes   // waiting at Ithaca: the break starts by itself after this (0: never)
@@ -56,7 +57,7 @@ struct Options {
     static let saved: [String: Any] = ["style": "traveler", "display": "main", "thickness": 3.0, "onlyLast5": false,
                                        "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true,
                                        "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4,
-                                       "notifyAtEnd": true, "soundVolume": "low", "autoNextFocus": false, "autoStartBreak": false, "autoRestMinutes": ArrivalWait.defaultMinutes, "pace": "even",
+                                       "notifyAtEnd": true, "soundVolume": "low", "dialSound": true, "autoNextFocus": false, "autoStartBreak": false, "autoRestMinutes": ArrivalWait.defaultMinutes, "pace": "even",
                                        "focusDisplay": "", "mode": "pomodoro", "timerSeconds": 600.0,
                                        "focusBackground": "cycle", "backgroundFolder": "", "backgroundDrift": true, "dailyGoalHours": 4.0,
                                        "checkUpdates": true]   // "sound" unregistered: see init
@@ -78,6 +79,7 @@ struct Options {
         // 0.1 kept an on/off toggle; nothing saved at all means the default (the harp).
         sound = Chime.choice(d.string(forKey: "sound") ?? d.object(forKey: "soundAtEnd").map { _ in d.bool(forKey: "soundAtEnd") ? "on" : "off" })
         soundVolume = Chime.volume(d.string(forKey: "soundVolume"))
+        dialSound = d.bool(forKey: "dialSound")
         autoNextFocus = d.bool(forKey: "autoNextFocus")
         autoStartBreak = d.bool(forKey: "autoStartBreak")
         autoRestMinutes = ArrivalWait.minutes(d.integer(forKey: "autoRestMinutes"))
@@ -199,6 +201,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     var runStart: Date?                  // the focus, timer or stopwatch now running started then
     var runLabel: String?                // the user's one-line note for this (or the next) run
     var updateStatus: UpdateStatus?      // the update check this run: checking, up to date or failed
+    lazy var dialTicks = DialTickSound()
+    var lastDialTickAt: TimeInterval?
 
     init(_ o: Options) { self.o = o }
 
@@ -221,6 +225,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     func applicationDidFinishLaunching(_ n: Notification) {
         if let a = o.appearance { NSApp.appearance = NSAppearance(named: a == "dark" ? .darkAqua : .aqua) }
         loadSprites()
+        dialTicks.warm()
         buildStatusItem()
         // The palette has light and dark variants: recolour the edge and the menu bar when macOS switches.
         appearanceWatch = NSApp.observe(\.effectiveAppearance) { [weak self] _, _ in DispatchQueue.main.async { self?.refresh() } }
@@ -925,6 +930,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     func adjust(by delta: Double) {
         let before = dialState?.left
         defer {   // a detent you can feel, on a Force Touch trackpad
+            dialTick(from: before, to: dialState?.left)
             if let a = dialState?.left, let b = before, abs(a - b) > 0.001, Dial.isDetent(a) {
                 NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .now)
             }
@@ -948,6 +954,17 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         lengthShownUntil = Date().addingTimeInterval(2)
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.05) { [weak self] in self?.updateTitle() }
         refresh()
+    }
+
+    /// A setting gesture gets one click for each normal minute movement.  Fast touchpad drags
+    /// are gated before they reach the audio engine, so they cannot cause a delayed sound tail.
+    func dialTick(from before: Double?, to after: Double?) {
+        guard o.dialSound, o.sound != "off", let before, let after,
+              let kind = DialTick.kind(from: before, to: after) else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        guard DialTick.mayPlay(at: now, after: lastDialTickAt) else { return }
+        lastDialTickAt = now
+        dialTicks.play(kind, volume: Chime.volumes[o.soundVolume] ?? 0.25)
     }
 
     /// The length the next start runs for, as the clock shows it.
@@ -1005,6 +1022,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         case "notify": o.notifyAtEnd = arg != "off"; remember("notifyAtEnd", o.notifyAtEnd)
         case "sound": o.sound = Chime.choice(arg); remember("sound", o.sound); if o.sound != "off" { chime(focusEnded: true) }   // a preview
         case "volume": o.soundVolume = Chime.volume(arg); remember("soundVolume", o.soundVolume); chime(focusEnded: true)
+        case "dial-sound": o.dialSound = arg != "off"; remember("dialSound", o.dialSound)
         case "autorest-after": if let n = Int(arg) { o.autoRestMinutes = ArrivalWait.minutes(n); remember("autoRestMinutes", o.autoRestMinutes) }
         case "autonext": o.autoNextFocus = arg == "on"; remember("autoNextFocus", o.autoNextFocus)
         case "autorest": o.autoStartBreak = arg == "on"; remember("autoStartBreak", o.autoStartBreak)

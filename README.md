@@ -177,6 +177,9 @@ new ZIP from the release page, check its `.sha256` and replace the app as in [In
   macOS system sound) or **Off**, and a low (default) or medium volume. Picking one plays it once;
   the welcome guide has the same switch and a *Listen* button. With the sound off, the
   notification brings the system alert sound instead (one sound, never two).
+- *Timer > Dial sound*: a synthesized mechanical tick follows each one-minute dial adjustment;
+  the 15, 25, 45 and 50-minute stops are a little heavier. It shares the end-sound volume and is
+  on by default; turn it off here if you prefer silent dial changes.
 - Notifications are time-sensitive and follow macOS Focus / Do Not Disturb: a Focus that doesn't
   allow them holds them back.
 
