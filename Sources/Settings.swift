@@ -79,6 +79,8 @@ struct SettingsView: View {
                     Text(L.t("Low", "작게", "小", "低")).tag("low")
                     Text(L.t("Medium", "보통", "中", "中")).tag("medium")
                 }.pickerStyle(.segmented).disabled(o.sound == "off")
+                Toggle(L.t("Dial sound", "다이얼 소리", "ダイヤル音", "表盘声音"), isOn: flag(o.dialSound, "dial-sound"))
+                    .disabled(o.sound == "off")
                 Toggle(L.t("Start the break by itself when a focus ends", "집중이 끝나면 휴식 자동 시작", "集中が終わったら休憩を自動で始める", "专注结束后自动开始休息"),
                        isOn: flag(o.autoStartBreak, "autorest"))
                 Picker(L.t("If I don't answer at Ithaca", "도착 후 확인이 없으면", "到着後に応答がなければ", "到达后没有回应时"), selection: bind(o.autoRestMinutes, "autorest-after")) {

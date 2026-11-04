@@ -20,7 +20,7 @@ import Testing
         let elsewhere: Set = ["language", "login", "update-check", "focus-display"]   // setLanguage, SMAppService, an action, openFocusMode
         for c in window.subtracting(elsewhere) { #expect(!(control.keys[c] ?? []).isEmpty, "\(c) saves no setting") }
         let expected = ["focus": "focusMinutes", "rest": "restMinutes", "long-every": "longEvery", "timer": "timerSeconds", "mode": "mode",
-                        "notify": "notifyAtEnd", "sound": "sound", "volume": "soundVolume", "autorest": "autoStartBreak",
+                        "notify": "notifyAtEnd", "sound": "sound", "volume": "soundVolume", "dial-sound": "dialSound", "autorest": "autoStartBreak",
                         "autorest-after": "autoRestMinutes", "autonext": "autoNextFocus", "style": "style", "pace": "pace",
                         "display": "display", "thickness": "thickness", "last5": "onlyLast5", "seconds": "showSeconds",
                         "background": "focusBackground", "background-folder": "backgroundFolder", "drift": "backgroundDrift",

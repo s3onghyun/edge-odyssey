@@ -145,8 +145,8 @@ struct WelcomeView: View {
             Group {
                 switch page {
                 case 0: voyage
-                case 1: claude
-                default: quiet
+                case 1: dial
+                default: arrival
                 }
             }
             .frame(width: 480, height: 330, alignment: .topLeading)
@@ -208,34 +208,31 @@ struct WelcomeView: View {
         }
     }
 
-    private var claude: some View {
+    private var dial: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .bottom, spacing: 18) { art("sirens-1"); art("storm-1") }
-            title(L.t("Claude Code signals (optional)", "Claude Code 신호 (선택)", "Claude Code のシグナル（任意）", "Claude Code 信号（可选）"))
-            Text(L.t("With a small hook, the edge tells you what Claude Code is doing: a quiet blue edge while it works, the Sirens and one soft gold swell when it waits for you, and Poseidon's storm near the 5-hour limit. Nothing leaves your Mac.",
-                     "작은 훅 하나로 가장자리가 Claude Code의 상태를 알려 줘요. 일하는 동안은 조용한 파란 테두리, 당신을 기다릴 때는 세이렌과 한 번의 부드러운 금빛 물결, 5시간 한도에 가까우면 포세이돈의 폭풍. 아무것도 Mac 밖으로 나가지 않아요.",
-                     "小さなフックで、画面の縁が Claude Code の様子を知らせます。作業中は静かな青い縁、あなたを待っているときはセイレーンと一度だけのやわらかな金色のうねり、5時間の上限が近いとポセイドンの嵐。Mac の外には何も送りません。",
-                     "装上一个小钩子，屏幕边缘就会告诉你 Claude Code 在做什么：工作时是安静的蓝边，等你时是塞壬和一次柔和的金色涌动，接近 5 小时上限时是波塞冬的风暴。任何内容都不会离开你的 Mac。"))
-            HStack(spacing: 12) {
-                Button(L.t("Copy hook snippet", "훅 설정 복사", "フック設定をコピー", "复制钩子配置")) { copied = copyHookSnippet() }
-                if let copied { Text(copied).type(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
-            }
-            Text(L.t("Then paste it into ~/.claude/settings.json yourself (merge it with any \"hooks\" you already have). Edge Odyssey never edits that file. Already have a statusLine? Keep yours and set EDGE_ODYSSEY_STATUSLINE_NEXT to it.",
-                     "그다음 ~/.claude/settings.json 에 직접 붙여 넣으세요(이미 있는 \"hooks\"와 합쳐서). Edge Odyssey는 그 파일을 고치지 않아요. 이미 statusLine이 있다면 그대로 두고 EDGE_ODYSSEY_STATUSLINE_NEXT 에 지정하세요.",
-                     "次に ~/.claude/settings.json へ自分で貼り付けてください（既存の \"hooks\" とまとめて）。Edge Odyssey はそのファイルを編集しません。statusLine がすでにあれば、そのまま残して EDGE_ODYSSEY_STATUSLINE_NEXT に指定してください。",
-                     "然后自己把它粘贴到 ~/.claude/settings.json（与已有的 \"hooks\" 合并）。Edge Odyssey 从不修改该文件。已经有 statusLine？保留它，并把它设给 EDGE_ODYSSEY_STATUSLINE_NEXT。"))
+            HStack(alignment: .bottom, spacing: 18) { art("walk-1"); art("climb-mast-1") }
+            title(L.t("Set the dial, then sail", "다이얼을 맞추고 출항하기", "ダイヤルを合わせて出航", "设定表盘，然后启航"))
+            Text(L.t("Open Focus mode from the menu bar or with Control-Option-Command-F. Click or drag the dial to choose a length; the gold stops are 15, 25, 45 and 50 minutes. Press Start (or Space) to begin. Press it again to pause, then stop or leave whenever you need.",
+                     "메뉴 막대나 Control-Option-Command-F로 집중 모드를 여세요. 다이얼을 클릭하거나 드래그해 시간을 고르고, 금색 멈춤점인 15·25·45·50분도 써 보세요. 시작(또는 Space)을 누르면 출항하고, 다시 누르면 멈췄다가 필요할 때 언제든 중지하거나 나갈 수 있어요.",
+                     "メニューバーまたは Control-Option-Command-F で集中モードを開きます。ダイヤルをクリックまたはドラッグして時間を選び、金色の止まり位置（15、25、45、50 分）も使えます。開始（または Space）で出航し、もう一度で一時停止。いつでも停止・終了できます。",
+                     "从菜单栏或按 Control-Option-Command-F 打开专注模式。点击或拖动表盘选择时长，也可使用金色停靠点：15、25、45 和 50 分钟。按“开始”（或 Space）启航；再次按可暂停，随时可以停止或退出。"))
+            Label(L.t("Each minute has a light mechanical tick; the gold stops click a little deeper. Turn it off later in Settings > Timer.", "매 분마다 가벼운 기계음이 나고 금색 멈춤점에서는 조금 더 묵직하게 들려요. 설정 > 타이머에서 끌 수 있어요.", "各分で小さな機械音、金色の止まり位置では少し重いクリック音がします。あとで「設定 ＞ タイマー」からオフにできます。", "每一分钟有轻微的机械声，金色停靠点的声音稍重。之后可在“设置 > 计时”中关闭。"), systemImage: "dial.medium")
                 .type(.callout).foregroundStyle(.secondary)
         }
     }
 
-    private var quiet: some View {
+    private var arrival: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .bottom, spacing: 18) { art("doze-0"); art("ithaca-0") }
-            title(L.t("Out of your way", "방해하지 않아요", "じゃまをしません", "不打扰你"))
-            Text(L.t("The edge never takes a click. It hides in full-screen apps and while your screen is shared or recorded, and Control-Option-Command-H hides it any time. Episodes from the Odyssey fill a 24-book logbook as you focus.",
-                     "가장자리는 클릭을 가로채지 않아요. 전체 화면 앱에서, 그리고 화면을 공유하거나 녹화하는 동안 숨고, Control-Option-Command-H로 언제든 숨길 수 있어요. 집중하는 동안 『오디세이아』의 에피소드가 24권짜리 항해 일지를 채워요.",
-                     "縁がクリックを奪うことはありません。フルスクリーンのアプリや、画面の共有・録画中は隠れ、Control-Option-Command-H でいつでも隠せます。集中するうちに『オデュッセイア』のエピソードが24巻の航海日誌を埋めていきます。",
-                     "边缘从不拦截点击。在全屏应用中、共享或录制屏幕时它会隐藏，随时按 Control-Option-Command-H 也能隐藏。专注时，《奥德赛》的插曲会填满 24 卷的航海日志。"))
+            title(L.t("Arrive, rest, make it yours", "도착하고, 쉬고, 내 방식으로", "到着、休憩、自分好みに", "抵达、休息、按你的方式来"))
+            Text(L.t("At the end of a focus voyage Odysseus reaches Ithaca. Start your break from the arrival button; the overtime clock stops when the break begins. Everything else lives in Settings (Command-comma): sounds, dial sound, lengths, backgrounds, displays and more. You can reopen this short guide there at any time.",
+                     "집중 항해가 끝나면 오디세우스가 이타카에 닿아요. 도착 버튼으로 휴식을 시작하면 추가 시간 시계가 멈춥니다. 소리, 다이얼 소리, 시간, 배경, 모니터 등은 모두 설정(⌘,)에서 바꿀 수 있고, 이 짧은 안내도 언제든 다시 열 수 있어요.",
+                     "集中の航海が終わると、オデュッセウスはイタケに着きます。到着ボタンから休憩を始めると延長時間の時計は止まります。音、ダイヤル音、長さ、背景、ディスプレイなどは「設定」（⌘,）にあり、この短いガイドもいつでも開き直せます。",
+                     "专注航行结束时，奥德修斯会抵达伊萨卡。从抵达按钮开始休息，超时计时就会停止。声音、表盘声音、时长、背景、显示器等都在“设置”(⌘,) 中；你也能随时在那里重新打开这份简短指南。"))
+            HStack(spacing: 12) {
+                Button(L.t("Copy Claude Code hook snippet", "Claude Code 훅 설정 복사", "Claude Code フック設定をコピー", "复制 Claude Code 钩子配置")) { copied = copyHookSnippet() }
+                if let copied { Text(copied).type(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
+            }
             Toggle(L.t("Launch Edge Odyssey at login", "로그인할 때 Edge Odyssey 실행", "ログイン時に Edge Odyssey を起動", "登录时启动 Edge Odyssey"), isOn: $login)
                 .onChange(of: login) { setLoginItem($0); login = LoginItem.isOn }
             HStack {
