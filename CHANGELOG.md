@@ -2,6 +2,9 @@
 
 ## 0.4.0 (unreleased)
 
+- **Universal Mac build.** Edge Odyssey now runs on macOS 13+ Macs with either Apple silicon or
+  Intel processors. Release archive names stay unchanged so existing Homebrew installs continue
+  to update normally.
 - **A Settings window** (*Settings…*, ⌘, in the menu): every option of the menu in one window,
   grouped as Timer, When time is up, On screen, Focus mode and General, in all four languages.
   It stays open, so changing several settings no longer means reopening the menu each time;

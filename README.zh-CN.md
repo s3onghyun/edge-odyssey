@@ -49,9 +49,9 @@ Claude Code 需要你时，屏幕边缘会轻轻发光。</p>
 
 ## 安装
 
-Edge Odyssey 需要 Apple 芯片的 Mac 和 macOS 13 或更高版本。从[最新版本](https://github.com/s3onghyun/edge-odyssey/releases/latest)
-下载 `Edge-Odyssey-<version>-arm64.zip` 和对应的 `.sha256` 文件。（目前只提供 Apple 芯片版本，
-还没有 universal 版本。）
+Edge Odyssey 需要搭载 Apple 芯片或 Intel 处理器的 Mac，以及 macOS 13 或更高版本。从[最新版本](https://github.com/s3onghyun/edge-odyssey/releases/latest)
+下载 `Edge-Odyssey-<version>-arm64.zip` 和对应的 `.sha256` 文件。为兼容 Homebrew，文件名保持不变；
+其中的 app 是同时适用于两类 Mac 的 universal 构建。
 
 安装前先校验下载的文件：
 
