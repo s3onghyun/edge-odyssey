@@ -3,7 +3,7 @@
 **A pomodoro that lives on the edge of your screen.** Odysseus rows, climbs, hangs and slides round your Mac's screen edge as the session passes, and the edge glows when Claude Code needs you.
 
 ### Install
-1. Download `Edge-Odyssey-VERSION-arm64.zip` below (macOS 13+, Apple silicon). To verify it, also download the `.sha256` file and run `shasum -a 256 -c Edge-Odyssey-VERSION-arm64.zip.sha256`.
+1. Download `Edge-Odyssey-VERSION-arm64.zip` below (macOS 13+, Apple silicon or Intel). The filename remains for Homebrew compatibility; the app inside is universal. To verify it, also download the `.sha256` file and run `shasum -a 256 -c Edge-Odyssey-VERSION-arm64.zip.sha256`.
 2. Unzip it and move **Edge Odyssey** to Applications.
 3. First launch: the app is not notarized yet. On macOS 15 and later, open it once, then **System Settings → Privacy & Security → Open Anyway**. On macOS 13-14 you can Control-click it and choose **Open**.
 

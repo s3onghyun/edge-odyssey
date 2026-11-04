@@ -52,9 +52,9 @@
 
 ## インストール
 
-Edge Odyssey は Apple シリコンの Mac と macOS 13 以降が必要です。[最新リリース](https://github.com/s3onghyun/edge-odyssey/releases/latest)
+Edge Odyssey は Apple シリコンまたは Intel Mac の macOS 13 以降が必要です。[最新リリース](https://github.com/s3onghyun/edge-odyssey/releases/latest)
 から `Edge-Odyssey-<version>-arm64.zip` と対になる `.sha256` ファイルをダウンロードしてください。
-（今のところ Apple シリコン専用で、universal ビルドはまだありません。）
+Homebrew との互換性のためファイル名はそのままですが、中のアプリは両方の Mac で動く universal ビルドです。
 
 インストールの前にダウンロードを確認します。
 

@@ -56,10 +56,10 @@ see [First launch](#first-launch). The app speaks English, 한국어, 日本語 
 
 ## Install
 
-Edge Odyssey needs macOS 13 or later on an Apple-silicon Mac. Download the current
+Edge Odyssey needs macOS 13 or later on an Apple-silicon or Intel Mac. Download the current
 `Edge-Odyssey-<version>-arm64.zip` and its matching `.sha256` file from the
-[latest release](https://github.com/s3onghyun/edge-odyssey/releases/latest). (Releases are
-Apple-silicon only for now; a universal build is not available yet.)
+[latest release](https://github.com/s3onghyun/edge-odyssey/releases/latest). The filename stays
+the same for Homebrew compatibility; the app inside is a universal build for both kinds of Mac.
 
 Verify the download before installing:
 

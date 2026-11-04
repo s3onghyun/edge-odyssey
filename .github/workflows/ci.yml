@@ -19,5 +19,7 @@ jobs:
           EDGE_ODYSSEY_BUNDLE_ID: dev.edgeodyssey.ci
           EDGE_ODYSSEY_VERSION: 0.3.0-ci
         run: ./build.sh
+      - name: Verify universal executable
+        run: lipo 'build/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey' -verify_arch arm64 x86_64
       - name: Verify app signature
         run: codesign --verify --deep --strict "build/Edge Odyssey.app"

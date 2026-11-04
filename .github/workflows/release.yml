@@ -23,7 +23,7 @@ jobs:
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
       - name: Test
         run: ./test.sh
-      - name: Build Apple-silicon app
+      - name: Build universal app
         env:
           EDGE_ODYSSEY_BUNDLE_ID: app.edgeodyssey
           EDGE_ODYSSEY_VERSION: ${{ steps.version.outputs.version }}
@@ -35,9 +35,12 @@ jobs:
         run: |
           set -euo pipefail
           app="build/Edge Odyssey.app"
+          # Keep this long-standing filename: Homebrew's cask updater consumes it. Its
+          # contents are now universal, as verified below.
           archive="Edge-Odyssey-${VERSION}-arm64.zip"
           codesign --force --deep --sign - "$app"
           codesign --verify --deep --strict --verbose=2 "$app"
+          lipo "$app/Contents/MacOS/EdgeOdyssey" -verify_arch arm64 x86_64
           ditto -c -k --sequesterRsrc --keepParent "$app" "$archive"
           shasum -a 256 "$archive" > "$archive.sha256"
       - name: Prepare changelog notes

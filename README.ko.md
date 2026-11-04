@@ -52,10 +52,10 @@ ZIP을 받아 풀고 **Edge Odyssey**를 응용 프로그램 폴더로 옮기세
 
 ## 설치
 
-Edge Odyssey는 Apple silicon Mac의 macOS 13 이상에서 쓸 수 있습니다. [최신
+Edge Odyssey는 Apple silicon 또는 Intel Mac의 macOS 13 이상에서 쓸 수 있습니다. [최신
 릴리스](https://github.com/s3onghyun/edge-odyssey/releases/latest)에서
-`Edge-Odyssey-<version>-arm64.zip`와 짝이 되는 `.sha256` 파일을 받으세요. 릴리스는 아직 Apple
-silicon 전용이며, universal 빌드는 제공하지 않습니다.
+`Edge-Odyssey-<version>-arm64.zip`와 짝이 되는 `.sha256` 파일을 받으세요. Homebrew 호환성을 위해
+파일명은 그대로지만, 안의 앱은 두 종류의 Mac에서 모두 작동하는 universal 빌드입니다.
 
 설치하기 전에 내려받은 파일을 확인합니다.
 

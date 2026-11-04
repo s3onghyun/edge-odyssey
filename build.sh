@@ -1,15 +1,42 @@
 #!/bin/sh
-# Builds "build/Edge Odyssey.app" for Apple silicon with the Command Line Tools' swiftc
+# Builds a universal "build/Edge Odyssey.app" with the Command Line Tools' swiftc
 # (no Xcode project needed). Set EDGE_ODYSSEY_BUNDLE_ID for an isolated development copy.
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 app="$here/build/Edge Odyssey.app"
 bundle_id=${EDGE_ODYSSEY_BUNDLE_ID:-app.edgeodyssey}
 version=${EDGE_ODYSSEY_VERSION:-0.3.0}
+
+# Compile each architecture separately, then join them with lipo. ARCHS is useful when
+# iterating locally, while releases and the default build stay universal.
+case ${ARCHS:-universal} in
+  universal) architectures="arm64 x86_64" ;;
+  arm64|x86_64) architectures=${ARCHS} ;;
+  *) echo "ARCHS must be universal, arm64, or x86_64" >&2; exit 2 ;;
+esac
+
+scratch=$(mktemp -d "${TMPDIR:-/tmp}/edge-odyssey-build.XXXXXX")
+trap 'rm -rf "$scratch"' EXIT
+
+bins=""
+for architecture in $architectures; do
+  binary="$scratch/EdgeOdyssey-$architecture"
+  swiftc -swift-version 5 -O -target "$architecture-apple-macos13" \
+    -o "$binary" "$here"/Sources/*.swift
+  bins="$bins $binary"
+done
+
+set -- $bins
+if [ "$#" -eq 1 ]; then
+  bin=$1
+else
+  bin="$scratch/EdgeOdyssey-universal"
+  lipo -create "$@" -output "$bin"
+fi
+
 rm -rf "$app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources/characters" "$app/Contents/Resources/sketches" "$app/Contents/Resources/hooks"
-swiftc -swift-version 5 -O -target arm64-apple-macos13 \
-  -o "$app/Contents/MacOS/EdgeOdyssey" "$here"/Sources/*.swift
+cp "$bin" "$app/Contents/MacOS/EdgeOdyssey"
 cp -R "$here"/assets/characters/ "$app/Contents/Resources/characters/"
 cp "$here"/assets/sketches/*.sprite "$app/Contents/Resources/sketches/"   # discussion drafts
 cp "$here"/hooks/* "$app/Contents/Resources/hooks/"
