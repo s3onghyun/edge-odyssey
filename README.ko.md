@@ -116,6 +116,7 @@ open "/Applications/Edge Odyssey.app"
 | Focus mode on | 모니터가 둘 이상일 때 집중 모드를 열 모니터(기억됨) |
 | Focus mode background | 끄기, 세션마다 다른 사진(기본), 사진 하나 고정, **내 폴더** 사용. 천천히 움직이기 켜기/끄기 |
 | Mode | 오디세우스 항해(테두리 + 여행자) 또는 얇은 테두리만. Speed: Even(기본) 또는 Physical |
+| Character | 오디세우스(기본) 또는 개발자 항해자: 헤드폰을 쓰고 노트북을 든 요즘 개발자가 작은 배를 타고 터미널 바다 위로 화면 가장자리를 돕니다. 키클롭스, 바람 자루 같은 오디세이아 에피소드는 오디세우스에게만 나옵니다 |
 | Show on | 주 모니터, 모든 모니터(오디세우스는 작업 중인 모니터로 따라옴), 따라오기, 또는 이름으로 고른 모니터 |
 | Border | 2, 3, 4px |
 | Only show in the last 5 minutes | 집중의 마지막 5분 전까지 가장자리를 비워 둠(Claude Code 호출은 표시) |
@@ -343,5 +344,8 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 `cling` / `zip`(위), `slide`(왼쪽), `idle`, `sirens`, `storm`, `rest`, `ithaca`, `doze`, `ram`,
 에피소드 소품 `ep-*`. 없는 것은 `walk`나 `idle`로 대신하므로 걷기 한 동작만으로도 새 캐릭터를
 시작할 수 있습니다.
+가장자리 애니메이션(`climb`, `cling`, `zip`, `slide`)이 하나도 없는 캐릭터는 모든 가장자리를
+`walk`로 항해하고, 모서리에서는 배째로 방향을 바꿉니다. `ep-*` 소품이 없는 캐릭터에게는
+오디세이아 에피소드가 나오지 않습니다. 개발자 항해자(`tools/make_dev_voyager.py`)가 둘 다 해당합니다.
 
 바뀐 내용은 [`CHANGELOG.md`](CHANGELOG.md)에 있습니다.

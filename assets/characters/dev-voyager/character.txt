@@ -1,0 +1,10 @@
+# Edge Odyssey vector character - Developer Voyager (SVG frames). Source: tools/make_dev_voyager.py
+name: Developer Voyager
+size: 32x26
+anim: walk fps=5 frames=walk-0.svg,walk-1.svg,walk-2.svg,walk-3.svg
+anim: idle fps=2.5 frames=idle-0.svg,idle-1.svg,idle-2.svg,idle-3.svg,idle-4.svg,idle-5.svg,idle-6.svg,idle-7.svg
+anim: sirens fps=3 frames=sirens-0.svg,sirens-1.svg
+anim: storm fps=4 frames=storm-0.svg,storm-1.svg,storm-2.svg,storm-3.svg
+anim: rest fps=1.5 frames=rest-0.svg,rest-1.svg
+anim: ithaca fps=2 frames=ithaca-0.svg,ithaca-1.svg
+anim: doze fps=1.5 frames=doze-0.svg,doze-1.svg

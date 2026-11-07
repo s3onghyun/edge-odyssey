@@ -486,6 +486,9 @@ final class Overlay {
         mover.position = edge.point(s.physical ? edgeProfile(edge.kind, zip: s.ceilingAnim == "zip")(local) : local)
         poser.setAffineTransform(CGAffineTransform(rotationAngle: edge.angle))
 
+        // A character with no edge art sails every edge like the floor (the turn below rounds the corner).
+        let sails = sailsEveryEdge(sprite.anims.keys)
+        let kind = sails ? .floor : edge.kind
         // Pick frames: waiting agent -> wave; break -> sleep; paused/limit -> idle; else per edge.
         func pick(_ names: String...) -> String { names.first { sprite.anims[$0] != nil } ?? "walk" }
         let animName: String
@@ -497,14 +500,14 @@ final class Overlay {
         else if let o = s.overrideAnim, edge.kind == .floor, sprite.anims[o] != nil { animName = o }
         else if s.dozing { animName = pick("doze", "walk") }
         else {
-            switch edge.kind {
+            switch kind {
             case .floor: animName = "walk"
             case .ceiling: animName = pick(s.ceilingAnim, "cling", "walk")
             case .climb: animName = pick(s.climbAnim, "climb", "walk")
             case .slide: animName = "slide"
             }
         }
-        playFrames(sprite.anims[animName] ?? sprite.anims["walk"]!, slow: edge.kind == .ceiling && moving ? 1.6 : 1)
+        playFrames(sprite.anims[animName] ?? sprite.anims["walk"]!, slow: kind == .ceiling && moving ? 1.6 : 1)
 
         // Corner transition: a quick turn (and a squash when landing from the slide).
         if let prev = lastEdge, prev != k, moving || s.phase == .rest {
@@ -517,7 +520,7 @@ final class Overlay {
             turn.duration = 0.35
             turn.timingFunction = CAMediaTimingFunction(name: .easeOut)
             poser.add(turn, forKey: "turn")
-            if j.edges[prev].kind == .slide {
+            if j.edges[prev].kind == .slide && !sails {
                 let squash = CAKeyframeAnimation(keyPath: "transform.scale.y")
                 squash.values = [0.6, 1.15, 0.95, 1]
                 squash.keyTimes = [0, 0.35, 0.7, 1]
@@ -552,7 +555,7 @@ final class Overlay {
         // Micro-motion cycles count from the moment he reached this edge: zero offset at the
         // corner, and the same phase however often the scene is re-applied.
         let edgeStart = CACurrentMediaTime() - (t - j.timeMarks[k]) * total
-        addMicroMotion(edge.kind, speed: speed, zip: zip, spriteHeight: sh, since: edgeStart)
+        addMicroMotion(kind, speed: speed, zip: zip, spriteHeight: sh, since: edgeStart)
 
         edgeTimer = Timer.scheduledTimer(withTimeInterval: edgeRemaining + 0.02, repeats: false) { [weak self] _ in
             guard let self, let scene = self.sceneProvider?() else { return }
