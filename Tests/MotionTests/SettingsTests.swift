@@ -17,9 +17,9 @@ import Testing
         #expect(savedByMenu.count > 20)
         #expect(savedByMenu.subtracting(window).isEmpty, "missing from the Settings window: \(savedByMenu.subtracting(window).sorted())")
         // each window command saves a key, apart from the ones that save elsewhere
-        let elsewhere: Set = ["language", "login", "update-check", "focus-display"]   // setLanguage, SMAppService, an action, openFocusMode
+        let elsewhere: Set = ["language", "login", "update-check", "focus-display", "reset-session-goal"]   // setLanguage, SMAppService, actions, openFocusMode
         for c in window.subtracting(elsewhere) { #expect(!(control.keys[c] ?? []).isEmpty, "\(c) saves no setting") }
-        let expected = ["focus": "focusMinutes", "rest": "restMinutes", "long-every": "longEvery", "timer": "timerSeconds", "mode": "mode",
+        let expected = ["focus": "focusMinutes", "rest": "restMinutes", "long-every": "longEvery", "session-goal": "sessionGoal", "timer": "timerSeconds", "mode": "mode",
                         "notify": "notifyAtEnd", "sound": "sound", "volume": "soundVolume", "dial-sound": "dialSound", "autorest": "autoStartBreak",
                         "autorest-after": "autoRestMinutes", "autonext": "autoNextFocus", "style": "style", "pace": "pace",
                         "display": "display", "thickness": "thickness", "last5": "onlyLast5", "seconds": "showSeconds",

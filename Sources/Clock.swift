@@ -55,6 +55,13 @@ func endMessage(focusEnded: Bool, longBreak: Bool, breakMinutes m: Int, waits: B
                   "集中完了。\(m) 分の休憩を始めるとタイマーが止まります。", "专注完成。开始 \(m) 分钟休息，计时就会停止。", in: lang))
 }
 
+/// The arrival notification when the optional number of focus sessions for today is complete.
+func sessionGoalMessage(count: Int, goal: Int, lang: Lang? = nil) -> (title: String, body: String) {
+    (L.t("Daily goal reached", "오늘의 목표 달성", "今日の目標を達成", "已完成今日目标", in: lang),
+     L.t("You completed \(count) of \(goal) focus sessions today.", "오늘 집중 \(count)/\(goal)회를 완료했어요.",
+         "今日の集中を \(count)/\(goal) 回終えました。", "今天已完成 \(count)/\(goal) 次专注。", in: lang))
+}
+
 /// The notification when a countdown timer reaches 0:00.
 func timerDoneMessage(seconds: Int, lang: Lang? = nil) -> (title: String, body: String) {
     let t = countdown(Double(seconds))

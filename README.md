@@ -117,7 +117,7 @@ brass in its last five minutes and empties during a break).
 | Item | What it does |
 |---|---|
 | Start focus / Pause / Resume / Skip / Stop | The timer. The menu bar counts down to the second (`12:50`); scroll over it to change the time (below). After a focus: *Start break*, *5 more minutes* or *Stop* (below) |
-| Timer | **Pomodoro**, **Countdown timer** or **Stopwatch** (below); the countdown's length (1, 3, 5, 10, 15, 30, 60 min or custom); focus 15/25/45/50/90 min or custom (1-240), break 5/10/15 min or custom (1-60), a long break (15 min) every 2-6 sessions, and what happens when time is up (below). A new length applies from the next session |
+| Timer | **Pomodoro**, **Countdown timer** or **Stopwatch** (below); the countdown's length (1, 3, 5, 10, 15, 30, 60 min or custom); focus 15/25/45/50/90 min or custom (1-240), break 5/10/15 min or custom (1-60), a long break (15 min) every 2-6 sessions, and what happens when time is up (below). Set an optional daily session goal (none, 4, 6, 8 or custom 1-24): completed focuses show `n/N` in the menu/focus footer, reset at local midnight (or *Reset today's count*), and reaching it sends a notification and stops auto-starting the next focus. A new length applies from the next session |
 | Focus mode | Control-Option-Command-F, from anywhere: the full-screen focus view (below). Again to close |
 | Focus mode on | With more than one display: which one focus mode opens on (remembered) |
 | Focus mode background | Off, a different photo each session (default), one photo, or **your own folder**; slow drift on or off |

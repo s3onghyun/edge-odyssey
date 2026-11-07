@@ -32,6 +32,7 @@ struct Options {
     var agentEnabled = true         // show Claude Code signals
     var showSeconds = true          // menu bar counts down 12:50; off shows whole minutes (13m)
     var longEvery = 4               // a long break after every n-th focus
+    var sessionGoal = 0             // completed Pomodoro focuses today; 0: none
     var notifyAtEnd = true          // macOS notification when a focus or a break ends
     var sound = "off"               // Chime.choices: harp, glass or off, at the end of a focus and a break
     var soundVolume = "low"         // Chime.volumes: low or medium
@@ -56,7 +57,7 @@ struct Options {
     /// for one run without being saved.
     static let saved: [String: Any] = ["style": "traveler", "display": "main", "thickness": 3.0, "onlyLast5": false,
                                        "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true,
-                                       "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4,
+                                       "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4, "sessionGoal": 0,
                                        "notifyAtEnd": true, "soundVolume": "low", "dialSound": true, "autoNextFocus": false, "autoStartBreak": false, "autoRestMinutes": ArrivalWait.defaultMinutes, "pace": "even",
                                        "focusDisplay": "", "mode": "pomodoro", "timerSeconds": 600.0,
                                        "focusBackground": "cycle", "backgroundFolder": "", "backgroundDrift": true, "dailyGoalHours": 4.0,
@@ -75,6 +76,7 @@ struct Options {
         focusMinutes = Durations.minutes(String(d.double(forKey: "focusMinutes")), in: Durations.focusRange) ?? 25
         restMinutes = Durations.minutes(String(d.double(forKey: "restMinutes")), in: Durations.breakRange) ?? 5
         longEvery = Durations.longEveryChoices.contains(d.integer(forKey: "longEvery")) ? d.integer(forKey: "longEvery") : 4
+        sessionGoal = SessionGoal.value(d.integer(forKey: "sessionGoal"))
         notifyAtEnd = d.bool(forKey: "notifyAtEnd")
         // 0.1 kept an on/off toggle; nothing saved at all means the default (the harp).
         sound = Chime.choice(d.string(forKey: "sound") ?? d.object(forKey: "soundAtEnd").map { _ in d.bool(forKey: "soundAtEnd") ? "on" : "off" })
@@ -203,8 +205,13 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     var updateStatus: UpdateStatus?      // the update check this run: checking, up to date or failed
     lazy var dialTicks = DialTickSound()
     var lastDialTickAt: TimeInterval?
+    var sessionProgress: SessionGoalProgress
 
-    init(_ o: Options) { self.o = o }
+    init(_ o: Options) {
+        self.o = o
+        sessionProgress = SessionGoalProgress(day: UserDefaults.standard.string(forKey: "sessionGoalDay"),
+                                              count: UserDefaults.standard.integer(forKey: "sessionGoalCount"))
+    }
 
     func log(_ s: String) {
         guard o.verbose else { return }
@@ -598,6 +605,33 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
 
     // MARK: history
 
+    /// The daily counter resets lazily on the first menu or state refresh after local midnight,
+    /// which keeps the app from adding a timer wake-up while it is idle.
+    func saveSessionGoalProgress() {
+        remember("sessionGoalDay", sessionProgress.day as Any)
+        remember("sessionGoalCount", sessionProgress.count)
+    }
+
+    var sessionGoalCount: Int {
+        let before = sessionProgress
+        let count = sessionProgress.normalizing(day: SessionGoal.localDayKey())
+        if sessionProgress != before { saveSessionGoalProgress() }
+        return count
+    }
+
+    /// Called exactly at the end of a Pomodoro focus, before it becomes an arrival or a break.
+    func completeFocusGoal() -> Bool {
+        let previous = sessionGoalCount
+        let count = sessionProgress.complete(day: SessionGoal.localDayKey())
+        saveSessionGoalProgress()
+        return SessionGoal.reachedNow(previous: previous, count: count, goal: o.sessionGoal)
+    }
+
+    func resetSessionGoalCount() {
+        sessionProgress.reset(day: SessionGoal.localDayKey())
+        saveSessionGoalProgress()
+    }
+
     /// Keeps the run that is ending in the local history: a focus, timer or stopwatch, finished
     /// or stopped early. Under a minute and unfinished, it was a false start and is left out.
     func recordRun() {
@@ -639,6 +673,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             let pct = Int(t.seconds / (o.goalHours * 36)), h = Int(o.goalHours)
             parts.append(L.t("\(pct)% of \(h)h", "\(h)시간의 \(pct)%", "\(h)時間の \(pct)%", "\(h) 小时的 \(pct)%"))
         }
+        if o.sessionGoal > 0 { parts.append("\(sessionGoalCount)/\(o.sessionGoal)") }
         return parts.joined(separator: " · ")
     }
 
@@ -701,12 +736,14 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     /// time since, until the user starts the break or sails on (or the break starts by itself).
     func focusEnded(restNow: Bool) {
         restIsLong = Durations.isLongBreak(afterFocus: focusCount, every: o.longEvery)
+        let goalReached = completeFocusGoal()
         log("focus ended: \(restIsLong ? "Calypso" : "Ithaca"), restNow=\(restNow) notify=\(o.notifyAtEnd) sound=\(o.sound)")
         if restNow { startRest() } else { arrive() }
         allOverlays.forEach { $0.celebrate() }
         chime(focusEnded: true)
-        notify(endMessage(focusEnded: true, longBreak: restIsLong, breakMinutes: Int(breakMinutes), waits: !restNow,
-                          autoRestMinutes: o.autoRestMinutes), actions: !restNow)
+        notify(goalReached ? sessionGoalMessage(count: sessionGoalCount, goal: o.sessionGoal)
+                           : endMessage(focusEnded: true, longBreak: restIsLong, breakMinutes: Int(breakMinutes), waits: !restNow,
+                                        autoRestMinutes: o.autoRestMinutes), actions: !restNow)
     }
 
     /// Home at Ithaca, waiting for the user: nothing runs out, only the overtime counts up.
@@ -780,10 +817,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
 
     /// The break is over: wait for a click (default) or start the next focus by itself.
     func breakEnded(startNext: Bool) {
-        log("break ended: autoNextFocus=\(startNext)")
+        let next = SessionGoal.shouldAutoStartNext(requested: startNext, count: sessionGoalCount, goal: o.sessionGoal)
+        log("break ended: autoNextFocus=\(next)")
         chime(focusEnded: false)
-        if !startNext { notify(endMessage(focusEnded: false, longBreak: false, breakMinutes: 0)) }
-        startNext ? start() : stop()
+        if !next { notify(endMessage(focusEnded: false, longBreak: false, breakMinutes: 0)) }
+        next ? start() : stop()
     }
 
     /// Harp: arriving at Ithaca after a focus, setting sail after a break. Silent when off.
@@ -1019,6 +1057,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         case "focus": if let m = Durations.minutes(arg, in: Durations.focusRange) { o.focusMinutes = m; remember("focusMinutes", m) }
         case "rest": if let m = Durations.minutes(arg, in: Durations.breakRange) { o.restMinutes = m; remember("restMinutes", m) }
         case "long-every": if let n = Int(arg), Durations.longEveryChoices.contains(n) { o.longEvery = n; remember("longEvery", n) }
+        case "session-goal": if let n = Int(arg), SessionGoal.value(n) == n { o.sessionGoal = n; remember("sessionGoal", n); refresh() }
+        case "reset-session-goal": resetSessionGoalCount(); refresh()
         case "notify": o.notifyAtEnd = arg != "off"; remember("notifyAtEnd", o.notifyAtEnd)
         case "sound": o.sound = Chime.choice(arg); remember("sound", o.sound); if o.sound != "off" { chime(focusEnded: true) }   // a preview
         case "volume": o.soundVolume = Chime.volume(arg); remember("soundVolume", o.soundVolume); chime(focusEnded: true)
@@ -1338,6 +1378,24 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                         "長い休憩（\(long)分）：\(every)回ごと", "长休息（\(long) 分钟）：每 \(every) 次"), Durations.longEveryChoices.map { n in
                 MenuAction(L.t("Every \(n) sessions", "\(n)회마다", "\(n)回ごと", "每 \(n) 次"), checked: o.longEvery == n) { [weak self] in self?.control("long-every:\(n)") }
             }),
+            submenu(o.sessionGoal == 0
+                    ? L.t("Daily session goal: none", "하루 세션 목표: 없음", "1日のセッション目標：なし", "每日专注目标：无")
+                    : L.t("Daily session goal: \(sessionGoalCount)/\(o.sessionGoal)", "하루 세션 목표: \(sessionGoalCount)/\(o.sessionGoal)",
+                          "1日のセッション目標：\(sessionGoalCount)/\(o.sessionGoal)", "每日专注目标：\(sessionGoalCount)/\(o.sessionGoal)"),
+                    [MenuAction(L.t("None", "없음", "なし", "无"), checked: o.sessionGoal == 0) { [weak self] in self?.control("session-goal:0") }
+                    ] + SessionGoal.presets.map { n in
+                        MenuAction("\(n)", checked: o.sessionGoal == n) { [weak self] in self?.control("session-goal:\(n)") }
+                    } + [
+                        .separator(),
+                        MenuAction(o.sessionGoal > 0 && !SessionGoal.presets.contains(o.sessionGoal)
+                                   ? L.t("Custom (\(o.sessionGoal))…", "직접 입력 (\(o.sessionGoal))…", "カスタム（\(o.sessionGoal)）…", "自定义（\(o.sessionGoal)）…")
+                                   : L.t("Custom…", "직접 입력…", "カスタム…", "自定义…"),
+                                   checked: o.sessionGoal > 0 && !SessionGoal.presets.contains(o.sessionGoal)) { [weak self] in
+                            guard let self, let n = self.askSessionGoal() else { return }
+                            self.control("session-goal:\(n)")
+                        },
+                        MenuAction(L.t("Reset today's count", "오늘 횟수 초기화", "今日の回数をリセット", "重置今日计数")) { [weak self] in self?.control("reset-session-goal") },
+                    ]),
             .separator(),
             MenuAction(L.t("Notify when time is up", "시간이 다 되면 알림", "時間になったら通知", "时间到时通知"), checked: o.notifyAtEnd) { [weak self] in
                 guard let self else { return }

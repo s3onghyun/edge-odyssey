@@ -50,6 +50,20 @@ struct SettingsView: View {
                 Picker(L.t("Long break", "긴 휴식", "長い休憩", "长休息"), selection: bind(o.longEvery, "long-every")) {
                     ForEach(Durations.longEveryChoices, id: \.self) { n in Text(L.t("Every \(n) sessions", "\(n)회마다", "\(n)回ごと", "每 \(n) 次")).tag(n) }
                 }
+                Picker(L.t("Daily session goal", "하루 세션 목표", "1日のセッション目標", "每日专注目标"),
+                       selection: Binding(get: { o.sessionGoal }, set: { n in
+                           if n < 0 {
+                               if let goal = app.askSessionGoal() { send("session-goal:\(goal)") }
+                           } else { send("session-goal:\(n)") }
+                       })) {
+                    Text(L.t("None", "없음", "なし", "无")).tag(0)
+                    ForEach(SessionGoal.presets, id: \.self) { n in Text("\(n)").tag(n) }
+                    Divider()
+                    Text(custom).tag(-1)
+                }
+                if o.sessionGoal > 0 {
+                    Button(L.t("Reset today's count", "오늘 횟수 초기화", "今日の回数をリセット", "重置今日计数")) { send("reset-session-goal") }
+                }
                 let cd = Int(o.timerSeconds)
                 Picker(L.t("Countdown length", "카운트다운 길이", "カウントダウンの長さ", "倒计时时长"),
                        selection: Binding(get: { cd }, set: { s in
@@ -176,4 +190,14 @@ struct SettingsView: View {
 extension App {
     var settingsTitle: String { L.t("Settings", "설정", "設定", "设置") }
     func showSettings() { settingsWindow.show(title: settingsTitle, SettingsView(app: self)) }
+
+    func askSessionGoal() -> Int? {
+        guard let text = ask(L.t("Daily session goal", "하루 세션 목표", "1日のセッション目標", "每日专注目标"),
+                             hint: L.t("Completed focus sessions, from 1 to 24.", "완료한 집중 세션 수, 1~24회.",
+                                       "完了した集中セッション数、1〜24 回。", "已完成的专注次数，1 到 24 次。"),
+                             current: o.sessionGoal == 0 ? "4" : "\(o.sessionGoal)"),
+              let value = Int(text.trimmingCharacters(in: .whitespacesAndNewlines)),
+              SessionGoal.range.contains(value) else { return nil }
+        return value
+    }
 }
