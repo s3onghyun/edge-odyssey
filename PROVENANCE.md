@@ -9,6 +9,7 @@ other adaptation of the Odyssey.
 | Asset | How it was made | Editable source |
 |---|---|---|
 | `characters/odysseus-vector/*.svg` (default character, all poses and episodes) | SVG primitives (circles, paths, strokes) placed by hand-written Python | `tools/make_odysseus.py` (`svg_frame`, pose table `ANIMS`) |
+| `characters/dev-voyager/*.svg` (Developer voyager, a second selectable character) | SVG primitives placed by hand-written Python, the same way | `tools/make_dev_voyager.py` (pose functions, table `ANIMS`) |
 | `characters/odysseus-pixel.sprite` (alternative style, not updated after the vector pick) | Hand-typed pixel stamps composed by the same pose table | `tools/make_odysseus.py` (`draw_pixel`, stamps) |
 | `sketches/pip.sprite`, `sketches/drift.sprite` (early discussion sketches) | Hand-typed pixel grids | `tools/make_sprites.py` |
 | `sketches/placeholder.sprite` (neutral pebble) | Rasterised ellipses, squash-and-stretch only | `tools/make_sprites.py` |

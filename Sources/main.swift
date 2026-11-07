@@ -11,7 +11,7 @@ struct Options {
     var restMinutes = 5.0
     var stateDir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".edge-odyssey")
     var style = Style.traveler
-    var character = "odysseus-vector"
+    var character = Characters.standard
     var thickness: CGFloat = 3
     var excludeFromCapture = true
     var hideWhenCaptured = true
@@ -60,11 +60,12 @@ struct Options {
                                        "notifyAtEnd": true, "soundVolume": "low", "dialSound": true, "autoNextFocus": false, "autoStartBreak": false, "autoRestMinutes": ArrivalWait.defaultMinutes, "pace": "even",
                                        "focusDisplay": "", "mode": "pomodoro", "timerSeconds": 600.0,
                                        "focusBackground": "cycle", "backgroundFolder": "", "backgroundDrift": true, "dailyGoalHours": 4.0,
-                                       "checkUpdates": true]   // "sound" unregistered: see init
+                                       "checkUpdates": true, "character": Characters.standard]   // "sound" unregistered: see init
 
     init(_ args: [String], defaults d: UserDefaults = .standard) {
         d.register(defaults: Self.saved)
         style = Style(rawValue: d.string(forKey: "style") ?? "") ?? .traveler
+        character = d.string(forKey: "character") ?? Characters.standard   // one that is gone falls back in loadSprites
         display = d.string(forKey: "display") ?? "main"
         thickness = CGFloat(min(max(d.double(forKey: "thickness"), 2), 4))
         onlyLast5 = d.bool(forKey: "onlyLast5")
@@ -458,7 +459,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     func planEpisodes() {
         cancelEpisodes()
         guard phase == .focus, pausedAt == nil, o.style == .traveler, o.mode != .stopwatch, let host = hostOverlay,
-              let sprite = scene(for: host).sprite else { return }
+              let sprite = scene(for: host).sprite, EpisodePlanner.runs(for: sprite.anims.keys) else { return }
         let pt = sprite.unitPoints(backing: host.screen.backingScaleFactor)
         let j = Journey(size: host.stageSize, inset: CGFloat(sprite.height) * pt / 2, weights: Journey.weights(physical: o.physicalPace))
         let plan = EpisodePlanner.plan(seed: UInt64(phaseStart.timeIntervalSince1970) &+ UInt64(focusCount),
@@ -476,7 +477,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     }
 
     func fire(_ ep: Episode) {
-        guard phase == .focus, pausedAt == nil, let host = hostOverlay, let sprite = scene(for: host).sprite else { return }
+        guard phase == .focus, pausedAt == nil, let host = hostOverlay, let sprite = scene(for: host).sprite,
+              EpisodePlanner.runs(for: sprite.anims.keys) else { return }
         log("episode: \(ep.rawValue)")
         logbook.record(ep)
         switch ep {
@@ -1007,7 +1009,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             }
         case "style": o.style = Style(rawValue: arg) ?? o.style; remember("style", o.style.rawValue); refresh(); planEpisodes()
         case "pace": o.physicalPace = arg == "physical"; remember("pace", o.physicalPace ? "physical" : "even"); refresh(); planEpisodes()
-        case "char": if sprites[arg] != nil { o.character = arg; refresh() }
+        case "char": if sprites[arg] != nil { o.character = arg; remember("character", arg); refresh(); planEpisodes() }
         case "thickness": o.thickness = CGFloat(min(max(Double(arg) ?? 3, 2), 4)); remember("thickness", Double(o.thickness)); refresh()
         case "last5": o.onlyLast5 = arg == "on"; remember("onlyLast5", o.onlyLast5); refresh()
         case "agent": o.agentEnabled = arg != "off"; remember("agentEnabled", o.agentEnabled); refresh()
@@ -1245,6 +1247,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             MenuAction(L.t("Speed: Physical (slow climb, fast slide)", "속도: 물리적 (오르막은 느리게, 미끄럼은 빠르게)", "速さ：物理的（登りはゆっくり、滑りは速く）", "速度：物理（攀爬慢，滑下快）"),
                        checked: o.physicalPace) { [weak self] in self?.control("pace:physical") },
         ]))
+        menu.addItem(submenu(L.t("Character", "캐릭터", "キャラクター", "角色"), Characters.choices.filter { sprites[$0] != nil }.map { id in
+            MenuAction(Characters.title(id), checked: o.character == id) { [weak self] in self?.control("char:\(id)") }
+        }))
         var displays: [NSMenuItem] = [
             MenuAction(L.t("Main display", "주 모니터", "メインディスプレイ", "主显示器"), checked: o.display == "main") { [weak self] in self?.control("display:main") },
             MenuAction(L.t("All displays (Odysseus follows you)", "모든 모니터 (오디세우스가 따라와요)", "すべてのディスプレイ（オデュッセウスがついてくる）", "所有显示器（奥德修斯跟着你）"),
