@@ -7,7 +7,7 @@ let package = Package(
     platforms: [.macOS(.v13)],
     targets: [
         .target(name: "EdgeMotion", path: "Sources", sources: ["Journey.swift", "Motion.swift", "Episodes.swift", "Clock.swift", "FocusLayout.swift", "History.swift",
-                                                         "L10n.swift", "Update.swift", "Dial.swift", "DialTick.swift", "Tones.swift"]),
+                                                         "L10n.swift", "Update.swift", "Dial.swift", "DialTick.swift", "Tones.swift", "Characters.swift"]),
         .testTarget(name: "MotionTests", dependencies: ["EdgeMotion"], path: "Tests/MotionTests"),
     ]
 )

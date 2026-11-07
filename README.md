@@ -122,6 +122,7 @@ brass in its last five minutes and empties during a break).
 | Focus mode on | With more than one display: which one focus mode opens on (remembered) |
 | Focus mode background | Off, a different photo each session (default), one photo, or **your own folder**; slow drift on or off |
 | Mode | Odysseus voyage (border + traveler) or a thin border only; Speed: Even (default) or Physical |
+| Character | Odysseus (default) or the Developer voyager: a present-day coder with headphones and a laptop, sailing a dinghy over a terminal sea round every edge. The Odyssey's encounters (the Cyclops, the bag of winds, …) are Odysseus's only |
 | Show on | Main display, all displays (Odysseus follows the display you work on), follow me, or one named display |
 | Border | 2, 3 or 4 px |
 | Only show in the last 5 minutes | Keeps the edge empty until the end of a focus session (Claude Code calls still show) |
@@ -365,5 +366,8 @@ A character is either a `.sprite` text grid (pixel art: palette + frames) or a f
 `climb` / `climb-*` (right edge), `cling` / `zip` (top edge), `slide` (left edge), `idle`,
 `sirens`, `storm`, `rest`, `ithaca`, `doze`, `ram`, and episode props `ep-*`. Missing ones fall
 back to `walk` or `idle`, so a new character can start with a single walk cycle.
+A character with no edge animations (`climb`, `cling`, `zip`, `slide`) sails every edge on its
+`walk` cycle and turns the whole boat at the corners; one with no `ep-*` props has no Odyssey
+episodes. The developer voyager (`tools/make_dev_voyager.py`) is both.
 
 See [`CHANGELOG.md`](CHANGELOG.md) for what changed.

@@ -68,6 +68,10 @@ struct SplitMix64 {
 
 /// Which encounters a focus lap gets, and when (as a share of the lap).
 enum EpisodePlanner {
+    /// The encounters belong to characters that carry their props (`ep-*` animations): another
+    /// theme, such as the developer voyager, sails without Homer's episodes.
+    static func runs(for animations: some Sequence<String>) -> Bool { animations.contains { $0.hasPrefix("ep-") } }
+
     static func plan(seed: UInt64, journey j: Journey, focusSeconds: TimeInterval, lastFiveShare: Double,
                      forced: [Episode]?) -> [(Episode, Double)] {
         let m = j.timeMarks
