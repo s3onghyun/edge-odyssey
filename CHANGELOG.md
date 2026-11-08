@@ -1,6 +1,18 @@
 # Changelog
 
-## 0.4.0 (unreleased)
+## 0.5.0 (unreleased)
+
+- **Daily Pomodoro session goals.** Set an optional goal of 4, 6, 8, or a custom 1–24 completed
+  focus sessions in *Timer*. Progress appears as `n/N` in the menu and focus-mode footer, resets
+  at local midnight (or with *Reset today's count*), and sends a notification when reached. Once
+  reached, it also stops auto-starting another focus while preserving long-break behaviour.
+- **A second character: the Developer voyager** (*Settings › On screen › Character*, or the
+  menu's *Character*). A present-day coder in a hoodie and headphones types on a laptop in a small
+  dinghy, sailing a "terminal sea" of block waves and prompt glyphs. The boat sails every edge
+  and turns at the corners instead of climbing, and the Odyssey's encounters stay with Odysseus,
+  who remains the default. The choice is saved. Drawn as code in `tools/make_dev_voyager.py`.
+
+## 0.4.0
 
 - **Universal Mac build.** Edge Odyssey now runs on macOS 13+ Macs with either Apple silicon or
   Intel processors. Release archive names stay unchanged so existing Homebrew installs continue
@@ -10,11 +22,6 @@
   It stays open, so changing several settings no longer means reopening the menu each time;
   each change applies at once and is saved under the same key as the menu's. The menu keeps
   its quick actions and options; its old *Settings* submenu is now *General*.
-- **A second character: the Developer voyager** (*Settings › On screen › Character*, or the
-  menu's *Character*). A present-day coder in a hoodie and headphones types on a laptop in a small
-  dinghy, sailing a "terminal sea" of block waves and prompt glyphs. The boat sails every edge
-  and turns at the corners instead of climbing, and the Odyssey's encounters stay with Odysseus,
-  who remains the default. The choice is saved. Drawn as code in `tools/make_dev_voyager.py`.
 - Fixed: picking a break length in *Timer › Break* did nothing in 0.3.0 (the arrival's
   *Start break* command had taken the same name).
 
