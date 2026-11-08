@@ -297,7 +297,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 | `hooks/` | MIT | Claude Code 钩子和状态栏脚本、设置片段 |
 | `tools/` | MIT | 绘图生成器（`make_odysseus.py`、`make_icon.py`、`make_social.py`）、图表生成、`svg2png.swift` |
 | `assets/` | 保留所有权利，允许个人使用：[`assets/LICENSE`](assets/LICENSE) | 角色、图标、截图、草图、声音 |
-| `docs/` | 同 `assets/`（画了角色）：[`assets/LICENSE`](assets/LICENSE) | 社交预览卡片，由 `tools/make_social.py` 生成 |
+| `docs/` | 同 `assets/`（画了角色）：[`assets/LICENSE`](assets/LICENSE) | 社交预览卡片，由 `tools/make_social.py` 生成；应用录屏在 `docs/media/` |
 | `assets/backgrounds/` | 公有领域（美国政府作品）：[`PROVENANCE.md`](assets/backgrounds/PROVENANCE.md) | 专注模式照片 |
 
 代码采用 MIT 许可（[`LICENSE`](LICENSE)）：`Sources/`、`Tests/`、`tools/`、`hooks/`、`build.sh`、

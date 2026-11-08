@@ -349,7 +349,7 @@ Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--
 | `hooks/` | MIT | Claude Code hook and status-line scripts, settings snippet |
 | `tools/` | MIT | Art generators (`make_odysseus.py`, `make_icon.py`, `make_social.py`), sheet builder, `svg2png.swift` |
 | `assets/` | All rights reserved, personal-use grant: [`assets/LICENSE`](assets/LICENSE) | Characters, icon, screenshots, sketches, sounds |
-| `docs/` | As `assets/` (it draws the character): [`assets/LICENSE`](assets/LICENSE) | Social preview card, made by `tools/make_social.py` |
+| `docs/` | As `assets/` (it draws the character): [`assets/LICENSE`](assets/LICENSE) | Social preview card, made by `tools/make_social.py`; recordings of the app in `docs/media/` |
 | `assets/backgrounds/` | Public domain (US government works): [`PROVENANCE.md`](assets/backgrounds/PROVENANCE.md) | Focus mode photos |
 
 The code is MIT ([`LICENSE`](LICENSE)): `Sources/`, `Tests/`, `tools/`, `hooks/`, `build.sh`,

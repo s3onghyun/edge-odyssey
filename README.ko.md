@@ -327,7 +327,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 | `hooks/` | MIT | Claude Code 훅과 상태 줄 스크립트, 설정 조각 |
 | `tools/` | MIT | 그림 생성기(`make_odysseus.py`, `make_icon.py`, `make_social.py`), 시트 빌더, `svg2png.swift` |
 | `assets/` | 모든 권리 보유, 개인 사용 허락: [`assets/LICENSE`](assets/LICENSE) | 캐릭터, 아이콘, 스크린샷, 스케치, 소리 |
-| `docs/` | `assets/`와 같음(캐릭터를 그림): [`assets/LICENSE`](assets/LICENSE) | 소셜 미리보기 카드, `tools/make_social.py`로 만듦 |
+| `docs/` | `assets/`와 같음(캐릭터를 그림): [`assets/LICENSE`](assets/LICENSE) | 소셜 미리보기 카드, `tools/make_social.py`로 만듦. 앱 녹화는 `docs/media/` |
 | `assets/backgrounds/` | 퍼블릭 도메인(미국 정부 저작물): [`PROVENANCE.md`](assets/backgrounds/PROVENANCE.md) | 집중 모드 사진 |
 
 코드는 MIT([`LICENSE`](LICENSE))입니다: `Sources/`, `Tests/`, `tools/`, `hooks/`, `build.sh`,

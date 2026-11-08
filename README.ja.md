@@ -318,7 +318,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 | `hooks/` | MIT | Claude Code のフックとステータスラインのスクリプト、設定の断片 |
 | `tools/` | MIT | 絵の生成ツール（`make_odysseus.py`、`make_icon.py`、`make_social.py`）、シート作成、`svg2png.swift` |
 | `assets/` | 全権利留保、個人利用の許可：[`assets/LICENSE`](assets/LICENSE) | キャラクター、アイコン、スクリーンショット、スケッチ、サウンド |
-| `docs/` | `assets/` と同じ（キャラクターを描いています）：[`assets/LICENSE`](assets/LICENSE) | ソーシャルプレビューのカード。`tools/make_social.py` で作成 |
+| `docs/` | `assets/` と同じ（キャラクターを描いています）：[`assets/LICENSE`](assets/LICENSE) | ソーシャルプレビューのカード。`tools/make_social.py` で作成。アプリの録画は `docs/media/` |
 | `assets/backgrounds/` | パブリックドメイン（米国政府の著作物）：[`PROVENANCE.md`](assets/backgrounds/PROVENANCE.md) | 集中モードの写真 |
 
 コードは MIT（[`LICENSE`](LICENSE)）です：`Sources/`、`Tests/`、`tools/`、`hooks/`、`build.sh`、`test.sh`、

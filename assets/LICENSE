@@ -5,7 +5,7 @@ Copyright (c) 2026 Seonghyun (Joshua) Hong. All rights reserved.
 This license covers everything under `assets/`: the character sheets, sprite files
 (`*.sprite`), SVG frames, the app icon, previews and screenshots, and any future sounds or
 character packs. It also covers the social preview card in `../docs/` (`social-preview.svg`
-and `.png`), which draws the character.
+and `.png`) and the recordings in `../docs/media/`, which draw the characters.
 The app's source code is MIT-licensed separately (see `../LICENSE`).
 The photographs in `backgrounds/` are not covered: they are in the public domain, and
 `backgrounds/PROVENANCE.md` records where each one comes from.
