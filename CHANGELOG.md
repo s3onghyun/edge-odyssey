@@ -10,6 +10,11 @@
   It stays open, so changing several settings no longer means reopening the menu each time;
   each change applies at once and is saved under the same key as the menu's. The menu keeps
   its quick actions and options; its old *Settings* submenu is now *General*.
+- **A second character: the Developer voyager** (*Settings › On screen › Character*, or the
+  menu's *Character*). A present-day coder in a hoodie and headphones types on a laptop in a small
+  dinghy, sailing a "terminal sea" of block waves and prompt glyphs. The boat sails every edge
+  and turns at the corners instead of climbing, and the Odyssey's encounters stay with Odysseus,
+  who remains the default. The choice is saved. Drawn as code in `tools/make_dev_voyager.py`.
 - Fixed: picking a break length in *Timer › Break* did nothing in 0.3.0 (the arrival's
   *Start break* command had taken the same name).
 

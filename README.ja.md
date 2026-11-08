@@ -114,6 +114,7 @@ open "/Applications/Edge Odyssey.app"
 | 集中モードの表示先 | ディスプレイが複数あるとき：集中モードを開くディスプレイ（記憶されます） |
 | 集中モードの背景 | オフ、セッションごとに別の写真（デフォルト）、1 枚に固定、または **自分のフォルダ**。ゆっくり動かすかどうか |
 | モード | オデュッセウスの航海（ふち + 旅人）または細いふちだけ。速度：一定（デフォルト）または物理的 |
+| キャラクター | オデュッセウス（デフォルト）または航海する開発者：ヘッドホンをしてノート PC を持った今どきの開発者が、小さなヨットでターミナルの海を渡り、画面のふちを一周します。キュクロプスや風の袋などオデュッセイアのエピソードはオデュッセウスだけに出ます |
 | 表示先 | メインディスプレイ、すべてのディスプレイ（作業中のディスプレイにオデュッセウスがついてきます）、自分を追う、または名前で 1 台 |
 | 枠 | 2、3、4 px |
 | 最後の5分だけ表示 | 集中セッションの終わりまでふちを空けておきます（Claude Code の呼び出しは表示されます） |
@@ -317,7 +318,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 | `hooks/` | MIT | Claude Code のフックとステータスラインのスクリプト、設定の断片 |
 | `tools/` | MIT | 絵の生成ツール（`make_odysseus.py`、`make_icon.py`、`make_social.py`）、シート作成、`svg2png.swift` |
 | `assets/` | 全権利留保、個人利用の許可：[`assets/LICENSE`](assets/LICENSE) | キャラクター、アイコン、スクリーンショット、スケッチ、サウンド |
-| `docs/` | `assets/` と同じ（キャラクターを描いています）：[`assets/LICENSE`](assets/LICENSE) | ソーシャルプレビューのカード。`tools/make_social.py` で作成 |
+| `docs/` | `assets/` と同じ（キャラクターを描いています）：[`assets/LICENSE`](assets/LICENSE) | ソーシャルプレビューのカード。`tools/make_social.py` で作成。アプリの録画は `docs/media/` |
 | `assets/backgrounds/` | パブリックドメイン（米国政府の著作物）：[`PROVENANCE.md`](assets/backgrounds/PROVENANCE.md) | 集中モードの写真 |
 
 コードは MIT（[`LICENSE`](LICENSE)）です：`Sources/`、`Tests/`、`tools/`、`hooks/`、`build.sh`、`test.sh`、
@@ -332,5 +333,8 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 入ったフォルダ（ベクター）です。アプリが探すアニメーション：`walk`（下辺）、`climb` / `climb-*`（右辺）、
 `cling` / `zip`（上辺）、`slide`（左辺）、`idle`、`sirens`、`storm`、`rest`、`ithaca`、`doze`、`ram`、
 エピソードの小道具 `ep-*`。ないものは `walk` か `idle` で代わるので、歩きのループ 1 つから新しいキャラクターを始められます。
+辺のアニメーション（`climb`、`cling`、`zip`、`slide`）を 1 つも持たないキャラクターは、すべての辺を
+`walk` で進み、角では船ごと向きを変えます。`ep-*` の小道具がないキャラクターにはオデュッセイアの
+エピソードが出ません。航海する開発者（`tools/make_dev_voyager.py`）はその両方です。
 
 変更点は [`CHANGELOG.md`](CHANGELOG.md)（英語）にあります。

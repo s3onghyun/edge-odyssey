@@ -112,6 +112,9 @@ struct SettingsView: View {
                     Text(L.t("Odysseus voyage", "오디세우스 항해", "オデュッセウスの航海", "奥德修斯航行")).tag("traveler")
                     Text(L.t("Thin border only", "얇은 테두리만", "細い枠だけ", "只显示细边框")).tag("border")
                 }.pickerStyle(.segmented)
+                Picker(L.t("Character", "캐릭터", "キャラクター", "角色"), selection: bind(o.character, "char")) {
+                    ForEach(Characters.choices.filter { app.sprites[$0] != nil }, id: \.self) { Text(Characters.title($0)).tag($0) }
+                }.disabled(o.style == .border)
                 Picker(L.t("Speed", "속도", "速さ", "速度"), selection: bind(o.physicalPace ? "physical" : "even", "pace")) {
                     Text(L.t("Even (halfway round = halfway through)", "고르게 (반 바퀴 = 절반 지남)", "一定（半周＝半分経過）", "匀速（走到一半＝过了一半）")).tag("even")
                     Text(L.t("Physical (slow climb, fast slide)", "물리적 (오르막은 느리게, 미끄럼은 빠르게)", "物理的（登りはゆっくり、滑りは速く）", "物理（攀爬慢，滑下快）")).tag("physical")

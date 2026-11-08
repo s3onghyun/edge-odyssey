@@ -63,3 +63,9 @@ func flipTiming(fps: Double) -> (frame: Double, rate: Float) {
     let g = [4.0, 3, 2, 1].first { ticks.truncatingRemainder(dividingBy: $0) == 0 } ?? 1
     return (ticks / 60, Float(60 / g))
 }
+
+/// A character without edge art (climb, cling, zip, slide) sails every edge the way it sails the
+/// floor: the boat turns at each corner and keeps its walk cycle, with no climbing or hanging motion.
+func sailsEveryEdge(_ animations: some Sequence<String>) -> Bool {
+    !animations.contains { a in ["climb", "cling", "zip", "slide"].contains { a == $0 || a.hasPrefix($0 + "-") } }
+}
