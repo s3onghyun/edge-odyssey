@@ -302,6 +302,17 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         log("launched: state dir \(o.stateDir.path), speed \(o.speed)")
     }
 
+    /// URL requests intentionally become the very same commands as the menu, rather than a
+    /// parallel timer API. macOS also gives us these when a second `open` targets a running app.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls {
+            switch URLScheme.route(url.absoluteString) {
+            case .controls(let commands): commands.forEach(control)
+            case .ignored(let reason): log("URL ignored (\(reason)): \(url.absoluteString)")
+            }
+        }
+    }
+
     /// The Lotus-eaters: games, video and social apps (by their own App Store category).
     static func isDistracting(_ app: NSRunningApplication) -> Bool {
         guard let url = app.bundleURL, let info = Bundle(url: url)?.infoDictionary,

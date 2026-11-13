@@ -2,6 +2,9 @@
 
 ## 0.5.0 (unreleased)
 
+- **Control from anywhere.** `edge-odyssey://start?minutes=50&label=fix-auth`, `pause`, `resume`,
+  `stop` and other menu actions now work from Raycast, Alfred, Shortcuts, Git hooks and Claude
+  Code; `scripts/edge-odyssey` is the tiny shell wrapper for calling them.
 - **Daily Pomodoro session goals.** Set an optional goal of 4, 6, 8, or a custom 1–24 completed
   focus sessions in *Timer*. Progress appears as `n/N` in the menu and focus-mode footer, resets
   at local midnight (or with *Reset today's count*), and sends a notification when reached. Once

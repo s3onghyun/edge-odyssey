@@ -1,0 +1,3 @@
+#!/bin/sh
+# Opens the URL fragment passed by Raycast, Alfred, Shortcuts, or a shell hook.
+open "edge-odyssey://$1"
