@@ -6,7 +6,7 @@ let package = Package(
     name: "EdgeOdyssey",
     platforms: [.macOS(.v13)],
     targets: [
-        .target(name: "EdgeMotion", path: "Sources", sources: ["Journey.swift", "Motion.swift", "Episodes.swift", "Clock.swift", "FocusLayout.swift", "History.swift",
+        .target(name: "EdgeMotion", path: "Sources", sources: ["Journey.swift", "Motion.swift", "Episodes.swift", "Clock.swift", "FocusLayout.swift", "History.swift", "Agent.swift",
                                                          "L10n.swift", "Update.swift", "Dial.swift", "DialTick.swift", "Tones.swift", "SessionGoal.swift", "Characters.swift", "URLScheme.swift"]),
         .testTarget(name: "MotionTests", dependencies: ["EdgeMotion"], path: "Tests/MotionTests"),
     ]

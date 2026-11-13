@@ -175,6 +175,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     var pausedTotal: TimeInterval = 0
     var manualHidden = false
     var agentState: AgentState = .idle
+    var breakAgentSignal = BreakAgentSignal()
     var lapStart = Date()
     var lapFrozenAt: Date?
     let detector = Detector()
@@ -243,11 +244,12 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         detector.onChange = { [weak self] _ in self?.refresh() }
         detector.start()
         watcher.log = { [weak self] in self?.log($0) }
-        watcher.onChange = { [weak self] s in
+        watcher.onChange = { [weak self] status in
             guard let self else { return }
             // The agent lap clock only runs while the agent works, so the traveler resumes
             // from where it stopped to listen (waiting) or ride out the storm (limit).
             let now = Date()
+            let s = self.breakAgentSignal.displayState(for: status, duringBreak: self.phase == .rest)
             if self.agentState == .idle && s != .idle {   // a session appears: start the lap from home
                 self.lapStart = now
                 self.lapFrozenAt = s == .working ? nil : now
@@ -662,7 +664,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         guard phase == .focus, let s = start ?? runStart else { return nil }
         let secs = (o.mode == .stopwatch ? elapsed : min(elapsed, phaseDuration)) * o.speed
         return Voyage(start: s, end: Date(), mode: o.mode == .pomodoro ? "focus" : o.mode.rawValue, seconds: secs,
-                      completed: finished || o.mode == .stopwatch, label: runLabel)
+                      completed: finished || o.mode == .stopwatch, label: watcher.status.label(or: runLabel))
     }
 
     /// Today so far, the run in progress included.
@@ -833,6 +835,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         let next = SessionGoal.shouldAutoStartNext(requested: startNext, count: sessionGoalCount, goal: o.sessionGoal)
         log("break ended: autoNextFocus=\(next)")
         chime(focusEnded: false)
+        let waiting = breakAgentSignal.breakEnded(with: watcher.status)
+        agentState = watcher.status.state
+        if let count = waiting { notify(agentWaitingMessage(count: count)) }
         if !next { notify(endMessage(focusEnded: false, longBreak: false, breakMinutes: 0)) }
         next ? start() : stop()
     }
@@ -1768,7 +1773,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         let dest = o.stateDir.appendingPathComponent("hooks")
         do {
             try fm.createDirectory(at: dest, withIntermediateDirectories: true)
-            for name in ["edge-odyssey-hook.sh", "edge-odyssey-statusline.sh"] {
+            for name in ["edge-odyssey-hook.sh", "edge-odyssey-statusline.sh", "edge-odyssey-codex-notify.sh"] {
                 let to = dest.appendingPathComponent(name)
                 try? fm.removeItem(at: to)
                 try fm.copyItem(at: src.appendingPathComponent(name), to: to)

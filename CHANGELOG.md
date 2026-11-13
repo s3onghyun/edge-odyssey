@@ -2,6 +2,9 @@
 
 ## 0.5.0 (unreleased)
 
+- **Let agents call you back after a break.** Codex and Claude Code now share the edge signal;
+  waiting agents stay quiet through a break, then Edge Odyssey announces how many are waiting,
+  and empty history labels become `repo@branch` for the agent you were using.
 - **Control from anywhere.** `edge-odyssey://start?minutes=50&label=fix-auth`, `pause`, `resume`,
   `stop` and other menu actions now work from Raycast, Alfred, Shortcuts, Git hooks and Claude
   Code; `scripts/edge-odyssey` is the tiny shell wrapper for calling them.

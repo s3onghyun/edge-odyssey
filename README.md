@@ -293,7 +293,8 @@ Code signals still show on the track (the gold swell, the Sirens, the storm).
 
 Each focus session, countdown timer and stopwatch run is recorded when it ends: start, end,
 mode, time on the clock (pauses left out), whether it ran to the end, and an optional one-line
-label (*Label this session…*). A run stopped in its first minute is left out; breaks are not
+label (*Label this session…*). When that label is empty, an active coding agent supplies its most
+recent `repo@branch` instead. A run stopped in its first minute is left out; breaks are not
 recorded.
 
 - **Today:** total time, sessions and the longest run, under the menu header and at the foot
@@ -315,7 +316,9 @@ into `~/.claude/settings.json` yourself, merged with any `"hooks"` you already h
 Odyssey never edits that file. If you already have a `statusLine`, keep it and set
 `EDGE_ODYSSEY_STATUSLINE_NEXT` to your old command so both keep working.
 
-The same files are in [`hooks/`](hooks/) if you prefer to install them by hand.
+The same files are in [`hooks/`](hooks/) if you prefer to install them by hand. The hooks add the
+agent's `cwd` and, when it is a Git checkout, its repo and branch to the state file; this is what
+fills an otherwise empty history label as `repo@branch` (a label you type always wins).
 
 The hooks write one tiny file per session to `~/.edge-odyssey/sessions/` (`working`,
 `waiting` or `limit` plus a timestamp); the status line writes `~/.edge-odyssey/usage`. The app
@@ -327,6 +330,21 @@ watches the folder (no polling). Nothing leaves your Mac.
 | Notification (permission, idle, elicitation, agent needs input), Stop | waiting: the Sirens, one gold swell |
 | StopFailure (rate_limit), or 5-hour usage >= 85% | limit: amber, Poseidon's storm |
 | SessionEnd | session removed |
+
+### Codex CLI
+
+The included `edge-odyssey-codex-notify.sh` is a small adapter for Codex CLI's user-level
+`notify` command. After using **Copy hook snippet** once (so the script is in
+`~/.edge-odyssey/hooks/`), add this to `~/.codex/config.toml`:
+
+```toml
+notify = ["$HOME/.edge-odyssey/hooks/edge-odyssey-codex-notify.sh"]
+```
+
+Codex sends the adapter a JSON notification when it needs you. It writes the same `waiting`
+state file as Claude Code, including the working directory and Git branch when available. If an
+agent starts waiting during a Pomodoro break, Edge Odyssey keeps the edge quiet, then announces
+once when the break ends (for example, “2 agents are waiting”).
 
 ## Privacy
 
