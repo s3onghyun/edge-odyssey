@@ -56,6 +56,7 @@ cat > "$app/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key><string>${version}</string>
   <key>CFBundleDevelopmentRegion</key><string>en</string>
   <key>CFBundleLocalizations</key><array><string>en</string><string>ko</string><string>ja</string><string>zh-Hans</string></array>
+  <key>CFBundleURLTypes</key><array><dict><key>CFBundleURLName</key><string>Edge Odyssey controls</string><key>CFBundleURLSchemes</key><array><string>edge-odyssey</string></array></dict></array>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>

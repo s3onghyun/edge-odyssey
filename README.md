@@ -81,6 +81,31 @@ Homebrew 7 and later load casks from other taps only once you trust them; instal
 name, as above, trusts this one cask by itself. To look at it first with
 `brew info --cask s3onghyun/tap/edge-odyssey`, run `brew trust --cask s3onghyun/tap/edge-odyssey` before it.
 
+## Control from anywhere
+
+Start, pause or finish a voyage without finding the menu bar: Edge Odyssey accepts control URLs,
+so the same action works from your launcher, Shortcuts, Git hooks, or Claude Code. Copy
+`scripts/edge-odyssey` somewhere on your `PATH` (for example, `cp scripts/edge-odyssey ~/bin/`),
+then make it executable with `chmod +x ~/bin/edge-odyssey`.
+
+```sh
+# Raycast or Alfred: use this as a Script Command.
+edge-odyssey 'start?minutes=50&label=fix-auth'
+
+# Shortcuts: add an “Open URLs” action with this URL.
+edge-odyssey://pause
+
+# .git/hooks/post-checkout (then: chmod +x .git/hooks/post-checkout)
+edge-odyssey 'start?minutes=25&label=checkout'
+
+# A Claude Code /focus slash command can run this shell command.
+edge-odyssey 'start?minutes=50&label=focus'
+```
+
+The built-in commands are `start` (optional `minutes` from 1–240 and `label`), `pause`, `resume`,
+`stop` (or `finish`), `rest`, `extend`, `skip`, `hide`, `show`, `focus-mode`, `settings`,
+`logbook`, and `history`. Invalid URLs are ignored safely.
+
 ### First launch
 
 The app is ad-hoc signed but **not notarized yet**, so macOS asks once:
