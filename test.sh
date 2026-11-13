@@ -5,6 +5,8 @@ set -eu
 cd "$(dirname "$0")"
 fw="$(xcode-select -p)/Library/Developer/Frameworks"
 if [ -d "$fw/Testing.framework" ]; then
-  exec swift test -Xswiftc -F -Xswiftc "$fw" -Xlinker -F -Xlinker "$fw" -Xlinker -rpath -Xlinker "$fw" "$@"
+  swift test -Xswiftc -F -Xswiftc "$fw" -Xlinker -F -Xlinker "$fw" -Xlinker -rpath -Xlinker "$fw" "$@"
+else
+  swift test "$@"
 fi
-exec swift test "$@"
+exec "$PWD/Tests/hook-tests.sh"

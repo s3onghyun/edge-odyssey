@@ -1,7 +1,9 @@
 # Changelog
 
-## 0.6.0 (unreleased)
+## 0.6.1 (unreleased)
 
+- **0.6.0 was tagged but never released.** 0.6.1 fixes agent hooks so a non-Git folder or detached
+  HEAD still writes its state file cleanly.
 - **Control your focus from a launcher, hand work to Codex or Claude Code, then see the branch in your history.**
   URL and CLI controls start or stop a voyage from Raycast, Alfred, Shortcuts and scripts; waiting
   agents stay quiet through a break and call you back afterward; empty labels become the active

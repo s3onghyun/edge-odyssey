@@ -21,10 +21,12 @@ if [ -n "$cwd" ]; then
   branch=$(git -C "$cwd" branch --show-current 2>/dev/null | head -n 1)
 fi
 tmp="$dir/.$sid.$$"
+trap 'rm -f "$tmp"' EXIT HUP INT TERM
 {
   printf 'waiting %s\n' "$(date +%s)"
   [ -n "$cwd" ] && printf 'cwd %s\n' "$cwd"
   [ -n "$repo" ] && printf 'repo %s\n' "$repo"
   [ -n "$branch" ] && printf 'branch %s\n' "$branch"
+  : # optional branch metadata must not make the state-file write fail
 } > "$tmp" && mv -f "$tmp" "$dir/$sid"
 exit 0

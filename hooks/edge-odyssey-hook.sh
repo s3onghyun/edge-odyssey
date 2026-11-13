@@ -13,6 +13,7 @@ case "$1" in
   *) exit 0 ;;
 esac
 tmp="$dir/.$sid.$$"
+trap 'rm -f "$tmp"' EXIT HUP INT TERM
 cwd=$(printf '%s' "$payload" | sed -n 's/.*"cwd"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -n 1)
 repo=
 branch=
@@ -26,5 +27,6 @@ fi
   [ -n "$cwd" ] && printf 'cwd %s\n' "$cwd"
   [ -n "$repo" ] && printf 'repo %s\n' "$repo"
   [ -n "$branch" ] && printf 'branch %s\n' "$branch"
+  : # optional branch metadata must not make the state-file write fail
 } > "$tmp" && mv -f "$tmp" "$dir/$sid"
 exit 0
