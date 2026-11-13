@@ -1,7 +1,6 @@
 import AppKit
 import QuartzCore
 
-enum AgentState: String { case idle, working, waiting, limit }
 enum Style: String { case border, traveler }
 
 /// Everything one screen needs to draw, computed by the app from its model.

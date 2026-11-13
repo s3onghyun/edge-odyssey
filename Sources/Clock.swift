@@ -69,6 +69,16 @@ func timerDoneMessage(seconds: Int, lang: Lang? = nil) -> (title: String, body: 
             L.t("Your \(t) timer is done", "\(t) 타이머가 끝났어요", "\(t) のタイマーが終わりました", "\(t) 的计时已结束", in: lang))
 }
 
+/// Deferred until a break ends, so an agent does not interrupt the break itself.
+func agentWaitingMessage(count: Int, lang: Lang? = nil) -> (title: String, body: String) {
+    let body = count == 1
+        ? L.t("1 agent is waiting for you", "에이전트 1개가 기다려요", "エージェント 1 件があなたを待っています", "有 1 个代理在等你", in: lang)
+        : L.t("\(count) agents are waiting for you", "에이전트 \(count)개가 기다려요",
+              "\(count) 件のエージェントがあなたを待っています", "有 \(count) 个代理在等你", in: lang)
+    return (L.t("Agents are waiting", "에이전트가 기다리고 있어요", "エージェントが待っています", "有代理在等待", in: lang),
+            body)
+}
+
 /// The sound played when a focus ends (arrival) or a break ends (setting sail).
 enum Chime {
     static let choices = ["harp", "glass", "off"]           // menu order; the harp (at low volume) is the default
