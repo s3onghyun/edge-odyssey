@@ -52,7 +52,6 @@ struct AgentStatus: Equatable {
                            latestLabel: fresh.sorted { $0.timestamp > $1.timestamp }.compactMap(\.label).first)
     }
 
-    func label(or userLabel: String?) -> String? { userLabel ?? latestLabel }
 }
 
 /// Keeps waiting agents quiet during a break, then exposes their count exactly once when it ends.
