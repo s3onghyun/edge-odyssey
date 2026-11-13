@@ -5,7 +5,7 @@ set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 app="$here/build/Edge Odyssey.app"
 bundle_id=${EDGE_ODYSSEY_BUNDLE_ID:-app.edgeodyssey}
-version=${EDGE_ODYSSEY_VERSION:-0.5.0}
+version=${EDGE_ODYSSEY_VERSION:-0.6.0}
 
 # Compile each architecture separately, then join them with lipo. ARCHS is useful when
 # iterating locally, while releases and the default build stay universal.
