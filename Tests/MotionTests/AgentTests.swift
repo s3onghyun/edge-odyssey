@@ -13,7 +13,7 @@ import Testing
     #expect(session?.label == nil)
 }
 
-@Test func latestActiveAgentFillsOnlyAnEmptyLabel() {
+@Test func latestActiveAgentIsAvailableAsALabelSuggestion() {
     let sessions = [
         AgentSession(state: .working, timestamp: 900, cwd: "/work/old", repo: "old", branch: "main"),
         AgentSession(state: .waiting, timestamp: 990, cwd: "/work/new", repo: "new", branch: "fix/label"),
@@ -21,8 +21,6 @@ import Testing
     let status = AgentStatus.summarize(sessions, now: 1_000)
     #expect(status.waitingCount == 1)
     #expect(status.latestLabel == "new@fix/label")
-    #expect(status.label(or: nil) == "new@fix/label")
-    #expect(status.label(or: "Write release notes") == "Write release notes")
 }
 
 @Test func waitingAgentsAreHeldDuringBreakAndAnnouncedOnceAfterward() {
@@ -43,4 +41,9 @@ import Testing
 @Test func breakWaitingMessageUsesTheExistingFriendlyTone() {
     #expect(agentWaitingMessage(count: 2, lang: .en).body == "2 agents are waiting for you")
     #expect(agentWaitingMessage(count: 2, lang: .ko).body == "에이전트 2개가 기다려요")
+}
+
+@Test func breakEndCombinesItsCueAndHeldAgentSignal() {
+    let message = endMessage(focusEnded: false, longBreak: false, breakMinutes: 0, waitingAgents: 2, lang: .en)
+    #expect(message == ("Break's over", "Start the next focus from the menu when you're ready\n2 agents are waiting for you"))
 }

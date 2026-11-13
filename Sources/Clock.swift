@@ -38,11 +38,12 @@ enum Durations {
 
 /// The notification at the end of a focus session (arrival) or of a break. `waits`: the break
 /// starts only when the user says so.
-func endMessage(focusEnded: Bool, longBreak: Bool, breakMinutes m: Int, waits: Bool = false, autoRestMinutes a: Int = 0, lang: Lang? = nil) -> (title: String, body: String) {
+func endMessage(focusEnded: Bool, longBreak: Bool, breakMinutes m: Int, waits: Bool = false, autoRestMinutes a: Int = 0, waitingAgents: Int? = nil, lang: Lang? = nil) -> (title: String, body: String) {
     guard focusEnded else {
-        return (L.t("Break's over", "쉬는 시간 끝", "休憩おわり", "休息结束", in: lang),
-                L.t("Start the next focus from the menu when you're ready", "준비되면 메뉴에서 다음 집중을 시작하세요",
-                    "準備ができたらメニューから次の集中を始めましょう", "准备好后，从菜单开始下一次专注", in: lang))
+        let body = L.t("Start the next focus from the menu when you're ready", "준비되면 메뉴에서 다음 집중을 시작하세요",
+                       "準備ができたらメニューから次の集中を始めましょう", "准备好后，从菜单开始下一次专注", in: lang)
+        let agents = waitingAgents.map { agentWaitingMessage(count: $0, lang: lang).body }
+        return (L.t("Break's over", "쉬는 시간 끝", "休憩おわり", "休息结束", in: lang), agents.map { body + "\n" + $0 } ?? body)
     }
     return (longBreak ? L.t("Calypso's island!", "칼립소의 섬!", "カリュプソの島！", "卡吕普索之岛！", in: lang)
                       : L.t("Ithaca!", "이타카!", "イタケ！", "伊萨卡！", in: lang),

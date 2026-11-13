@@ -547,7 +547,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         phase = .idle
         pausedAt = nil
         lapStart = Date()                                   // agent laps restart from home
-        lapFrozenAt = agentState == .working ? nil : lapStart
+        breakAgentSignal = BreakAgentSignal()
+        agentState = .idle
+        lapFrozenAt = lapStart
         phaseTimer?.invalidate(); last5Timer?.invalidate(); titleTimer?.invalidate()
         cancelEpisodes()
         refresh()
@@ -664,7 +666,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         guard phase == .focus, let s = start ?? runStart else { return nil }
         let secs = (o.mode == .stopwatch ? elapsed : min(elapsed, phaseDuration)) * o.speed
         return Voyage(start: s, end: Date(), mode: o.mode == .pomodoro ? "focus" : o.mode.rawValue, seconds: secs,
-                      completed: finished || o.mode == .stopwatch, label: watcher.status.label(or: runLabel))
+                      completed: finished || o.mode == .stopwatch, label: runLabel)
     }
 
     /// Today so far, the run in progress included.
@@ -699,7 +701,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                                     "한 줄로, 이 Mac의 기록에 남아요(비우면 지워져요).",
                                     "1行で。この Mac の記録に残ります（空にすると消えます）。",
                                     "一行文字，保存在这台 Mac 的记录里（留空即清除）。"),
-                          current: runLabel ?? "", wide: true) else { return }
+                          current: runLabel ?? watcher.status.latestLabel ?? "", wide: true) else { return }
         let line = t.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: "\n", with: " ")
         runLabel = line.isEmpty ? nil : String(line.prefix(120))
     }
@@ -837,8 +839,12 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         chime(focusEnded: false)
         let waiting = breakAgentSignal.breakEnded(with: watcher.status)
         agentState = watcher.status.state
-        if let count = waiting { notify(agentWaitingMessage(count: count)) }
-        if !next { notify(endMessage(focusEnded: false, longBreak: false, breakMinutes: 0)) }
+        if next {
+            if o.agentEnabled, let count = waiting { notify(agentWaitingMessage(count: count)) }
+        } else {
+            notify(endMessage(focusEnded: false, longBreak: false, breakMinutes: 0,
+                              waitingAgents: o.agentEnabled ? waiting : nil))
+        }
         next ? start() : stop()
     }
 
@@ -1454,10 +1460,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         menu.addItem(.separator())
         let agentTitle: String
         switch agentState {
-        case .idle: agentTitle = L.t("Claude Code: no active session", "Claude Code: 활성 세션 없음", "Claude Code：アクティブなセッションなし", "Claude Code：没有活动会话")
-        case .working: agentTitle = L.t("Claude Code: working", "Claude Code: 작업 중", "Claude Code：作業中", "Claude Code：工作中")
-        case .waiting: agentTitle = L.t("Claude Code: waiting for you", "Claude Code: 당신을 기다리는 중", "Claude Code：あなたを待っています", "Claude Code：在等你")
-        case .limit: agentTitle = L.t("Claude Code: near usage limit", "Claude Code: 사용 한도 가까움", "Claude Code：使用上限が近い", "Claude Code：接近用量上限")
+        case .idle: agentTitle = L.t("Agent: no active session", "에이전트: 활성 세션 없음", "エージェント：アクティブなセッションなし", "代理：没有活动会话")
+        case .working: agentTitle = L.t("Agent: working", "에이전트: 작업 중", "エージェント：作業中", "代理：工作中")
+        case .waiting: agentTitle = L.t("Agent: waiting for you", "에이전트: 당신을 기다리는 중", "エージェント：あなたを待っています", "代理：在等你")
+        case .limit: agentTitle = L.t("Agent: near usage limit", "에이전트: 사용 한도 가까움", "エージェント：使用上限が近い", "代理：接近用量上限")
         }
         let ai = NSMenuItem(title: agentTitle, action: nil, keyEquivalent: "")
         ai.isEnabled = false
@@ -1477,7 +1483,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         menu.addItem(submenu(L.t("General", "일반", "一般", "通用"), [
             submenu(L.t("Language", "언어", "言語", "语言"), languages),
             .separator(),
-            MenuAction(L.t("Show Claude Code signals", "Claude Code 신호 표시", "Claude Code のシグナルを表示", "显示 Claude Code 信号"), checked: o.agentEnabled) { [weak self] in
+            MenuAction(L.t("Show agent signals", "에이전트 신호 표시", "エージェントのシグナルを表示", "显示代理信号"), checked: o.agentEnabled) { [weak self] in
                 guard let self else { return }
                 self.control(self.o.agentEnabled ? "agent:off" : "agent:on")
             },
@@ -1773,7 +1779,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         let dest = o.stateDir.appendingPathComponent("hooks")
         do {
             try fm.createDirectory(at: dest, withIntermediateDirectories: true)
-            for name in ["edge-odyssey-hook.sh", "edge-odyssey-statusline.sh", "edge-odyssey-codex-notify.sh"] {
+            for name in ["edge-odyssey-hook.sh", "edge-odyssey-statusline.sh", "codex-hooks-snippet.json"] {
                 let to = dest.appendingPathComponent(name)
                 try? fm.removeItem(at: to)
                 try fm.copyItem(at: src.appendingPathComponent(name), to: to)
