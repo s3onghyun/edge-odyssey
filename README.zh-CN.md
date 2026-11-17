@@ -2,7 +2,7 @@
 
 <h1 align="center">Edge Odyssey 边缘奥德赛</h1>
 
-<p align="center"><b>住在屏幕边缘的番茄钟。</b><br>
+<p align="center"><b>用余光就能看的 Mac 番茄钟：屏幕边缘的一条细线显示进度。</b><br>
 专注计时开始后，小小的奥德修斯沿着 Mac 屏幕边缘划船、攀爬、悬挂、滑下，走完一圈正好时间到；
 Claude Code 需要你时，屏幕边缘会轻轻发光。</p>
 
