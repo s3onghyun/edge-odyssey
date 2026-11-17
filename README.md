@@ -2,7 +2,7 @@
 
 <h1 align="center">Edge Odyssey</h1>
 
-<p align="center"><b>A pomodoro that lives on the edge of your screen.</b><br>
+<p align="center"><b>A Mac pomodoro timer you read from the corner of your eye: a thin progress line around the screen edge.</b><br>
 Odysseus rows along the bottom, climbs, hangs and slides round your Mac's screen edge as the
 session passes, and the edge glows when Claude Code needs you.</p>
 
