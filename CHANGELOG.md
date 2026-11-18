@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Send feedback…** in the menu, next to *Quit*. It opens a GitHub issue prefilled with a short
+  template and the app version, macOS version, Mac model and the agent signal's state (on/off and
+  working/waiting), in the app's language. Nothing else goes in: no paths, names, repos or branches.
+  Nothing is sent by the app; you read, edit and submit the issue yourself. An email option follows
+  in a later version.
+
 ## 0.6.2 (unreleased)
 
 - **Opens on the first try.** Edge Odyssey is now signed with a Developer ID, notarized by Apple
