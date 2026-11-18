@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 (2026-11-18)
 
 - **Send feedback…** in the menu, next to *Quit*. It opens a GitHub issue prefilled with a short
   template and the app version, macOS version and the agent signal's state (on/off and
@@ -21,7 +21,7 @@
 - The README's Privacy section now says the app hides from capture by default and shows itself only
   in Stream mode.
 
-## 0.6.2 (unreleased)
+## 0.6.2 (2026-11-18)
 
 - **Opens on the first try.** Edge Odyssey is now signed with a Developer ID, notarized by Apple
   and stapled, so first launch no longer needs *System Settings › Privacy & Security › Open
