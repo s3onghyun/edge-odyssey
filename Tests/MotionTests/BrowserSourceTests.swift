@@ -18,7 +18,7 @@ import Testing
     @Test func idleStateEncodesEveryKeyInOrder() {
         let s = BrowserSource.snapshot(mode: .timer, phase: .idle, restIsLong: false, duration: 600, elapsed: 0, paused: false,
                                        focusCount: 0, longEvery: 4, lang: .ko)
-        #expect(BrowserSource.json(s) == #"{"clock":"","duration":0,"elapsed":0,"label":"","lang":"ko","mode":"timer","#
+        #expect(BrowserSource.json(s) == #"{"clock":"","duration":0,"label":"","mode":"timer","#
             + #""paused":false,"phase":"idle","progress":0,"remaining":0,"session":null,"v":1}"#)
     }
 
@@ -26,14 +26,18 @@ import Testing
         let s = focus()
         #expect(s.phase == "focus" && s.label == "Focus" && s.clock == "23:30" && s.session == .init(n: 2, of: 4))
         let d = try decode(BrowserSource.json(s))
-        #expect(Set(d.keys) == ["v", "phase", "mode", "label", "clock", "duration", "elapsed", "remaining", "progress", "paused", "session", "lang"])
-        #expect(d["duration"] as? Double == 1500 && d["elapsed"] as? Double == 90.5 && d["remaining"] as? Double == 1409.5)
+        #expect(Set(d.keys) == ["v", "phase", "mode", "label", "clock", "duration", "remaining", "progress", "paused", "session"])
+        #expect(d["duration"] as? Double == 1500 && d["remaining"] as? Double == 1409.5)
         #expect(d["progress"] as? Double == 0.0603)
         #expect((d["session"] as? [String: Int]) == ["n": 2, "of": 4])
         // The HUD's own words for the same moment.
         #expect(StreamMode.hudText(mode: .pomodoro, phase: .focus, restIsLong: false, clock: s.clock, paused: false, session: (2, 4), lang: .en)
                 == "\(s.label) · \(s.clock) · 2/4")
-        #expect(focus(paused: true).paused)
+        let paused = focus(paused: true)
+        #expect(paused.paused && paused.clock == "paused" && paused.progress == 0.0603)
+        #expect(StreamMode.hudText(mode: .pomodoro, phase: .focus, restIsLong: false, clock: s.clock, paused: true, session: (2, 4), lang: .en)
+                == "\(paused.label) · \(paused.clock) · 2/4")   // the HUD's words while paused
+        #expect(focus(paused: true, lang: .ko).clock == "일시정지")
         #expect(focus(lang: .ja).label == "集中")
     }
 
@@ -52,7 +56,7 @@ import Testing
         #expect(timer.label == "Timer" && timer.clock == "9:59" && timer.session == nil)   // no sessions outside Pomodoro
         let watch = BrowserSource.snapshot(mode: .stopwatch, phase: .focus, restIsLong: false, duration: 720, elapsed: 723, paused: false,
                                            focusCount: 0, longEvery: 4, lang: .en)
-        #expect(watch.clock == "12:03" && watch.elapsed == 723 && watch.remaining == 717 && watch.progress == 0.0042)   // the second lap
+        #expect(watch.clock == "12:03" && watch.remaining == 717 && watch.progress == 0.0042)   // the second lap
         let over = focus(elapsed: 1600)
         #expect(over.remaining == 0 && over.progress == 1 && over.clock == "0:00")
     }
@@ -88,16 +92,6 @@ import Testing
         #expect(page.contains("data:image/png;base64,iVBORw=="))
         #expect(!page.contains("%CONFIG%"))
         for remote in ["http://", "https://", "//cdn", "@import", "src=\"/", "url("] { #expect(!page.contains(remote), "\(remote)") }
-    }
-
-    @Test func labelsCoverEveryLanguageAndPhase() {
-        let all = BrowserSource.labels()
-        #expect(Set(all.keys) == Set(Lang.allCases.map(\.rawValue)))
-        for (_, l) in all {
-            #expect(Set(l.keys) == ["focus", "break", "long-break", "arrived", "timer", "stopwatch", "paused"])
-            #expect(l.values.allSatisfy { !$0.isEmpty })
-        }
-        #expect(all["ko"]?["focus"] == "집중" && all["en"]?["long-break"] == "Long break" && all["zh"]?["paused"] == "暂停")
     }
 
     func request(_ line: String, host: String? = "127.0.0.1:47213") -> String {

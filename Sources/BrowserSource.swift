@@ -31,16 +31,14 @@ enum BrowserSource {
         var phase = "idle"        // idle, focus, break, long-break or arrived
         var mode = "pomodoro"     // pomodoro, timer or stopwatch
         var label = ""            // the phase as the HUD names it, in the app's language; "" when idle
-        var clock = ""            // the time as the HUD shows it: "18:32", "+0:42" (arrived), "12:03" (stopwatch)
+        var clock = ""            // the time as the HUD shows it: "18:32", "+0:42" (arrived), "12:03" (stopwatch), "paused"
         var duration = 0.0        // the phase's length (a stopwatch: one lap round the edge)
-        var elapsed = 0.0         // into the phase (a stopwatch: in all; arrived: since arriving)
         var remaining = 0.0       // left of the phase (a stopwatch: of this lap)
         var progress = 0.0        // 0...1 of the phase (a stopwatch: of this lap)
         var paused = false
         var session: Session?     // Pomodoro only: 2 of 4
-        var lang = "en"           // the app's language, for the page's labels
 
-        enum CodingKeys: String, CodingKey { case v, phase, mode, label, clock, duration, elapsed, remaining, progress, paused, session, lang }
+        enum CodingKeys: String, CodingKey { case v, phase, mode, label, clock, duration, remaining, progress, paused, session }
 
         func encode(to e: Encoder) throws {
             var c = e.container(keyedBy: CodingKeys.self)
@@ -50,12 +48,10 @@ enum BrowserSource {
             try c.encode(label, forKey: .label)
             try c.encode(clock, forKey: .clock)
             try c.encode(duration, forKey: .duration)
-            try c.encode(elapsed, forKey: .elapsed)
             try c.encode(remaining, forKey: .remaining)
             try c.encode(progress, forKey: .progress)
             try c.encode(paused, forKey: .paused)
             try c.encode(session, forKey: .session)   // null outside Pomodoro, so the keys never change
-            try c.encode(lang, forKey: .lang)
         }
     }
 
@@ -64,7 +60,6 @@ enum BrowserSource {
                          focusCount: Int, longEvery: Int, lang: Lang) -> Snapshot {
         var s = Snapshot()
         s.mode = mode.rawValue
-        s.lang = lang.rawValue
         guard phase != .idle else { return s }
         func tenth(_ x: Double) -> Double { (max(x, 0) * 10).rounded() / 10 }
         let d = max(duration, 0), e = max(elapsed, 0)
@@ -76,7 +71,6 @@ enum BrowserSource {
         s.label = StreamMode.phaseName(mode: mode, phase: phase, restIsLong: restIsLong, lang: lang) ?? ""
         s.paused = paused
         s.duration = tenth(d)
-        s.elapsed = tenth(e)
         if phase == .arrived {   // home: the whole trail, the overtime counting up
             s.progress = 1
             s.clock = overtime(e)
@@ -91,6 +85,7 @@ enum BrowserSource {
             s.clock = countdown(d - e)
         }
         s.progress = (s.progress * 10000).rounded() / 10000
+        if paused { s.clock = StreamMode.pausedWord(lang) }
         if mode == .pomodoro {
             let n = StreamMode.session(focusCount: focusCount, every: longEvery)
             s.session = Session(n: n.n, of: n.of)
@@ -251,29 +246,13 @@ enum BrowserSource {
     /// A PNG as a `data:` URI.
     static func dataURI(png: Data) -> String { "data:image/png;base64," + png.base64EncodedString() }
 
-    /// The page's names for each phase, in every language, so the app's language picks them.
-    static func labels() -> [String: [String: String]] {
-        var all: [String: [String: String]] = [:]
-        for l in Lang.allCases {
-            func name(_ mode: TimerMode, _ phase: Phase, long: Bool = false) -> String {
-                StreamMode.phaseName(mode: mode, phase: phase, restIsLong: long, lang: l) ?? ""
-            }
-            all[l.rawValue] = ["focus": name(.pomodoro, .focus), "break": name(.pomodoro, .rest), "long-break": name(.pomodoro, .rest, long: true),
-                               "arrived": name(.pomodoro, .arrived), "timer": name(.timer, .focus), "stopwatch": name(.stopwatch, .focus),
-                               "paused": StreamMode.pausedWord(l)]
-        }
-        return all
-    }
-
     private struct PageConfig: Encodable {
-        var labels: [String: [String: String]]
         var sprites: Sprites
         var colors: [String: String]
 
         func encode(to e: Encoder) throws {
-            enum K: String, CodingKey { case labels, sprites, colors }
+            enum K: String, CodingKey { case sprites, colors }
             var c = e.container(keyedBy: K.self)
-            try c.encode(labels, forKey: .labels)
             try c.encode(sprites, forKey: .sprites)
             try c.encode(colors, forKey: .colors)
         }
@@ -291,7 +270,7 @@ enum BrowserSource {
     /// The overlay page: transparent, self-contained (inline style, script and frames), and drawn from
     /// the event stream. Text reaches it as escaped JSON and is set with `textContent`, never as HTML.
     static func page(sprites: Sprites) -> String {
-        let config = PageConfig(labels: labels(), sprites: sprites, colors: colors)
+        let config = PageConfig(sprites: sprites, colors: colors)
         return pageTemplate.replacingOccurrences(of: "%CONFIG%", with: scriptJSON(json(config)))
     }
 
@@ -352,9 +331,7 @@ canvas { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; }
   }
 
   function labelFor(s) {
-    var L = CFG.labels[s.lang] || CFG.labels.en;
-    var name = s.mode === "timer" ? L.timer : s.mode === "stopwatch" ? L.stopwatch : L[s.phase];
-    var parts = [name, s.paused ? L.paused : s.clock];
+    var parts = [s.label, s.clock];
     if (s.session) parts.push(s.session.n + "/" + s.session.of);
     return parts.join(" · ");
   }
@@ -406,10 +383,11 @@ canvas { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; }
     if (!st || st.phase === "idle" || now - got > stale) { chip.hidden = true; return; }
     var W = cv.width, H = cv.height, px = dpr, lw = 4 * px, i = lw / 2 + 2 * px;
     var live = !st.paused && st.phase !== "arrived";
-    var el = st.elapsed + (live ? (now - got) / 1000 : 0), dur = st.duration;
-    var t = st.phase === "arrived" ? 1 : dur > 0 ? (st.mode === "stopwatch" ? (el % dur) / dur : Math.min(el / dur, 1)) : 0;
+    var dur = st.duration, w = live && dur > 0 ? (now - got) / 1000 : 0;
+    var t = st.progress + (dur > 0 ? w / dur : 0);
+    t = st.mode === "stopwatch" ? t % 1 : Math.min(t, 1);
     var rest = st.phase === "break" || st.phase === "long-break";
-    var tone = st.phase === "arrived" ? C.warm : rest ? C.rest : (st.mode !== "stopwatch" && t >= 0.8) ? C.warm : C.focus;
+    var tone = st.phase === "arrived" ? C.warm : rest ? C.rest : (st.mode !== "stopwatch" && dur > 0 && st.remaining - w <= dur / 5) ? C.warm : C.focus;
     g.lineCap = "round";
     g.lineJoin = "round";
     g.lineWidth = lw;
