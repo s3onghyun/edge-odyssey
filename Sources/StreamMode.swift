@@ -45,18 +45,26 @@ enum StreamMode {
     /// `clock` is the time as the app shows it (countdown, overtime or stopwatch). Nil when idle.
     static func hudText(mode: TimerMode, phase: Phase, restIsLong: Bool, clock: String, paused: Bool,
                         session: (n: Int, of: Int), lang: Lang? = nil) -> String? {
-        let name: String
-        switch (mode, phase) {
-        case (_, .idle): return nil
-        case (.timer, _): name = L.t("Timer", "타이머", "タイマー", "计时", in: lang)
-        case (.stopwatch, _): name = L.t("Stopwatch", "스톱워치", "ストップウォッチ", "秒表", in: lang)
-        case (.pomodoro, .focus): name = L.t("Focus", "집중", "集中", "专注", in: lang)
-        case (.pomodoro, .arrived): name = L.t("Arrived", "도착", "到着", "已到达", in: lang)
-        case (.pomodoro, .rest):
-            name = restIsLong ? L.t("Long break", "긴 휴식", "長い休憩", "长休息", in: lang) : L.t("Break", "휴식", "休憩", "休息", in: lang)
-        }
-        let time = paused ? L.t("paused", "일시정지", "一時停止", "暂停", in: lang) : clock
+        guard let name = phaseName(mode: mode, phase: phase, restIsLong: restIsLong, lang: lang) else { return nil }
+        let time = paused ? pausedWord(lang) : clock
         let parts = [name, time] + (mode == .pomodoro ? ["\(session.n)/\(session.of)"] : [])
         return parts.joined(separator: " · ")
     }
+
+    /// The HUD's name for what runs: "Focus", "Break", "Long break", "Arrived", "Timer" or
+    /// "Stopwatch". Nil when idle. The browser-source overlay names the phase the same way.
+    static func phaseName(mode: TimerMode, phase: Phase, restIsLong: Bool, lang: Lang? = nil) -> String? {
+        switch (mode, phase) {
+        case (_, .idle): return nil
+        case (.timer, _): return L.t("Timer", "타이머", "タイマー", "计时", in: lang)
+        case (.stopwatch, _): return L.t("Stopwatch", "스톱워치", "ストップウォッチ", "秒表", in: lang)
+        case (.pomodoro, .focus): return L.t("Focus", "집중", "集中", "专注", in: lang)
+        case (.pomodoro, .arrived): return L.t("Arrived", "도착", "到着", "已到达", in: lang)
+        case (.pomodoro, .rest):
+            return restIsLong ? L.t("Long break", "긴 휴식", "長い休憩", "长休息", in: lang) : L.t("Break", "휴식", "休憩", "休息", in: lang)
+        }
+    }
+
+    /// What the HUD shows in place of the time while paused.
+    static func pausedWord(_ lang: Lang? = nil) -> String { L.t("paused", "일시정지", "一時停止", "暂停", in: lang) }
 }

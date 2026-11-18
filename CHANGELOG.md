@@ -32,6 +32,16 @@
   stray large file, pipe or link there can't stall it.
 - The copied hook settings for a custom `--state-dir` stay valid JSON whatever characters the path
   holds.
+- **Browser-source overlay (OBS)** (*General*, next to Stream mode, in the menu and in Settings; off
+  by default). For streams that show a camera scene rather than the screen: the app serves a
+  transparent page at `http://127.0.0.1:47213/overlay` for OBS's Browser source (or any browser)
+  with the progress line along the frame edge, Odysseus, the phase (in the app's language)
+  and the session, as `Focus · 18:32 · 2/4`. It updates live over server-sent events (`/events`,
+  once a second and on every change) and reconnects by itself
+  after OBS reloads or the app restarts. Settings shows the URL with *Copy* and *Port…*.
+  The server listens on 127.0.0.1 only, serves only `/overlay` and `/events`, answers GET only, never
+  takes commands, sends nothing cacheable, rejects any Host but `127.0.0.1:<port>`, and names no paths, users or
+  hosts; turning it off closes every connection. README: *OBS browser source* has the steps.
 
 ## 0.6.2 (2026-11-18)
 

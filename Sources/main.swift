@@ -16,6 +16,8 @@ struct Options {
     var excludeFromCapture = true   // --capture-visible: false, for one run (stream mode's capture part only)
     var hideWhenCaptured = true
     var streamMode = false          // show on recordings and streams, with the session HUD (StreamMode)
+    var browserOverlay = false      // serve the browser-source overlay on 127.0.0.1 (BrowserSource)
+    var overlayPort = BrowserSource.defaultPort
     var onlyLast5 = false
     var autostart = false
     /// Where to show: "main", "all" (border everywhere, traveler where you work),
@@ -58,6 +60,7 @@ struct Options {
     /// for one run without being saved.
     static let saved: [String: Any] = ["style": "traveler", "display": "main", "thickness": 3.0, "onlyLast5": false,
                                        "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true, "streamMode": false,
+                                       "browserOverlay": false, "overlayPort": BrowserSource.defaultPort,
                                        "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4, "sessionGoal": 0,
                                        "notifyAtEnd": true, "soundVolume": "low", "dialSound": true, "autoNextFocus": false, "autoStartBreak": false, "autoRestMinutes": ArrivalWait.defaultMinutes, "pace": "even",
                                        "focusDisplay": "", "mode": "pomodoro", "timerSeconds": 600.0,
@@ -75,6 +78,8 @@ struct Options {
         lotusEnabled = d.bool(forKey: "lotusEnabled")
         hideWhenCaptured = d.bool(forKey: "hideWhenCaptured")
         streamMode = d.bool(forKey: "streamMode")
+        browserOverlay = d.bool(forKey: "browserOverlay")
+        overlayPort = BrowserSource.port(String(d.integer(forKey: "overlayPort"))) ?? BrowserSource.defaultPort
         showSeconds = d.bool(forKey: "showSeconds")
         focusMinutes = Durations.minutes(String(d.double(forKey: "focusMinutes")), in: Durations.focusRange) ?? 25
         restMinutes = Durations.minutes(String(d.double(forKey: "restMinutes")), in: Durations.breakRange) ?? 5
@@ -210,6 +215,12 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     lazy var dialTicks = DialTickSound()
     var lastDialTickAt: TimeInterval?
     var sessionProgress: SessionGoalProgress
+    // the browser-source overlay (BrowserSourceApp.swift)
+    var overlayServer: OverlayServer?          // while it is on
+    var overlayTimer: Timer?                   // its once-a-second push, while a browser source is connected
+    var overlayFailure: OverlayServer.Failure? // why it is not answering (the port is taken)
+    var overlaySprites: BrowserSource.Sprites? // the character's frames for the page
+    var overlaySpritesFor: String?             // ... made from this character
 
     init(_ o: Options) {
         self.o = o
@@ -292,6 +303,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         }
         if o.autostart { start() }
         if o.focusAtLaunch { openFocusMode() }
+        applyBrowserOverlay()
         // Scrolling over the menu-bar time changes it, as in focus mode.
         NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] e in
             guard let self, let w = e.window, w === self.statusItem.button?.window else { return e }
@@ -1113,7 +1125,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             }
         case "style": o.style = Style(rawValue: arg) ?? o.style; remember("style", o.style.rawValue); refresh(); planEpisodes()
         case "pace": o.physicalPace = arg == "physical"; remember("pace", o.physicalPace ? "physical" : "even"); refresh(); planEpisodes()
-        case "char": if sprites[arg] != nil { o.character = arg; remember("character", arg); refresh(); planEpisodes() }
+        case "char": if sprites[arg] != nil { o.character = arg; remember("character", arg); refresh(); planEpisodes(); updateOverlaySprites() }
         case "thickness": o.thickness = CGFloat(min(max(Double(arg) ?? 3, 2), 4)); remember("thickness", Double(o.thickness)); refresh()
         case "last5": o.onlyLast5 = arg == "on"; remember("onlyLast5", o.onlyLast5); refresh()
         case "agent": o.agentEnabled = arg != "off"; remember("agentEnabled", o.agentEnabled); refresh()
@@ -1136,6 +1148,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         case "autorest": o.autoStartBreak = arg == "on"; remember("autoStartBreak", o.autoStartBreak)
         case "share-hide": o.hideWhenCaptured = arg != "off"; remember("hideWhenCaptured", o.hideWhenCaptured); refresh()
         case "stream-mode": o.streamMode = arg == "on"; remember("streamMode", o.streamMode); applyStreamMode()
+        case "browser-overlay": o.browserOverlay = arg == "on"; remember("browserOverlay", o.browserOverlay); applyBrowserOverlay()
+        case "overlay-port": if let p = BrowserSource.port(arg) { o.overlayPort = p; remember("overlayPort", p); applyBrowserOverlay(restart: true) }
         case "hide": manualHidden = true; refresh()
         case "show": manualHidden = false; refresh()
         case "display": o.display = arg; remember("display", arg); refresh(); planEpisodes()
@@ -1188,6 +1202,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     func updateTitle() {
         updateFocus()
         updateHUD()
+        publishOverlay()
         guard let b = statusItem?.button else { return }
         let tip = phase == .arrived ? L.t("Focus done: time since. Click to start your break.", "집중 완료 후 지난 시간이에요. 클릭해서 휴식을 시작하세요.",
                                           "集中が終わってからの時間です。クリックして休憩を始めましょう。", "专注结束后过去的时间。点击开始休息。") : nil
@@ -1560,6 +1575,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                 self.control(self.o.streamMode ? "stream-mode:off" : "stream-mode:on")
             },
         ] + shareHide + [
+            MenuAction(browserOverlayTitle, checked: o.browserOverlay) { [weak self] in
+                guard let self else { return }
+                self.control(self.o.browserOverlay ? "browser-overlay:off" : "browser-overlay:on")
+            },
+        ] + browserOverlayMenuItems() + [
             MenuAction(L.t("Count down in seconds (12:50, not 13m)", "초 단위로 표시 (13분 대신 12:50)", "秒単位で表示（13分ではなく 12:50）", "按秒倒计时（12:50，而非 13 分）"), checked: o.showSeconds) { [weak self] in
                 guard let self else { return }
                 self.control(self.o.showSeconds ? "seconds:off" : "seconds:on")
@@ -1769,7 +1789,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         control("background-folder:\(url.path)")
     }
 
-    func applicationWillTerminate(_ n: Notification) { recordRun() }   // quitting mid-run still keeps it
+    func applicationWillTerminate(_ n: Notification) { recordRun(); stopBrowserOverlay() }   // quitting mid-run still keeps it
 
     func windowWillClose(_ n: Notification) {
         if (n.object as? NSWindow) === focusOverlay?.window { closeFocusMode() }
