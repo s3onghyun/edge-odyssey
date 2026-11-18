@@ -310,8 +310,7 @@ open "/Applications/Edge Odyssey.app"
 待っているときは `🎶 セイレーン：Claude があなたを呼んでいます`、上限が近いときは `⛈ 使用上限が近づいています`、
 何もしていないときは何も表示しません。ふちのサインと一緒に変わり（休憩中はふちと同じく静か）、タイマーが
 動いていないときも表示されます。表示するのは状態だけで、プロジェクトは出ません。リポジトリ、ブランチ、
-フォルダ、セッション、プロンプトはどれも表示しません。**エージェントの実況**（*一般*、Claude Code の
-サインの下。初期値はオン）でオフにでき、ふちのサインはそのまま残ります。
+フォルダ、セッション、プロンプトはどれも表示しません。Claude Code のサインをオフにすると実況も消えます。
 
 表示の言語はアプリの言語に従います。ポート（1024〜49151）は設定の *ポート…* で
 変えられます。サーバーはこの Mac の中だけで動きます。127.0.0.1 だけで待ち受けるのでほかの機器からは
@@ -340,7 +339,6 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl background:off|cycle|<ファイル名>   # または background-folder:<パス>、drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
 "$APP" --ctl stream-mode:on|off
-"$APP" --ctl narrate:on|off
 "$APP" --ctl browser-overlay:on|off     # または overlay-port:47213
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```

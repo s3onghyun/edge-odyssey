@@ -319,8 +319,7 @@ HTTPS GET 한 번이고, 보내는 것은 `User-Agent: EdgeOdyssey/<버전>`, `A
 `🎶 세이렌: Claude가 당신을 불러요`, 한도 근처에서는 `⛈ 사용 한도에 가까워요`, 쉬고 있을 때는 아무것도
 보이지 않습니다. 가장자리 신호와 함께 바뀌고(휴식 중에는 가장자리처럼 조용히 있음), 타이머가 돌지 않을
 때도 보입니다. 보이는 것은 상태뿐이고 프로젝트는 보이지 않습니다: 저장소, 브랜치, 폴더, 세션, 프롬프트
-모두 나오지 않습니다. **에이전트 실황**(*일반*, Claude Code 신호 아래. 기본은 켜짐)으로 끌 수 있고,
-가장자리 신호는 그대로 남습니다.
+모두 나오지 않습니다. Claude Code 신호를 끄면 실황도 사라집니다.
 
 표시 언어는 앱 언어를 따릅니다. 포트(1024~49151)는 설정의 *포트…*에서 바꿉니다. 서버는 이 Mac
 안에서만 동작합니다: 127.0.0.1에서만 받으므로 다른 기기는 열 수 없고, 타이머를 읽기만 하며(명령은 받지
@@ -349,7 +348,6 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl background:off|cycle|<파일 이름>   # 또는 background-folder:<경로>, drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
 "$APP" --ctl stream-mode:on|off
-"$APP" --ctl narrate:on|off
 "$APP" --ctl browser-overlay:on|off     # 또는 overlay-port:47213
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```

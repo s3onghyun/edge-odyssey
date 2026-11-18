@@ -73,10 +73,10 @@ enum StreamMode {
 
     /// The agent state a stream narrates: the edge's own display state (`App.agentState`, already
     /// held through a break like the edge's signal, and changed only when the hook's state does),
-    /// so the narration never runs ahead of the edge. Idle when the Claude Code signals or the
-    /// narration are off. Only the state is narrated: never a repo, branch, folder or session.
-    static func narratedState(_ state: AgentState, agentEnabled: Bool, narrate: Bool) -> AgentState {
-        agentEnabled && narrate ? state : .idle
+    /// so the narration never runs ahead of the edge. Idle when the Claude Code signals are off.
+    /// Only the state is narrated: never a repo, branch, folder or session.
+    static func narratedState(_ state: AgentState, agentEnabled: Bool) -> AgentState {
+        agentEnabled ? state : .idle
     }
 
     /// The narration line for viewers: what the coding agent is doing. Nil when idle (nothing shows).

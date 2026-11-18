@@ -167,16 +167,6 @@ struct SettingsView: View {
                     ForEach(Lang.allCases, id: \.rawValue) { Text($0.name).tag($0.rawValue) }
                 }
                 Toggle(L.t("Show Claude Code signals", "Claude Code 신호 표시", "Claude Code のシグナルを表示", "显示 Claude Code 信号"), isOn: flag(o.agentEnabled, "agent"))
-                if o.agentEnabled {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Toggle(app.narrateAgentTitle, isOn: flag(o.narrateAgent, "narrate"))
-                        Text(L.t("Stream mode's HUD and the OBS overlay say what Claude is doing. Only the state, never the project or branch.",
-                                 "스트림 모드 HUD와 OBS 오버레이에 Claude가 하는 일을 보여 줘요. 상태만 보이고 프로젝트나 브랜치는 보이지 않아요.",
-                                 "ストリームモードの HUD と OBS オーバーレイに Claude の様子を表示します。状態だけで、プロジェクトやブランチは表示しません。",
-                                 "直播模式的 HUD 和 OBS 叠加层会显示 Claude 在做什么。只显示状态，从不显示项目或分支。"))
-                            .type(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                    }.padding(.leading, 20)
-                }
                 Toggle(L.t("Doze while a game, video or social app is in front", "게임·동영상·SNS 앱이 앞에 있으면 졸기",
                            "ゲーム・動画・SNS アプリが前面にあるとき居眠りする", "游戏、视频或社交应用在前台时打瞌睡"), isOn: flag(o.lotusEnabled, "lotus-enabled"))
                 Toggle(app.streamModeTitle, isOn: flag(o.streamMode, "stream-mode"))

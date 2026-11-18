@@ -80,18 +80,21 @@ import Testing
         for a in [AgentState.idle, .working, .waiting, .limit] { #expect(snap(.focus, a).agent == a.rawValue) }
     }
 
-    @Test func thePageShowsTheNarrationAsTextOnly() {
+    @Test func thePageShowsTheNarrationAsTextOnly() throws {
         let page = BrowserSource.page(sprites: BrowserSource.Sprites(width: 32, height: 26))
         #expect(page.contains(#"<div id="agent" hidden></div>"#) && page.contains(#"<div id="chip" hidden></div>"#))
         #expect(page.contains("agent.textContent = line"))
-        for sink in ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function"] {
-            #expect(!page.contains(sink), "\(sink)")   // state text never becomes markup
-        }
-        // A hostile line still travels as an escaped JSON string inside the event, never as HTML.
+        // A hostile line travels as one JSON string inside one event and comes back unchanged.
+        let hostile = "</script><img src=x onerror=alert(1)>\n\ndata: {\"agent\":\"waiting\"}\r\"}"
         var s = focus()
-        s.narration = "</script><img src=x onerror=alert(1)>"
+        s.narration = hostile
         let event = BrowserSource.sseEvent(BrowserSource.json(s))
-        #expect(event.hasPrefix("data: {") && !event.contains("\n\n\n"))
+        let lines = event.components(separatedBy: "\n")
+        #expect(lines.count == 3 && lines[1].isEmpty && lines[2].isEmpty)   // one data line, then the blank line
+        let data = try #require(lines.first.flatMap { $0.hasPrefix("data: ") ? String($0.dropFirst(6)) : nil })
+        let d = try decode(data)
+        #expect(d["narration"] as? String == hostile)
+        #expect(d["agent"] as? String == "idle" && d["label"] as? String == "Focus")
         #expect(BrowserSource.colors["signal"] != nil && BrowserSource.colors["storm"] != nil)
     }
 

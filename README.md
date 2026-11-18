@@ -384,8 +384,7 @@ viewers what the agent is doing, in a second chip: `⛵ Claude rowing…` while 
 Claude needs you` while it waits for you, `⛈ Near the usage limit` near the limit, and nothing while
 it is idle. It changes together with the edge's own signal (and stays quiet during a break, like the
 edge), and shows even when no timer runs. It shows only that state, never the project: no repo,
-branch, folder, session or prompt. Turn it off with **Narrate agent state** (*General*, under the
-Claude Code signals; on by default); the edge signals stay.
+branch, folder, session or prompt. Turning the Claude Code signals off hides it.
 
 The labels follow the app's language. *Port…* in Settings changes
 the port (1024 to 49151). The server is local only: it listens on 127.0.0.1, so no other device
@@ -415,7 +414,6 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl background:off|cycle|<file name>   # or background-folder:<path>, drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
 "$APP" --ctl stream-mode:on|off
-"$APP" --ctl narrate:on|off
 "$APP" --ctl browser-overlay:on|off     # also overlay-port:47213
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```

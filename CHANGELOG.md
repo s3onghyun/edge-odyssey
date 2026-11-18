@@ -30,9 +30,7 @@
   `⛈ Near the usage limit` (near the limit), nothing while idle, in the app's language. It follows
   the edge's own agent signal (including staying quiet during a break), fades in and out, and shows
   even when no timer runs. Only the state is shown, never the repo, branch, folder, session or
-  prompt. **Narrate agent state** (*General*, under the Claude Code signals, in the menu and in
-  Settings; on by default) turns it off and leaves the edge signals as they are. Also
-  `--ctl narrate:on|off`. The overlay's `/events` snapshot gains `agent` (idle, working, waiting
+  prompt. Turning the Claude Code signals off hides it. The overlay's `/events` snapshot gains `agent` (idle, working, waiting
   or limit) and `narration`.
 
 ## 0.7.0 (2026-11-18)
@@ -55,6 +53,7 @@
   still shows the windows in captures on its own.
 - The README's Privacy section now says the app hides from capture by default and shows itself only
   in Stream mode.
+
 ## 0.6.2 (2026-11-18)
 
 - **Opens on the first try.** Edge Odyssey is now signed with a Developer ID, notarized by Apple

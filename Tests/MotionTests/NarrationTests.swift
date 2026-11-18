@@ -20,11 +20,10 @@ import Testing
         #expect(StreamMode.narration(.working, lang: .ko) == "⛵ Claude 노 젓는 중…")
     }
 
-    @Test func narrationFollowsTheSignalsAndItsToggle() {
+    @Test func narrationFollowsTheSignals() {
         for s in [AgentState.idle, .working, .waiting, .limit] {
-            #expect(StreamMode.narratedState(s, agentEnabled: true, narrate: true) == s)
-            #expect(StreamMode.narratedState(s, agentEnabled: true, narrate: false) == .idle)   // narration off
-            #expect(StreamMode.narratedState(s, agentEnabled: false, narrate: true) == .idle)   // signals off
+            #expect(StreamMode.narratedState(s, agentEnabled: true) == s)
+            #expect(StreamMode.narratedState(s, agentEnabled: false) == .idle)   // signals off
         }
     }
 
@@ -33,7 +32,7 @@ import Testing
         var hold = BreakAgentSignal()
         let status = AgentStatus(state: .waiting, waitingCount: 1, latestLabel: "edge-odyssey@main")
         let shown = hold.displayState(for: status, duringBreak: true)
-        #expect(shown == .idle && StreamMode.narration(StreamMode.narratedState(shown, agentEnabled: true, narrate: true)) == nil)
+        #expect(shown == .idle && StreamMode.narration(StreamMode.narratedState(shown, agentEnabled: true)) == nil)
         #expect(StreamMode.narration(hold.displayState(for: status, duringBreak: false)) == "🎶 Sirens: Claude needs you")
     }
 
@@ -52,7 +51,7 @@ import Testing
             let sessions = AgentWatcher.sessions(in: dir)
             let status = AgentStatus.summarize(sessions, now: now)
             #expect(status.latestLabel == "\(repo)@\(branch)")   // the fixture does carry them
-            let agent = StreamMode.narratedState(status.state, agentEnabled: true, narrate: true)
+            let agent = StreamMode.narratedState(status.state, agentEnabled: true)
             #expect(agent.rawValue == state)
             for lang in Lang.allCases {
                 let narration = StreamMode.narration(agent, lang: lang)
