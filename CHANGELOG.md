@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.7.0 (2026-11-18)
+## 0.7.0 (unreleased)
 
 - **Send feedback…** in the menu, next to *Quit*. It opens a GitHub issue prefilled with a short
   template and the app version, macOS version and the agent signal's state (on/off and
