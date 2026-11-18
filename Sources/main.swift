@@ -1513,6 +1513,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         hide.keyEquivalentModifierMask = [.control, .option, .command]
         menu.addItem(hide)
         menu.addItem(.separator())
+        menu.addItem(MenuAction(L.t("Send feedback…", "의견 보내기…", "フィードバックを送る…", "发送反馈…")) { [weak self] in self?.sendFeedback() })
         menu.addItem(MenuAction(L.t("Quit Edge Odyssey", "Edge Odyssey 종료", "Edge Odyssey を終了", "退出 Edge Odyssey"), key: "q") { NSApp.terminate(nil) })
     }
 
@@ -1739,6 +1740,41 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             NSApp.activate(ignoringOtherApps: true)
             if alert.runModal() == .alertFirstButtonReturn { SMAppService.openSystemSettingsLoginItems() }
         }
+    }
+
+    // MARK: feedback
+
+    /// Only versions and the agent signal's state: see Feedback.swift.
+    var feedbackEnvironment: FeedbackEnvironment {
+        let info = Bundle.main.infoDictionary
+        return FeedbackEnvironment(appVersion: info?["CFBundleShortVersionString"] as? String ?? "unknown",
+                                   build: info?["CFBundleVersion"] as? String,
+                                   macOS: ProcessInfo.processInfo.operatingSystemVersion,
+                                   agent: (enabled: o.agentEnabled, state: agentState))
+    }
+
+    /// Asks GitHub issue or email, then opens it prefilled. Nothing is sent from here: the user
+    /// reads, edits and submits it in the browser or mail app.
+    func sendFeedback() {
+        let choices = Feedback.choices()
+        let alert = NSAlert()
+        alert.messageText = L.t("Send feedback", "의견 보내기", "フィードバックを送る", "发送反馈")
+        alert.informativeText = L.t("Opens a prefilled draft with the app and macOS versions. Nothing is sent until you send it yourself.",
+                                    "앱과 macOS 버전이 채워진 초안을 열어요. 직접 보내기 전에는 아무것도 전송되지 않아요.",
+                                    "アプリと macOS のバージョンを記入した下書きを開きます。自分で送るまで何も送信されません。",
+                                    "打开一份已填好应用和 macOS 版本的草稿。在你自己发送之前，不会发送任何内容。")
+        for c in choices {
+            alert.addButton(withTitle: c == .github ? L.t("Open a GitHub issue", "GitHub 이슈 열기", "GitHub の Issue を開く", "打开 GitHub Issue")
+                                                    : L.t("Send an email instead", "대신 이메일 보내기", "代わりにメールを送る", "改为发送邮件"))
+        }
+        alert.addButton(withTitle: L.t("Cancel", "취소", "キャンセル", "取消"))
+        NSApp.activate(ignoringOtherApps: true)
+        let picked = alert.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        guard picked >= 0, picked < choices.count else { return }
+        let env = feedbackEnvironment
+        let url = choices[picked] == .github ? Feedback.issueURL(env) : Feedback.mailURL(env)
+        if let url { NSWorkspace.shared.open(url) }
+        log("feedback: opened \(choices[picked])")
     }
 
     // MARK: windows
