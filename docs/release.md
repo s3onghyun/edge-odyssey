@@ -21,14 +21,14 @@ old ad-hoc signed app, prints **`Notarization skipped`** and keeps it as the 7-d
 `edge-odyssey-adhoc-X.Y.Z`. Phase 2 accepts only `edge-odyssey-signed-*` artifacts, so an
 unnotarized build is never published.
 
-## Release 0.7.0 (commands)
+## Release 0.8.0 (commands)
 
 ```sh
 R=s3onghyun/edge-odyssey
 
 # Phase 1: an annotated tag on the merge commit of main starts it
 git switch main && git pull --ff-only
-git tag -a v0.7.0 -m "Edge Odyssey 0.7.0" && git push origin v0.7.0
+git tag -a v0.8.0 -m "Edge Odyssey 0.8.0" && git push origin v0.8.0
 
 # Find the phase-1 run. Its summary shows the submission id and the exact phase-2 command
 gh run list -R "$R" -w release.yml -L 5
@@ -41,15 +41,15 @@ gh run list -R "$R" -w release.yml -L 1   # watch phase 2
 
 # After publishing: check the downloaded asset on a Mac
 cd "$(mktemp -d)"
-gh release download v0.7.0 -R "$R" -p 'Edge-Odyssey-0.7.0-arm64.zip*'
-shasum -a 256 -c Edge-Odyssey-0.7.0-arm64.zip.sha256
-gh attestation verify Edge-Odyssey-0.7.0-arm64.zip -R "$R"
-ditto -x -k Edge-Odyssey-0.7.0-arm64.zip .
+gh release download v0.8.0 -R "$R" -p 'Edge-Odyssey-0.8.0-arm64.zip*'
+shasum -a 256 -c Edge-Odyssey-0.8.0-arm64.zip.sha256
+gh attestation verify Edge-Odyssey-0.8.0-arm64.zip -R "$R"
+ditto -x -k Edge-Odyssey-0.8.0-arm64.zip .
 xcrun stapler validate "Edge Odyssey.app"
 spctl -a -vv -t exec "Edge Odyssey.app"     # source=Notarized Developer ID
 ```
 
-For a later release, replace `0.7.0`. Always run phase 2 with `--ref main` (the phase-2 jobs live
+For a later release, replace `0.8.0`. Always run phase 2 with `--ref main` (the phase-2 jobs live
 in the default branch's workflow), and only after phase 1 has finished.
 
 Then bump the cask in [s3onghyun/homebrew-tap](https://github.com/s3onghyun/homebrew-tap)
