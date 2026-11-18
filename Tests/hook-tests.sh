@@ -33,11 +33,11 @@ run_detached codex codex-detached
 
 for id in claude-non-git codex-non-git claude-detached codex-detached; do
   test -f "$state/sessions/$id"
-  ! rg -q '^branch ' "$state/sessions/$id"
+  ! grep -q '^branch ' "$state/sessions/$id"
 done
 printf '{"session_id":"codex-non-git"}\n' | EDGE_ODYSSEY_STATE_DIR="$state" "$claude" end
 ! test -e "$state/sessions/codex-non-git"
-! find "$state/sessions" -name '.*' -type f | rg -q .
+! find "$state/sessions" -name '.*' -type f | grep -q .
 
 mode() { stat -c %a "$1" 2>/dev/null || stat -f %Lp "$1"; }   # GNU, then BSD/macOS
 
@@ -54,7 +54,7 @@ test "$(mode "$usage_state")" = 700
 test "$(mode "$usage_state/usage")" = 600
 # ...while the next status-line command keeps the caller's umask
 printf '{"rate_limits":{"five_hour":{"used_percentage":42}}}\n' \
-  | EDGE_ODYSSEY_STATE_DIR="$usage_state" EDGE_ODYSSEY_STATUSLINE_NEXT='umask' "$statusline" | rg -qx '0*22'
+  | EDGE_ODYSSEY_STATE_DIR="$usage_state" EDGE_ODYSSEY_STATUSLINE_NEXT='umask' "$statusline" | grep -qx '0*22'
 
 # Only the top-level session_id and cwd count, never a nested one in tool_input or tool_response,
 # both with the JSON parser and with the first-match fallback when python3 is unavailable.
@@ -72,8 +72,8 @@ for path in "$PATH" "$nopy:$PATH"; do
   test -f "$state/sessions/real-sid"
   ! test -e "$state/sessions/forged_sid"
   ! test -e "$state/sessions/forged2"
-  rg -qxF "cwd $decoy_cwd" "$state/sessions/real-sid"
-  ! rg -q forged "$state/sessions/real-sid"
+  grep -qxF "cwd $decoy_cwd" "$state/sessions/real-sid"
+  ! grep -q forged "$state/sessions/real-sid"
   rm -f "$state/sessions/real-sid"
 done
 
@@ -85,6 +85,6 @@ git -C "$nl_repo" init -q -b main
 ln -s "$nl_repo" "$scratch/nl-link"
 printf '{"session_id":"newline-repo","cwd":"%s"}\n' "$scratch/nl-link" \
   | EDGE_ODYSSEY_STATE_DIR="$state" "$claude" working
-test "$(rg -c '^repo ' "$state/sessions/newline-repo")" = 1
-test "$(rg -c '^branch ' "$state/sessions/newline-repo")" = 1
-rg -qx 'branch main' "$state/sessions/newline-repo"
+test "$(grep -c '^repo ' "$state/sessions/newline-repo")" = 1
+test "$(grep -c '^branch ' "$state/sessions/newline-repo")" = 1
+grep -qx 'branch main' "$state/sessions/newline-repo"
