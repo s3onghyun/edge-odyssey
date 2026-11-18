@@ -13,8 +13,9 @@ struct Options {
     var style = Style.traveler
     var character = Characters.standard
     var thickness: CGFloat = 3
-    var excludeFromCapture = true
+    var excludeFromCapture = true   // --capture-visible: false, for one run (stream mode's capture part only)
     var hideWhenCaptured = true
+    var streamMode = false          // show on recordings and streams, with the session HUD (StreamMode)
     var onlyLast5 = false
     var autostart = false
     /// Where to show: "main", "all" (border everywhere, traveler where you work),
@@ -56,7 +57,7 @@ struct Options {
     /// Settings the menu changes are kept in UserDefaults; command-line flags override them
     /// for one run without being saved.
     static let saved: [String: Any] = ["style": "traveler", "display": "main", "thickness": 3.0, "onlyLast5": false,
-                                       "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true,
+                                       "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true, "streamMode": false,
                                        "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4, "sessionGoal": 0,
                                        "notifyAtEnd": true, "soundVolume": "low", "dialSound": true, "autoNextFocus": false, "autoStartBreak": false, "autoRestMinutes": ArrivalWait.defaultMinutes, "pace": "even",
                                        "focusDisplay": "", "mode": "pomodoro", "timerSeconds": 600.0,
@@ -73,6 +74,7 @@ struct Options {
         agentEnabled = d.bool(forKey: "agentEnabled")
         lotusEnabled = d.bool(forKey: "lotusEnabled")
         hideWhenCaptured = d.bool(forKey: "hideWhenCaptured")
+        streamMode = d.bool(forKey: "streamMode")
         showSeconds = d.bool(forKey: "showSeconds")
         focusMinutes = Durations.minutes(String(d.double(forKey: "focusMinutes")), in: Durations.focusRange) ?? 25
         restMinutes = Durations.minutes(String(d.double(forKey: "restMinutes")), in: Durations.breakRange) ?? 5
@@ -356,7 +358,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         for ov in overlays { kept[displayID(ov.screen)] = ov }
         overlays = NSScreen.screens.map { scr in
             if let ov = kept.removeValue(forKey: displayID(scr)) { ov.move(to: scr); return ov }
-            return Overlay(screen: scr, excludeFromCapture: o.excludeFromCapture)
+            return Overlay(screen: scr, excludeFromCapture: excludesFromCapture)
         }
         kept.values.forEach { $0.close() }
         if let f = focusOverlay, let s = f.window.screen { f.move(to: s) }
@@ -407,9 +409,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         let onThisDisplay = borderScreens.contains(ov.screen) && focusOverlay.map { displayID($0.screen) != displayID(ov.screen) } ?? true
         let hasContent = (phase != .idle || s.agent != .idle) && onThisDisplay
         let hiddenForLast5 = o.onlyLast5 && phase == .focus && o.mode != .stopwatch && remaining > 300 / o.speed && s.agent != .waiting
-        s.visible = hasContent && !manualHidden && !hiddenForLast5
-            && !(o.hideWhenCaptured && detector.result.capturing)
-            && !detector.result.coveredDisplays.contains(displayID(ov.screen))
+        s.hud = ov.screen == travelerScreen ? hud : nil   // one HUD, on the display the traveler walks
+        let blocked = manualHidden || (hidesWhenCaptured && detector.result.capturing)
+            || detector.result.coveredDisplays.contains(displayID(ov.screen))
+        (s.visible, s.edgeVisible) = StreamMode.visibility(content: hasContent, blocked: blocked, hiddenForLast5: hiddenForLast5, hud: s.hud != nil)
         return s
     }
 
@@ -585,7 +588,8 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     func scheduleTitleTimer() {
         titleTimer?.invalidate()
         guard phase != .idle, pausedAt == nil else { return }   // nothing counts down: no wakeups
-        let every: TimeInterval = o.showSeconds || o.speed > 1 || phase == .arrived ? 1 : 15   // the overtime shows seconds
+        // The overtime and stream mode's HUD show seconds.
+        let every: TimeInterval = o.showSeconds || o.speed > 1 || phase == .arrived || o.streamMode ? 1 : 15
         let t = Timer(timeInterval: every, repeats: true) { [weak self] _ in self?.updateTitle() }
         t.tolerance = every == 1 ? 0.05 : 5
         RunLoop.main.add(t, forMode: .common)   // .common: keeps ticking while the menu is open
@@ -1047,6 +1051,46 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
     /// Saves one setting the user changed (only that one: other values may be one-run flags).
     func remember(_ key: String, _ value: Any) { UserDefaults.standard.set(value, forKey: key) }
 
+    // MARK: stream mode
+
+    /// The overlay and focus mode stay out of captures unless stream mode (or --capture-visible) is on.
+    var excludesFromCapture: Bool { StreamMode.excludesFromCapture(streamMode: o.streamMode, captureVisible: !o.excludeFromCapture) }
+    /// The saved "hide while shared or recorded" setting, held off while stream mode is on.
+    var hidesWhenCaptured: Bool { StreamMode.hidesWhenCaptured(streamMode: o.streamMode, hideWhenCaptured: o.hideWhenCaptured) }
+
+    var streamModeTitle: String {
+        L.t("Stream mode (show on recordings and streams)", "스트림 모드 (녹화·방송에 보이기)",
+            "ストリームモード（録画・配信に表示）", "直播模式（在录制和直播中显示）")
+    }
+    /// Why the hide-while-captured setting is greyed out while stream mode is on.
+    var streamModeHideNote: String {
+        L.t("Off while Stream mode is on: recordings and shares show Edge Odyssey", "스트림 모드가 켜져 있어 꺼져 있어요: 녹화·공유 화면에 Edge Odyssey가 보여요",
+            "ストリームモード中はオフ：録画・共有に Edge Odyssey が映ります", "直播模式开启时关闭：录制和共享中会显示 Edge Odyssey")
+    }
+
+    /// The session HUD now: "Focus · 18:32 · 2/4", or nil outside stream mode or while idle.
+    var hud: Overlay.HUD? {
+        guard StreamMode.showsHUD(streamMode: o.streamMode, phase: phase) else { return nil }
+        let clock = phase == .arrived ? overtime(elapsed * o.speed)
+            : o.mode == .stopwatch ? elapsedClock(elapsed * o.speed) : countdown(remaining * o.speed)
+        let text = StreamMode.hudText(mode: o.mode, phase: phase, restIsLong: restIsLong, clock: clock, paused: pausedAt != nil,
+                                      session: StreamMode.session(focusCount: focusCount, every: o.longEvery))
+        return text.map { Overlay.HUD(text: $0, phase: phase) }
+    }
+
+    /// Ticks the HUD's time with the menu bar's (once a second in stream mode), never the edge animation.
+    func updateHUD() {
+        guard o.streamMode, let h = hud else { return }
+        for ov in overlays where ov.showsHUD { ov.setHUD(h) }
+    }
+
+    /// Stream mode was switched: windows join or leave captures at once, and the HUD and its tick follow.
+    func applyStreamMode() {
+        for ov in allOverlays { ov.excludeFromCapture(excludesFromCapture) }
+        scheduleTitleTimer()
+        refresh()
+    }
+
     func control(_ cmd: String) {
         log("ctl: \(cmd)")
         defer { if settingsWindow.isOpen { LanguageWatch.shared.changed() } }   // the Settings window shows the new value
@@ -1091,6 +1135,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         case "autonext": o.autoNextFocus = arg == "on"; remember("autoNextFocus", o.autoNextFocus)
         case "autorest": o.autoStartBreak = arg == "on"; remember("autoStartBreak", o.autoStartBreak)
         case "share-hide": o.hideWhenCaptured = arg != "off"; remember("hideWhenCaptured", o.hideWhenCaptured); refresh()
+        case "stream-mode": o.streamMode = arg == "on"; remember("streamMode", o.streamMode); applyStreamMode()
         case "hide": manualHidden = true; refresh()
         case "show": manualHidden = false; refresh()
         case "display": o.display = arg; remember("display", arg); refresh(); planEpisodes()
@@ -1142,6 +1187,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
 
     func updateTitle() {
         updateFocus()
+        updateHUD()
         guard let b = statusItem?.button else { return }
         let tip = phase == .arrived ? L.t("Focus done: time since. Click to start your break.", "집중 완료 후 지난 시간이에요. 클릭해서 휴식을 시작하세요.",
                                           "集中が終わってからの時間です。クリックして休憩を始めましょう。", "专注结束后过去的时间。点击开始休息。") : nil
@@ -1480,6 +1526,23 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         }, .separator()] + Lang.allCases.map { l in
             MenuAction(l.name, checked: pref == l.rawValue) { [weak self] in self?.control("language:\(l.rawValue)") }
         }
+        // Stream mode holds the hide-while-captured setting off: shown, greyed, with the reason.
+        let shareHideTitle = L.t("Hide while the screen is shared or recorded", "화면 공유·녹화 중에는 숨기기", "画面の共有・録画中は隠す", "共享或录制屏幕时隐藏")
+        let shareHide: [NSMenuItem]
+        if o.streamMode {
+            let item = NSMenuItem(title: shareHideTitle, action: nil, keyEquivalent: "")
+            item.state = o.hideWhenCaptured ? .on : .off
+            item.isEnabled = false
+            let why = NSMenuItem(title: streamModeHideNote, action: nil, keyEquivalent: "")
+            why.isEnabled = false
+            why.indentationLevel = 1
+            shareHide = [item, why]
+        } else {
+            shareHide = [MenuAction(shareHideTitle, checked: o.hideWhenCaptured) { [weak self] in
+                guard let self else { return }
+                self.control(self.o.hideWhenCaptured ? "share-hide:off" : "share-hide:on")
+            }]
+        }
         menu.addItem(submenu(L.t("General", "일반", "一般", "通用"), [
             submenu(L.t("Language", "언어", "言語", "语言"), languages),
             .separator(),
@@ -1492,10 +1555,11 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                 guard let self else { return }
                 self.control(self.o.lotusEnabled ? "lotus-enabled:off" : "lotus-enabled:on")
             },
-            MenuAction(L.t("Hide while the screen is shared or recorded", "화면 공유·녹화 중에는 숨기기", "画面の共有・録画中は隠す", "共享或录制屏幕时隐藏"), checked: o.hideWhenCaptured) { [weak self] in
+            MenuAction(streamModeTitle, checked: o.streamMode) { [weak self] in
                 guard let self else { return }
-                self.control(self.o.hideWhenCaptured ? "share-hide:off" : "share-hide:on")
+                self.control(self.o.streamMode ? "stream-mode:off" : "stream-mode:on")
             },
+        ] + shareHide + [
             MenuAction(L.t("Count down in seconds (12:50, not 13m)", "초 단위로 표시 (13분 대신 12:50)", "秒単位で表示（13分ではなく 12:50）", "按秒倒计时（12:50，而非 13 分）"), checked: o.showSeconds) { [weak self] in
                 guard let self else { return }
                 self.control(self.o.showSeconds ? "seconds:off" : "seconds:on")
@@ -1543,7 +1607,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         o.focusDisplay = screen.localizedName
         remember("focusDisplay", o.focusDisplay)
         cancelEpisodes()
-        let f = Overlay(focusOn: screen, excludeFromCapture: o.excludeFromCapture, frame: o.focusFrame)
+        let f = Overlay(focusOn: screen, excludeFromCapture: excludesFromCapture, frame: o.focusFrame)
         focusOverlay = f
         f.log = { [weak self] in self?.log($0) }
         f.sceneProvider = { [weak self, weak f] in f.flatMap { self?.scene(for: $0) } ?? Scene() }
@@ -1640,7 +1704,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                    : phase == .focus ? L.t("Skip to break (S)", "휴식으로 건너뛰기 (S)", "休憩へスキップ (S)", "跳到休息 (S)")
                    : L.t("End break (S)", "휴식 끝내기 (S)", "休憩を終える (S)", "结束休息 (S)"),
                footer: todayLine(short: true),
-               contentHidden: manualHidden || (o.hideWhenCaptured && detector.result.capturing),
+               contentHidden: manualHidden || (hidesWhenCaptured && detector.result.capturing),
                dial: dialState,
                presets: phase != .idle || o.mode == .stopwatch ? []
                    : (o.mode == .timer ? Durations.timerPresets : Durations.focusPresets).map { m in

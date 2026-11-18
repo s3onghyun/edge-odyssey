@@ -8,6 +8,18 @@
   Nothing is sent by the app; you read, edit and submit the issue yourself. People without GitHub
   can pick *Send an email instead*, which opens the same prefilled draft in their mail app,
   addressed to s3onghyun.hong@gmail.com.
+- **Stream mode** (*General › Stream mode*, in the menu and in Settings; off by default). For people
+  who record or stream their screen: the edge and focus mode show up in screenshots, recordings and
+  screen shares, they no longer hide while the screen is captured, and a small session HUD sits in
+  the bottom-right corner: `Focus · 18:32 · 2/4` shows the phase (Focus, Break, Long break, or
+  Arrived, Timer, Stopwatch), the time and, in Pomodoro, the session of the long-break cycle,
+  ticking every second. The HUD shows for the whole session even with *Only show in the last 5 minutes* on;
+  the edge still waits for the last five minutes. While Stream mode is on, *Hide while the screen
+  is shared or recorded* is greyed out with the reason; turning Stream mode off brings back exactly
+  the old behaviour and your previous choice. Also `--ctl stream-mode:on|off`; `--capture-visible`
+  still shows the windows in captures on its own.
+- The README's Privacy section now says the app hides from capture by default and shows itself only
+  in Stream mode.
 
 ## 0.6.2 (unreleased)
 

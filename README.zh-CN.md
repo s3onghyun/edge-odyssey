@@ -45,6 +45,9 @@ Claude Code 需要你时，屏幕边缘会轻轻发光。</p>
   （“今天航行了 22 里格”），还有对照每日目标的 7 天 / 30 天图表，以及 CSV 导出。
 - **不碍事。** 2–4 像素的细边框，从不拦截点击；全屏应用中、共享或录制屏幕时自动隐藏，
   按 Control-Option-Command-H 也能随时隐藏。
+- **直播模式（可选）。** 当你录屏或直播、想让观众看到这段航行时：打开 *通用 › 直播模式*（菜单或设置），
+  录制和共享画面中就会显示边缘和专注模式，屏幕被捕获时也不再隐藏，并在右下角显示一个小的
+  会话 HUD：`专注 · 18:32 · 2/4`（阶段、时间、本轮长休息周期中的第几次）；即使打开“只在最后 5 分钟显示”，HUD 也会整个会话都显示。默认关闭；关闭后隐藏行为与以前完全相同。
 - **流畅而轻。** 所有动画都在 macOS 渲染服务器中运行，应用只在转角和状态变化时醒来（CPU 约 0.1%）。
 
 ## 安装
@@ -128,7 +131,7 @@ open "/Applications/Edge Odyssey.app"
 | 为本次添加标签… | 一行备注，随这次记录一起保存（开始前设置：用于下一次） |
 | 航海日志… | 你已收集的《奥德赛》24 卷 |
 | 设置…（⌘,） | 一个汇集本菜单全部选项的窗口（计时、时间到时、屏幕显示、专注模式、通用）。窗口保持打开，可以连续修改多项，每项修改立即生效 |
-| 通用 | **语言**（见下）、Claude Code 信号、游戏/视频/社交应用在前台时打盹、共享屏幕时隐藏、按秒倒数（关闭后显示整分钟，如 `13m`）、**每天检查一次更新** 和 *立即检查*（见下）、**登录时启动**（默认关闭）、欢迎指南 |
+| 通用 | **语言**（见下）、Claude Code 信号、游戏/视频/社交应用在前台时打盹、**直播模式**（见上）、共享屏幕时隐藏（直播模式开启时变灰）、按秒倒数（关闭后显示整分钟，如 `13m`）、**每天检查一次更新** 和 *立即检查*（见下）、**登录时启动**（默认关闭）、欢迎指南 |
 | 立即隐藏 | 在任何地方按 Control-Option-Command-H |
 | 发送反馈… | 从菜单发送反馈：打开一个已填好应用和 macOS 版本的 GitHub Issue，或一封发往 s3onghyun.hong@gmail.com 的邮件草稿。在你自己提交之前不会发送任何内容 |
 
@@ -268,8 +271,9 @@ VoiceOver 会把表盘读作可调节的滑块。外圈的轨道是进度条（�
 
 ## 隐私
 
-没有统计，没有遥测。唯一的联网是每天一次的更新检查（[更新](#更新)），可以关闭。覆盖层窗口不会出现在截图和
-录屏中，macOS 的屏幕录制指示灯亮着时（Zoom、Meet、QuickTime 等），整个边缘（以及专注模式的内容）都会隐藏。
+没有统计，没有遥测。唯一的联网是每天一次的更新检查（[更新](#更新)），可以关闭。默认情况下，覆盖层窗口不会出现在
+截图和录屏中，macOS 的屏幕录制指示灯亮着时（Zoom、Meet、QuickTime 等），整个边缘（以及专注模式的内容）都会隐藏。
+只有打开 **直播模式** 时它们才会出现在捕获画面中。
 本地文件：`~/.edge-odyssey/`（钩子状态、航海日志、专注记录）和应用的偏好设置（`app.edgeodyssey`）。
 
 ## 命令行
@@ -285,6 +289,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl history|label:<文字>|goal:<小时>|clear-history
 "$APP" --ctl background:off|cycle|<文件名>   # 或 background-folder:<路径>、drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
+"$APP" --ctl stream-mode:on|off
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```
 
@@ -293,7 +298,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 `--mode pomodoro|timer|stopwatch`、`--timer <长度>`、`--background off|cycle|<文件名>`、`--no-lotus`、
 `--char <id>`、`--state-dir <目录>`、`--lang en|ko|ja|zh|auto`、`-v`（日志输出到 stderr）。用于演示和测试：
 `--focus-mode`（启动时打开）、`--focus-frame x,y,w,h`（用窗口代替全屏）、`--appearance dark|light`、
-`--lang pseudo`（每个字符串加长约 40% 并带重音符号，用来找截断）、`--capture-visible`（让截图包含边缘和专注模式）。
+`--lang pseudo`（每个字符串加长约 40% 并带重音符号，用来找截断）、`--capture-visible`（让截图包含边缘和专注模式，不含直播模式的其余部分）。
 
 ## 开发
 

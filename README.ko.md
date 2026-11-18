@@ -47,6 +47,11 @@ Apple 공증을 받아서 다른 앱처럼 바로 열립니다([처음 실행](#
   모드에("오늘 22리그 항해"), 7일·30일 막대 그래프와 하루 목표, CSV 내보내기는 기록 창에 있습니다.
 - **방해하지 않음.** 2-4px 테두리, 클릭은 그대로 통과, 전체 화면 앱과 화면 공유·녹화 중에는
   숨고, Control-Option-Command-H로 언제든 숨깁니다.
+- **스트림 모드 (선택).** 화면을 녹화하거나 방송하면서 시청자에게 항해를 보여 주고 싶을 때:
+  *일반 › 스트림 모드*(메뉴나 설정)를 켜면 녹화·공유 화면에 가장자리와 집중 모드가 보이고, 화면
+  캡처 중에도 숨지 않으며, 오른쪽 아래 모서리에 작은 세션 HUD가 뜹니다:
+  `집중 · 18:32 · 2/4`(단계, 시간, 긴 휴식 주기 중 몇 번째 세션). *마지막 5분에만 표시*를 켜도 HUD는 세션 내내 보입니다. 기본은 꺼짐이고, 끄면 숨기기가
+  전과 똑같이 돌아옵니다.
 - **매끄럽고 가벼움.** 움직임은 모두 macOS 렌더 서버에서 돌고, 앱은 모서리와 상태 변화 때만
   깨어납니다(CPU 약 0.1%).
 
@@ -136,7 +141,7 @@ open "/Applications/Edge Odyssey.app"
 | Label this session… | 기록에 함께 남길 한 줄 메모(시작 전이면 다음 세션용) |
 | Logbook… | 모은 오디세이아 24권 |
 | Settings… (⌘,) | 이 메뉴의 모든 옵션을 묶어 둔 창(타이머, 시간이 다 되면, 화면 표시, 집중 모드, 일반). 창이 열려 있으니 여러 설정을 연달아 바꿀 수 있고, 바꾸는 즉시 적용됩니다 |
-| General | **언어**(아래), Claude Code 신호, 게임·영상·SNS 앱이 앞에 있으면 졸기, 화면 공유 중 숨기기, 초 단위 카운트다운(끄면 `13m`처럼 분 단위), **하루 한 번 업데이트 확인**과 *지금 확인*(아래), **로그인 시 실행**(켜기 전까지 꺼짐), 환영 안내 |
+| General | **언어**(아래), Claude Code 신호, 게임·영상·SNS 앱이 앞에 있으면 졸기, **스트림 모드**(위), 화면 공유 중 숨기기(스트림 모드 중에는 흐리게 꺼짐), 초 단위 카운트다운(끄면 `13m`처럼 분 단위), **하루 한 번 업데이트 확인**과 *지금 확인*(아래), **로그인 시 실행**(켜기 전까지 꺼짐), 환영 안내 |
 | Hide now | 어디서든 Control-Option-Command-H |
 | 의견 보내기… | 메뉴에서 의견을 보낼 수 있어요: 앱과 macOS 버전이 채워진 GitHub 이슈나 s3onghyun.hong@gmail.com으로 보내는 이메일 초안을 엽니다. 직접 제출하기 전에는 아무것도 전송되지 않아요 |
 
@@ -298,9 +303,9 @@ HTTPS GET 한 번이고, 보내는 것은 `User-Agent: EdgeOdyssey/<버전>`, `A
 ## 개인정보
 
 분석 도구도 텔레메트리도 없습니다. 네트워크는 하루 한 번의 업데이트 확인([업데이트](#업데이트))에만 쓰고,
-이것도 끌 수 있습니다. 오버레이 창은 스크린샷과 화면 녹화에서 빠지고, macOS
-화면 캡처 표시등이 켜져 있는 동안(Zoom, Meet, QuickTime 등)에는 가장자리 전체(와 집중 모드의
-내용)가 숨습니다.
+이것도 끌 수 있습니다. 기본적으로 오버레이 창은 스크린샷과 화면 녹화에서 빠지고,
+macOS 화면 캡처 표시등이 켜져 있는 동안(Zoom, Meet, QuickTime 등)에는 가장자리 전체(와 집중 모드의
+내용)가 숨습니다. 캡처에 보이는 것은 **스트림 모드**를 켰을 때뿐입니다.
 로컬 파일은 `~/.edge-odyssey/`(훅 상태, 항해 일지, 집중 기록)와 앱 환경설정(`app.edgeodyssey`)뿐입니다.
 
 ## 명령줄
@@ -316,6 +321,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl history|label:<메모>|goal:<시간>|clear-history
 "$APP" --ctl background:off|cycle|<파일 이름>   # 또는 background-folder:<경로>, drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
+"$APP" --ctl stream-mode:on|off
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```
 
@@ -324,7 +330,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 `--mode pomodoro|timer|stopwatch`, `--timer <길이>`, `--background off|cycle|<파일 이름>`,
 `--no-lotus`, `--char <id>`, `--state-dir <폴더>`, `--lang en|ko|ja|zh|auto`, `-v`(stderr에 로그). 시연·테스트용:
 `--focus-mode`(실행하며 열기), `--focus-frame x,y,w,h`(전체 화면 대신 창), `--appearance dark|light`,
-`--lang pseudo`(모든 문구를 40%쯤 늘리고 악센트를 붙여 잘림 확인), `--capture-visible`(스크린샷에 가장자리와 집중 모드 포함).
+`--lang pseudo`(모든 문구를 40%쯤 늘리고 악센트를 붙여 잘림 확인), `--capture-visible`(스크린샷에 가장자리와 집중 모드 포함, 스트림 모드의 나머지는 빼고).
 
 ## 개발
 
