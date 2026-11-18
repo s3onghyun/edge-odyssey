@@ -172,7 +172,7 @@ brass in its last five minutes and empties during a break).
 | Label this session… | A one-line note kept with the run in the history (before starting: for the next one) |
 | Logbook… | The 24 books of the Odyssey you have collected |
 | Settings… (⌘,) | A window with every option of this menu, grouped (Timer, When time is up, On screen, Focus mode, General). It stays open, so you can change several in a row; each change applies at once |
-| General | **Language** (below), Claude Code signals, doze while a game/video/social app is in front, hide while sharing, count down in seconds (turn off for whole minutes, `13m`), **Check for updates once a day** and *Check now* (below), **Launch at login** (off until you turn it on), Welcome guide |
+| General | **Language** (below), Claude Code signals, doze while a game/video/social app is in front, **Stream mode** (above), hide while sharing (greyed out while Stream mode is on), count down in seconds (turn off for whole minutes, `13m`), **Check for updates once a day** and *Check now* (below), **Launch at login** (off until you turn it on), Welcome guide |
 | Hide now | Control-Option-Command-H, from anywhere |
 | Send feedback… | Send feedback from the menu: opens a prefilled GitHub issue with the app and macOS versions, or an email draft to s3onghyun.hong@gmail.com. Nothing is sent until you submit it yourself |
 
