@@ -27,6 +27,7 @@ struct Scene {
     var dozing = false              // a distracting app is in front: the Lotus-eaters
     var overrideAnim: String?       // a short encounter that replaces the pose (the ram)
     var devicePixelsPerSpritePixel = 3
+    var hud: Overlay.HUD?           // stream mode: the session chip on this display
 }
 
 /// The colours (values and contrast checks in Tones): the light or dark variant by the system
@@ -98,6 +99,9 @@ final class Overlay {
     private let mover = CALayer()   // gross position along the edge
     private let poser = CALayer()   // rotation onto the edge + sway / grip micro-motion
     private let spriteLayer = CALayer()
+    private let hudChip = CALayer()        // stream mode's session HUD: a pill in a corner
+    private let hudLabel = CATextLayer()
+    private var hudShown: String?          // what the chip shows, to redraw only on change
     private var edgeTimer: Timer?
     private var lastEdge: Int?
     private var lastAgent: AgentState = .idle
@@ -123,7 +127,7 @@ final class Overlay {
         window.level = .statusBar
         // No .fullScreenAuxiliary: the overlay never appears in another app's full-screen space.
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
-        window.sharingType = excludeFromCapture ? .none : .readOnly
+        window.sharingType = excludeFromCapture ? .none : .readOnly   // see excludeFromCapture(_:)
 
         let view = NSView(frame: CGRect(origin: .zero, size: screen.frame.size))
         view.layer = root
@@ -148,7 +152,7 @@ final class Overlay {
         window.isReleasedWhenClosed = false
         window.collectionBehavior = [.fullScreenPrimary]
         window.minSize = CGSize(width: 480, height: 480)
-        window.sharingType = excludeFromCapture ? .none : .readOnly
+        window.sharingType = excludeFromCapture ? .none : .readOnly   // see excludeFromCapture(_:)
         let view = FocusView(stage: root)
         focusView = view
         window.contentView = view
@@ -177,6 +181,55 @@ final class Overlay {
         spriteLayer.magnificationFilter = .nearest
         spriteLayer.minificationFilter = .nearest
         spriteLayer.contentsGravity = .resize
+        root.addSublayer(hudChip)   // above the traveler
+        hudChip.addSublayer(hudLabel)
+        hudChip.isHidden = true
+    }
+
+    /// Off: screenshots, recordings and screen shares see through this window (the default).
+    /// On (stream mode): they show it like any other window.
+    func excludeFromCapture(_ exclude: Bool) {
+        window.sharingType = exclude ? .none : .readOnly
+    }
+
+    /// Stream mode's session HUD: one line of text, its phase (for the outline colour), its corner.
+    struct HUD: Equatable {
+        var text: String
+        var phase: Phase
+        var corner: HUDCorner
+    }
+
+    /// Shows or hides the HUD chip. It sits in the overlay's root, so it fades and hides with the
+    /// edge (a covered display, Hide now). Called on every scene and once a second while it ticks.
+    func setHUD(_ h: HUD?) {
+        guard focusView == nil, let h else {   // focus mode shows its own time
+            hudChip.isHidden = true
+            hudShown = nil
+            return
+        }
+        let dark = Palette.dark
+        let key = "\(h.text)|\(h.phase)|\(h.corner.rawValue)|\(dark)|\(screen.frame)|\(screen.visibleFrame)"
+        guard key != hudShown else { return }
+        hudShown = key
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        let tone: Tones.Pair = h.phase == .rest ? Tones.slate : h.phase == .arrived ? Tones.brass : Tones.teal
+        let text = Typography.string(h.text, .numeral, size: 13, weight: .semibold, color: Palette.color(Tones.ink, dark: dark))
+        let ts = text.size()
+        let line = CGSize(width: ceil(ts.width) + 1, height: ceil(ts.height))
+        let size = CGSize(width: line.width + 22, height: line.height + 10)
+        // The usable part of the display (below the menu bar, beside the Dock), in this window's coordinates.
+        let area = screen.visibleFrame.offsetBy(dx: -screen.frame.minX, dy: -screen.frame.minY)
+        hudChip.frame = CGRect(origin: h.corner.origin(chip: size, in: area), size: size)
+        hudChip.cornerRadius = size.height / 2
+        hudChip.backgroundColor = Palette.color(Tones.surface, dark: dark, alpha: 0.92).cgColor
+        hudChip.borderColor = Palette.color(tone, dark: dark).cgColor
+        hudChip.borderWidth = 1.5
+        hudLabel.frame = CGRect(x: 11, y: 5, width: line.width, height: line.height)
+        hudLabel.contentsScale = screen.backingScaleFactor
+        hudLabel.string = text
+        hudChip.isHidden = false
     }
 
     func close() {
@@ -308,6 +361,7 @@ final class Overlay {
         defer { CATransaction.commit() }
 
         setVisible(s.visible)
+        setHUD(s.visible ? s.hud : nil)
         guard s.visible else { lastEdge = nil; return }
 
         let size = root.bounds.size

@@ -25,7 +25,7 @@ import Testing
                         "display": "display", "thickness": "thickness", "last5": "onlyLast5", "seconds": "showSeconds",
                         "background": "focusBackground", "background-folder": "backgroundFolder", "drift": "backgroundDrift",
                         "agent": "agentEnabled", "lotus-enabled": "lotusEnabled", "share-hide": "hideWhenCaptured", "updates": "checkUpdates",
-                        "char": "character"]
+                        "char": "character", "stream-mode": "streamMode", "hud-corner": "hudCorner"]
         for (c, k) in expected {
             #expect(window.contains(c), "the window never sends \(c)")
             #expect(control.keys[c] == [k], "\(c) saves \(control.keys[c] ?? []), not \(k)")

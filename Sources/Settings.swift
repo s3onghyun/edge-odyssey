@@ -169,8 +169,16 @@ struct SettingsView: View {
                 Toggle(L.t("Show Claude Code signals", "Claude Code 신호 표시", "Claude Code のシグナルを表示", "显示 Claude Code 信号"), isOn: flag(o.agentEnabled, "agent"))
                 Toggle(L.t("Doze while a game, video or social app is in front", "게임·동영상·SNS 앱이 앞에 있으면 졸기",
                            "ゲーム・動画・SNS アプリが前面にあるとき居眠りする", "游戏、视频或社交应用在前台时打瞌睡"), isOn: flag(o.lotusEnabled, "lotus-enabled"))
-                Toggle(L.t("Hide while the screen is shared or recorded", "화면 공유·녹화 중에는 숨기기", "画面の共有・録画中は隠す", "共享或录制屏幕时隐藏"),
-                       isOn: flag(o.hideWhenCaptured, "share-hide"))
+                Toggle(app.streamModeTitle, isOn: flag(o.streamMode, "stream-mode"))
+                Picker(L.t("Session HUD", "세션 HUD", "セッション HUD", "会话 HUD"), selection: bind(o.hudCorner.rawValue, "hud-corner")) {
+                    ForEach(HUDCorner.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                }.disabled(!o.streamMode)
+                VStack(alignment: .leading, spacing: 2) {
+                    Toggle(L.t("Hide while the screen is shared or recorded", "화면 공유·녹화 중에는 숨기기", "画面の共有・録画中は隠す", "共享或录制屏幕时隐藏"),
+                           isOn: flag(o.hideWhenCaptured, "share-hide"))
+                        .disabled(o.streamMode)
+                    if o.streamMode { Text(app.streamModeHideNote).type(.caption).foregroundStyle(.secondary) }
+                }
                 Toggle(L.t("Launch at login", "로그인할 때 실행", "ログイン時に起動", "登录时启动"), isOn: flag(LoginItem.isOn, "login"))
                 HStack {
                     Toggle(L.t("Check for updates once a day", "하루 한 번 업데이트 확인", "1日1回アップデートを確認", "每天检查一次更新"), isOn: flag(app.checkUpdates, "updates"))

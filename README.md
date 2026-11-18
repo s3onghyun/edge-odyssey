@@ -51,6 +51,12 @@ notarized by Apple, so it opens like any other app ([First launch](#first-launch
   daily goal, CSV export.
 - **Out of your way.** A 2-4 px border, never takes a click, hides in full-screen apps and
   while the screen is shared or recorded, and on Control-Option-Command-H.
+- **Stream mode (optional).** For when you record or stream your screen and want viewers to see
+  the voyage: *General › Stream mode* (menu or Settings) lets recordings and shares show the edge
+  and focus mode, keeps them on screen while the screen is captured, and adds a small session HUD
+  in a corner of your choice (bottom right by default): `Focus · 18:32 · 2/4` (phase, time left,
+  session of the long-break cycle). Off by default; turning it off brings back the hiding exactly
+  as before.
 - **Smooth and light.** All motion runs in the macOS render server; the app wakes only at
   corners and state changes (about 0.1% CPU).
 
@@ -361,9 +367,10 @@ then combines that count with the break-end notice once.
 ## Privacy
 
 No analytics and no telemetry. The only network access is the once-a-day update check
-([Updates](#updates)), which you can turn off. The overlay windows are excluded from screenshots and
-screen recordings, and the whole edge (and focus mode's content) hides while the macOS screen-capture indicator is on
-(Zoom, Meet, QuickTime and so on). Local files: `~/.edge-odyssey/` (hook states, logbook, focus history) and
+([Updates](#updates)), which you can turn off. By default the overlay windows are excluded from
+screenshots and screen recordings, and the whole edge (and focus mode's content) hides while the macOS screen-capture
+indicator is on (Zoom, Meet, QuickTime and so on). They show up in captures only while you turn on
+**Stream mode**. Local files: `~/.edge-odyssey/` (hook states, logbook, focus history) and
 the app's preferences (`app.edgeodyssey`).
 
 ## Command line
@@ -379,6 +386,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl history|label:<text>|goal:<hours>|clear-history
 "$APP" --ctl background:off|cycle|<file name>   # or background-folder:<path>, drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
+"$APP" --ctl stream-mode:on|off|hud-corner:bottom-right|bottom-left|top-right|top-left
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```
 
@@ -388,7 +396,8 @@ Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--
 `--state-dir <dir>`, `--lang en|ko|ja|zh|auto`, `-v` (log to stderr). For demos and tests: `--focus-mode` (open it at launch),
 `--focus-frame x,y,w,h` (a window instead of full screen), `--appearance dark|light`,
 `--lang pseudo` (every string about 40% longer and accented, to find truncation),
-`--capture-visible` (let screenshots include the edge and focus mode).
+`--capture-visible` (let screenshots include the edge and focus mode, without the rest of Stream mode),
+`--stream-mode` (Stream mode for one run).
 
 ## Development
 

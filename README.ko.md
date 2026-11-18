@@ -47,6 +47,11 @@ Apple 공증을 받아서 다른 앱처럼 바로 열립니다([처음 실행](#
   모드에("오늘 22리그 항해"), 7일·30일 막대 그래프와 하루 목표, CSV 내보내기는 기록 창에 있습니다.
 - **방해하지 않음.** 2-4px 테두리, 클릭은 그대로 통과, 전체 화면 앱과 화면 공유·녹화 중에는
   숨고, Control-Option-Command-H로 언제든 숨깁니다.
+- **스트림 모드 (선택).** 화면을 녹화하거나 방송하면서 시청자에게 항해를 보여 주고 싶을 때:
+  *일반 › 스트림 모드*(메뉴나 설정)를 켜면 녹화·공유 화면에 가장자리와 집중 모드가 보이고, 화면
+  캡처 중에도 숨지 않으며, 원하는 모서리(기본은 오른쪽 아래)에 작은 세션 HUD가 뜹니다:
+  `집중 · 18:32 · 2/4`(단계, 남은 시간, 긴 휴식 주기 중 몇 번째 세션). 기본은 꺼짐이고, 끄면 숨기기가
+  전과 똑같이 돌아옵니다.
 - **매끄럽고 가벼움.** 움직임은 모두 macOS 렌더 서버에서 돌고, 앱은 모서리와 상태 변화 때만
   깨어납니다(CPU 약 0.1%).
 
@@ -298,9 +303,9 @@ HTTPS GET 한 번이고, 보내는 것은 `User-Agent: EdgeOdyssey/<버전>`, `A
 ## 개인정보
 
 분석 도구도 텔레메트리도 없습니다. 네트워크는 하루 한 번의 업데이트 확인([업데이트](#업데이트))에만 쓰고,
-이것도 끌 수 있습니다. 오버레이 창은 스크린샷과 화면 녹화에서 빠지고, macOS
-화면 캡처 표시등이 켜져 있는 동안(Zoom, Meet, QuickTime 등)에는 가장자리 전체(와 집중 모드의
-내용)가 숨습니다.
+이것도 끌 수 있습니다. 기본적으로 오버레이 창은 스크린샷과 화면 녹화에서 빠지고,
+macOS 화면 캡처 표시등이 켜져 있는 동안(Zoom, Meet, QuickTime 등)에는 가장자리 전체(와 집중 모드의
+내용)가 숨습니다. 캡처에 보이는 것은 **스트림 모드**를 켰을 때뿐입니다.
 로컬 파일은 `~/.edge-odyssey/`(훅 상태, 항해 일지, 집중 기록)와 앱 환경설정(`app.edgeodyssey`)뿐입니다.
 
 ## 명령줄
@@ -316,6 +321,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl history|label:<메모>|goal:<시간>|clear-history
 "$APP" --ctl background:off|cycle|<파일 이름>   # 또는 background-folder:<경로>, drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
+"$APP" --ctl stream-mode:on|off|hud-corner:bottom-right|bottom-left|top-right|top-left
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```
 
@@ -324,7 +330,8 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 `--mode pomodoro|timer|stopwatch`, `--timer <길이>`, `--background off|cycle|<파일 이름>`,
 `--no-lotus`, `--char <id>`, `--state-dir <폴더>`, `--lang en|ko|ja|zh|auto`, `-v`(stderr에 로그). 시연·테스트용:
 `--focus-mode`(실행하며 열기), `--focus-frame x,y,w,h`(전체 화면 대신 창), `--appearance dark|light`,
-`--lang pseudo`(모든 문구를 40%쯤 늘리고 악센트를 붙여 잘림 확인), `--capture-visible`(스크린샷에 가장자리와 집중 모드 포함).
+`--lang pseudo`(모든 문구를 40%쯤 늘리고 악센트를 붙여 잘림 확인), `--capture-visible`(스크린샷에 가장자리와 집중 모드 포함, 스트림 모드의 나머지는 빼고),
+`--stream-mode`(이번 실행만 스트림 모드).
 
 ## 개발
 

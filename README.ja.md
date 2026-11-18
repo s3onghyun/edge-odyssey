@@ -47,6 +47,11 @@
   （「今日は 22 リーグ航海」）、毎日の目標と比べる 7 日 / 30 日のグラフと CSV 書き出しは記録ウインドウにあります。
 - **じゃまをしない。** 2〜4 px のふちで、クリックは素通り。全画面アプリの中や画面の共有・収録中は隠れ、
   Control-Option-Command-H でいつでも隠せます。
+- **ストリームモード（任意）。** 画面を録画・配信していて、視聴者に航海を見せたいときに：
+  *一般 › ストリームモード*（メニューまたは設定）をオンにすると、録画や共有にふちと集中モードが映り、
+  画面収録中も隠れず、選んだ角（既定は右下）に小さなセッション HUD が出ます：
+  `集中 · 18:32 · 2/4`（フェーズ、残り時間、長い休憩までのサイクルの何回目か）。既定はオフで、
+  オフに戻すと隠す動作はこれまでとまったく同じに戻ります。
 - **なめらかで軽い。** 動きはすべて macOS のレンダーサーバーで動き、アプリは角と状態の変化のときだけ起きます
   （CPU 約 0.1%）。
 
@@ -289,8 +294,9 @@ open "/Applications/Edge Odyssey.app"
 ## プライバシー
 
 分析もテレメトリもありません。ネットワークを使うのは 1 日 1 回のアップデート確認（[アップデート](#アップデート)）だけで、
-オフにできます。オーバーレイのウインドウはスクリーンショットや画面収録に写らず、macOS の画面収録インジケータが
-点いている間（Zoom、Meet、QuickTime など）は、ふち全体（と集中モードの中身）が隠れます。ローカルのファイル：
+オフにできます。既定では、オーバーレイのウインドウはスクリーンショットや画面収録に写らず、macOS の画面収録
+インジケータが点いている間（Zoom、Meet、QuickTime など）は、ふち全体（と集中モードの中身）が隠れます。
+キャプチャに写るのは **ストリームモード** をオンにしている間だけです。ローカルのファイル：
 `~/.edge-odyssey/`（フックの状態、航海日誌、集中の記録）とアプリの環境設定（`app.edgeodyssey`）。
 
 ## コマンドライン
@@ -306,6 +312,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl history|label:<文字>|goal:<時間>|clear-history
 "$APP" --ctl background:off|cycle|<ファイル名>   # または background-folder:<パス>、drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
+"$APP" --ctl stream-mode:on|off|hud-corner:bottom-right|bottom-left|top-right|top-left
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```
 
@@ -315,7 +322,8 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 `--char <id>`、`--state-dir <ディレクトリ>`、`--lang en|ko|ja|zh|auto`、`-v`（ログを stderr に）。デモとテスト用：
 `--focus-mode`（起動時に開く）、`--focus-frame x,y,w,h`（全画面の代わりにウインドウ）、`--appearance dark|light`、
 `--lang pseudo`（すべての文字列を約 40% 長くしてアクセント付きにし、切れを探す）、`--capture-visible`
-（スクリーンショットにふちと集中モードを写す）。
+（スクリーンショットにふちと集中モードを写す。ストリームモードのほかの部分は含まない）、
+`--stream-mode`（その起動だけストリームモード）。
 
 ## 開発
 
