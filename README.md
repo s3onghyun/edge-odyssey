@@ -378,8 +378,7 @@ edge, Odysseus, the phase and the session (`Focus · 18:32 · 2/4`), updated liv
 4. OK. The overlay draws while a session runs and is empty while idle. If you restart the app,
    the source reconnects by itself.
 
-Add `?lang=ko` (`en`, `ko`, `ja`, `zh`) to pick the labels' language instead of the app's, and
-`?scale=1.5` (0.5 to 4) for a thicker line, a bigger Odysseus and chip. *Port…* in Settings changes
+The labels follow the app's language. *Port…* in Settings changes
 the port (1024 to 49151). The server is local only: it listens on 127.0.0.1, so no other device
 can open it, it only reads the timer (it takes no commands), and turning the overlay off closes it.
 

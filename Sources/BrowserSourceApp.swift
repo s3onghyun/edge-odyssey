@@ -30,8 +30,7 @@ extension App {
     /// The state the overlay shows now: stream mode's HUD state, in real seconds.
     var overlaySnapshot: BrowserSource.Snapshot {
         BrowserSource.snapshot(mode: o.mode, phase: phase, restIsLong: restIsLong, duration: phaseDuration * o.speed, elapsed: elapsed * o.speed,
-                               paused: pausedAt != nil, focusCount: focusCount, longEvery: o.longEvery,
-                               agent: o.agentEnabled ? agentState : .idle, lang: L.lang)
+                               paused: pausedAt != nil, focusCount: focusCount, longEvery: o.longEvery, lang: L.lang)
     }
 
     /// Starts or stops the server to match the setting. A port change restarts it.
@@ -98,8 +97,8 @@ extension App {
         server.setSprites(overlaySprites ?? BrowserSource.Sprites())
     }
 
-    /// Renders a character for the overlay: vector art at twice the edge's size (sharp up to
-    /// `?scale=2`), pixel art at one pixel per sprite pixel (the page scales it without smoothing).
+    /// Renders a character for the overlay: vector art at twice the edge's size (sharp on
+    /// Retina), pixel art at one pixel per sprite pixel (the page scales it without smoothing).
     static func browserSprites(_ url: URL?) -> BrowserSource.Sprites? {
         guard let url, let sheet = try? SpriteSheet(url: url, scale: 2) else { return nil }
         var out = BrowserSource.Sprites(width: sheet.width, height: sheet.height, pixelated: sheet.pixelated)

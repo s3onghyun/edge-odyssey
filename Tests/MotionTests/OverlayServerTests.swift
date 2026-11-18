@@ -90,16 +90,13 @@ import Testing
         defer { server.stop() }
         #expect(port > 0)
         let session = URLSession(configuration: .ephemeral)
-        let (body, res) = try await session.data(from: URL(string: "http://127.0.0.1:\(port)/state.json")!)
+        let (page, res) = try await session.data(from: URL(string: "http://127.0.0.1:\(port)/overlay")!)
         let http = try #require(res as? HTTPURLResponse)
         #expect(http.statusCode == 200)
         #expect(http.value(forHTTPHeaderField: "Cache-Control") == "no-store")
-        #expect(String(decoding: body, as: UTF8.self).contains(#""phase":"idle""#))
+        #expect(String(decoding: page, as: UTF8.self).hasPrefix("<!doctype html>"))
         let (_, missing) = try await session.data(from: URL(string: "http://127.0.0.1:\(port)/nope")!)
         #expect((missing as? HTTPURLResponse)?.statusCode == 404)
-        let (page, pageRes) = try await session.data(from: URL(string: "http://localhost:\(port)/overlay?lang=ja")!)
-        #expect((pageRes as? HTTPURLResponse)?.statusCode == 200)
-        #expect(String(decoding: page, as: UTF8.self).contains(#"<html lang="ja">"#))
         #expect(connects("127.0.0.1", port))
         for ip in otherAddresses() { #expect(!connects(ip, port), "answered on \(ip)") }
     }
@@ -126,7 +123,7 @@ import Testing
             }
         }
         let focus = BrowserSource.json(BrowserSource.snapshot(mode: .pomodoro, phase: .focus, restIsLong: false, duration: 1500, elapsed: 10,
-                                                              paused: false, focusCount: 1, longEvery: 4, agent: .idle, lang: .en))
+                                                              paused: false, focusCount: 1, longEvery: 4, lang: .en))
         let reached = try await within(15) { () -> Bool in
             while await seen.count() < 2 {
                 server.publish(focus, force: true)   // the heartbeat, until both have it
@@ -143,7 +140,7 @@ import Testing
         // Off: the URL stops answering.
         let off = try await within(10) { () -> Bool in
             for _ in 0..<50 {
-                do { _ = try await session.data(from: URL(string: "http://127.0.0.1:\(port)/state.json")!) } catch { return true }
+                do { _ = try await session.data(from: URL(string: "http://127.0.0.1:\(port)/overlay")!) } catch { return true }
                 try await Task.sleep(nanoseconds: 100_000_000)
             }
             return false

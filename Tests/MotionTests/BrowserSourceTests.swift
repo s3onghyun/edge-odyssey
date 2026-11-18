@@ -12,13 +12,13 @@ import Testing
 
     func focus(elapsed: Double = 90.5, paused: Bool = false, lang: Lang = .en) -> BrowserSource.Snapshot {
         BrowserSource.snapshot(mode: .pomodoro, phase: .focus, restIsLong: false, duration: 1500, elapsed: elapsed, paused: paused,
-                               focusCount: 2, longEvery: 4, agent: .idle, lang: lang)
+                               focusCount: 2, longEvery: 4, lang: lang)
     }
 
     @Test func idleStateEncodesEveryKeyInOrder() {
         let s = BrowserSource.snapshot(mode: .timer, phase: .idle, restIsLong: false, duration: 600, elapsed: 0, paused: false,
-                                       focusCount: 0, longEvery: 4, agent: .idle, lang: .ko)
-        #expect(BrowserSource.json(s) == #"{"agent":"idle","clock":"","duration":0,"elapsed":0,"label":"","lang":"ko","mode":"timer","#
+                                       focusCount: 0, longEvery: 4, lang: .ko)
+        #expect(BrowserSource.json(s) == #"{"clock":"","duration":0,"elapsed":0,"label":"","lang":"ko","mode":"timer","#
             + #""paused":false,"phase":"idle","progress":0,"remaining":0,"session":null,"v":1}"#)
     }
 
@@ -26,7 +26,7 @@ import Testing
         let s = focus()
         #expect(s.phase == "focus" && s.label == "Focus" && s.clock == "23:30" && s.session == .init(n: 2, of: 4))
         let d = try decode(BrowserSource.json(s))
-        #expect(Set(d.keys) == ["v", "phase", "mode", "label", "clock", "duration", "elapsed", "remaining", "progress", "paused", "session", "agent", "lang"])
+        #expect(Set(d.keys) == ["v", "phase", "mode", "label", "clock", "duration", "elapsed", "remaining", "progress", "paused", "session", "lang"])
         #expect(d["duration"] as? Double == 1500 && d["elapsed"] as? Double == 90.5 && d["remaining"] as? Double == 1409.5)
         #expect(d["progress"] as? Double == 0.0603)
         #expect((d["session"] as? [String: Int]) == ["n": 2, "of": 4])
@@ -39,19 +39,19 @@ import Testing
 
     @Test func breaksArrivalTimersAndStopwatches() {
         let rest = BrowserSource.snapshot(mode: .pomodoro, phase: .rest, restIsLong: false, duration: 300, elapsed: 60, paused: false,
-                                          focusCount: 1, longEvery: 4, agent: .idle, lang: .en)
+                                          focusCount: 1, longEvery: 4, lang: .en)
         #expect(rest.phase == "break" && rest.label == "Break" && rest.clock == "4:00" && rest.progress == 0.2)
         let long = BrowserSource.snapshot(mode: .pomodoro, phase: .rest, restIsLong: true, duration: 900, elapsed: 0, paused: false,
-                                          focusCount: 4, longEvery: 4, agent: .idle, lang: .zh)
+                                          focusCount: 4, longEvery: 4, lang: .zh)
         #expect(long.phase == "long-break" && long.label == "长休息" && long.session == .init(n: 4, of: 4))
         let home = BrowserSource.snapshot(mode: .pomodoro, phase: .arrived, restIsLong: false, duration: 1500, elapsed: 42, paused: false,
-                                          focusCount: 1, longEvery: 4, agent: .working, lang: .en)
-        #expect(home.phase == "arrived" && home.clock == "+0:42" && home.progress == 1 && home.remaining == 0 && home.agent == "working")
+                                          focusCount: 1, longEvery: 4, lang: .en)
+        #expect(home.phase == "arrived" && home.clock == "+0:42" && home.progress == 1 && home.remaining == 0)
         let timer = BrowserSource.snapshot(mode: .timer, phase: .focus, restIsLong: false, duration: 600, elapsed: 1, paused: false,
-                                           focusCount: 3, longEvery: 4, agent: .idle, lang: .en)
+                                           focusCount: 3, longEvery: 4, lang: .en)
         #expect(timer.label == "Timer" && timer.clock == "9:59" && timer.session == nil)   // no sessions outside Pomodoro
         let watch = BrowserSource.snapshot(mode: .stopwatch, phase: .focus, restIsLong: false, duration: 720, elapsed: 723, paused: false,
-                                           focusCount: 0, longEvery: 4, agent: .idle, lang: .en)
+                                           focusCount: 0, longEvery: 4, lang: .en)
         #expect(watch.clock == "12:03" && watch.elapsed == 723 && watch.remaining == 717 && watch.progress == 0.0042)   // the second lap
         let over = focus(elapsed: 1600)
         #expect(over.remaining == 0 && over.progress == 1 && over.clock == "0:00")
@@ -60,7 +60,6 @@ import Testing
     @Test func eventsAreFramedLineByLine() {
         #expect(BrowserSource.sseEvent(#"{"a":1}"#) == "data: {\"a\":1}\n\n")
         #expect(BrowserSource.sseEvent("a\nb\r\nc\rd") == "data: a\ndata: b\ndata: c\ndata: d\n\n")
-        #expect(BrowserSource.sseEvent("x", event: "state\nid: 9") == "event: stateid: 9\ndata: x\n\n")
         #expect(BrowserSource.sseEvent("") == "data: \n\n")
         let json = BrowserSource.json(focus())
         let head = String(decoding: BrowserSource.streamHead(state: json), as: UTF8.self)
@@ -73,11 +72,7 @@ import Testing
         #expect(parts[1] == "retry: 2000\n\ndata: \(json)\n\n")
     }
 
-    @Test func escapesHTMLAndScripts() throws {
-        #expect(BrowserSource.escapeHTML(#"<script>alert("x") & 'y'</script>"#)
-                == "&lt;script&gt;alert(&quot;x&quot;) &amp; &#39;y&#39;&lt;/script&gt;")
-        #expect(BrowserSource.escapeHTML("<\u{301}b>") == "&lt;\u{301}b&gt;")   // a combining mark cannot hide the bracket
-        #expect(BrowserSource.escapeHTML("집중 · 18:32") == "집중 · 18:32")
+    @Test func escapesScripts() throws {
         let hostile = BrowserSource.json(["label": "</script><script>alert(1)</script><!-- \u{2028}&"])
         let safe = BrowserSource.scriptJSON(hostile)
         #expect(!safe.contains("<") && !safe.contains(">") && !safe.contains("&") && !safe.contains("\u{2028}"))
@@ -87,15 +82,12 @@ import Testing
     @Test func thePageIsSelfContainedAndEscaped() {
         var sprites = BrowserSource.Sprites(width: 32, height: 26)
         sprites.anims["walk"] = .init(fps: 5, frames: [BrowserSource.dataURI(png: Data([0x89, 0x50, 0x4E, 0x47])), "</script><b>x"])
-        let page = BrowserSource.page(.init(lang: .ko, scale: 2), sprites: sprites)
+        let page = BrowserSource.page(sprites: sprites)
         #expect(page.hasPrefix("<!doctype html>"))
-        #expect(page.contains(#"<html lang="ko">"#))
         #expect(page.components(separatedBy: "<script").count == 2 && page.components(separatedBy: "</script>").count == 2)
         #expect(page.contains("data:image/png;base64,iVBORw=="))
-        #expect(!page.contains("%CONFIG%") && !page.contains("%LANG%"))
+        #expect(!page.contains("%CONFIG%"))
         for remote in ["http://", "https://", "//cdn", "@import", "src=\"/", "url("] { #expect(!page.contains(remote), "\(remote)") }
-        #expect(page.contains(#""lang":"ko""#) && page.contains(#""scale":2"#))
-        #expect(BrowserSource.page(.init(), sprites: sprites).contains(#""lang":null"#))   // follows the app's language
     }
 
     @Test func labelsCoverEveryLanguageAndPhase() {
@@ -112,24 +104,18 @@ import Testing
         line + "\r\n" + (host.map { "Host: \($0)\r\n" } ?? "") + "User-Agent: OBS\r\n"
     }
 
-    @Test func routesOnlyThreeReadOnlyPaths() throws {
+    @Test func routesOnlyTwoReadOnlyPaths() throws {
         func route(_ line: String, host: String? = "127.0.0.1:47213") throws -> BrowserSource.Route {
             BrowserSource.route(try #require(BrowserSource.parseRequest(request(line, host: host))), port: 47213)
         }
-        #expect(try route("GET /overlay HTTP/1.1") == .overlay(.init()))
-        #expect(try route("GET /overlay?lang=KO&scale=2.5&x=1 HTTP/1.1") == .overlay(.init(lang: .ko, scale: 2.5)))
-        for bad in ["9", "0.1", "-1", "nan", "inf", "1e309", "2,5", "", "1.0000000001"] {
-            #expect(try route("GET /overlay?scale=\(bad)&lang=xx HTTP/1.1") == .overlay(.init()), "scale=\(bad)")
-        }
+        #expect(try route("GET /overlay HTTP/1.1") == .overlay)
         #expect(try route("GET /events HTTP/1.1") == .events)
-        #expect(try route("GET /state.json HTTP/1.1") == .state)
-        #expect(try route("GET /state.json?cmd=stop HTTP/1.1") == .state)   // a query never does anything
-        for path in ["/", "/overlay/", "/overlay/../state.json", "/OVERLAY", "/favicon.ico", "/sprites/walk-0.svg"] {
+        #expect(try route("GET /events?cmd=stop HTTP/1.1") == .events)   // a query never does anything
+        for path in ["/", "/overlay/", "/overlay/../events", "/OVERLAY", "/state.json", "/favicon.ico", "/sprites/walk-0.svg"] {
             #expect(try route("GET \(path) HTTP/1.1") == .notFound, "\(path)")
         }
-        for method in ["POST", "PUT", "DELETE", "HEAD", "OPTIONS"] { #expect(try route("\(method) /state.json HTTP/1.1") == .methodNotAllowed) }
-        #expect(try route("GET /overlay HTTP/1.1", host: "localhost:47213") == .overlay(.init()))
-        for host in ["evil.example:47213", "127.0.0.1:47214", "127.0.0.1", "192.168.1.5:47213", ""] {
+        for method in ["POST", "PUT", "DELETE", "HEAD", "OPTIONS"] { #expect(try route("\(method) /overlay HTTP/1.1") == .methodNotAllowed) }
+        for host in ["localhost:47213", "evil.example:47213", "127.0.0.1:47214", "127.0.0.1", "192.168.1.5:47213", ""] {
             #expect(try route("GET /overlay HTTP/1.1", host: host) == .forbidden, "\(host)")   // DNS rebinding
         }
         #expect(try route("GET /overlay HTTP/1.1", host: nil) == .forbidden)
@@ -142,16 +128,16 @@ import Testing
         let state = BrowserSource.json(focus())
         let sprites = BrowserSource.Sprites(width: 32, height: 26)
         func reply(_ line: String, host: String = "127.0.0.1:47213") -> (status: String, headers: [String], body: String) {
-            let r = BrowserSource.reply(to: request(line, host: host), port: 47213, state: { state }, page: { BrowserSource.page($0, sprites: sprites) })
+            let r = BrowserSource.reply(to: request(line, host: host), port: 47213, state: { state }, page: { BrowserSource.page(sprites: sprites) })
             let data: Data
             switch r { case .respond(let d), .stream(let d): data = d }
             let parts = String(decoding: data, as: UTF8.self).components(separatedBy: "\r\n\r\n")
             let headers = parts[0].components(separatedBy: "\r\n")
             return (headers[0], headers, parts.dropFirst().joined(separator: "\r\n\r\n"))
         }
-        let cases = [("GET /overlay HTTP/1.1", "HTTP/1.1 200 OK"), ("GET /state.json HTTP/1.1", "HTTP/1.1 200 OK"),
+        let cases = [("GET /overlay HTTP/1.1", "HTTP/1.1 200 OK"),
                      ("GET /events HTTP/1.1", "HTTP/1.1 200 OK"), ("GET /nope HTTP/1.1", "HTTP/1.1 404 Not Found"),
-                     ("POST /state.json HTTP/1.1", "HTTP/1.1 405 Method Not Allowed"), ("nonsense", "HTTP/1.1 400 Bad Request")]
+                     ("GET /state.json HTTP/1.1", "HTTP/1.1 404 Not Found"), ("POST /overlay HTTP/1.1", "HTTP/1.1 405 Method Not Allowed"), ("nonsense", "HTTP/1.1 400 Bad Request")]
         var bodies = ""
         for (line, status) in cases {
             let r = reply(line)
@@ -162,7 +148,7 @@ import Testing
         }
         #expect(reply("GET /overlay HTTP/1.1", host: "evil.example:47213").status == "HTTP/1.1 403 Forbidden")
         #expect(reply("GET /overlay HTTP/1.1").headers.contains("Content-Security-Policy: \(BrowserSource.pagePolicy)"))
-        #expect(reply("GET /state.json HTTP/1.1").body == state + "\n")
+        #expect(reply("GET /events HTTP/1.1").body == "retry: 2000\n\ndata: \(state)\n\n")
         // No user, host, home folder or path in anything served.
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         for secret in [NSUserName(), ProcessInfo.processInfo.hostName, home, NSFullUserName()] where secret.count >= 4 {

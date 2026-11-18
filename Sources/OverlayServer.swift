@@ -79,7 +79,7 @@ final class OverlayServer {
         }
     }
 
-    /// A new state for every open event stream (and the next /state.json). Unchanged state is sent
+    /// A new state for every open event stream. Unchanged state is sent
     /// only when `force`d: the once-a-second heartbeat.
     func publish(_ json: String, force: Bool = false) {
         queue.async { [self] in
@@ -159,7 +159,7 @@ final class OverlayServer {
     }
 
     private func answer(_ c: NWConnection, head: String) {
-        let reply = BrowserSource.reply(to: head, port: boundPort, state: { state }, page: { BrowserSource.page($0, sprites: sprites) })
+        let reply = BrowserSource.reply(to: head, port: boundPort, state: { state }, page: { BrowserSource.page(sprites: sprites) })
         switch reply {
         case .respond(let d):
             finish(c, d)

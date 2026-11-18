@@ -38,10 +38,9 @@ enum BrowserSource {
         var progress = 0.0        // 0...1 of the phase (a stopwatch: of this lap)
         var paused = false
         var session: Session?     // Pomodoro only: 2 of 4
-        var agent = "idle"        // reserved for agent signals (idle, working, waiting, limit); not drawn yet
         var lang = "en"           // the app's language, for the page's labels
 
-        enum CodingKeys: String, CodingKey { case v, phase, mode, label, clock, duration, elapsed, remaining, progress, paused, session, agent, lang }
+        enum CodingKeys: String, CodingKey { case v, phase, mode, label, clock, duration, elapsed, remaining, progress, paused, session, lang }
 
         func encode(to e: Encoder) throws {
             var c = e.container(keyedBy: CodingKeys.self)
@@ -56,17 +55,15 @@ enum BrowserSource {
             try c.encode(progress, forKey: .progress)
             try c.encode(paused, forKey: .paused)
             try c.encode(session, forKey: .session)   // null outside Pomodoro, so the keys never change
-            try c.encode(agent, forKey: .agent)
             try c.encode(lang, forKey: .lang)
         }
     }
 
     /// The state now. `duration` and `elapsed` are real seconds (the app's demo speed already applied).
     static func snapshot(mode: TimerMode, phase: Phase, restIsLong: Bool, duration: Double, elapsed: Double, paused: Bool,
-                         focusCount: Int, longEvery: Int, agent: AgentState, lang: Lang) -> Snapshot {
+                         focusCount: Int, longEvery: Int, lang: Lang) -> Snapshot {
         var s = Snapshot()
         s.mode = mode.rawValue
-        s.agent = agent.rawValue
         s.lang = lang.rawValue
         guard phase != .idle else { return s }
         func tenth(_ x: Double) -> Double { (max(x, 0) * 10).rounded() / 10 }
@@ -116,33 +113,14 @@ enum BrowserSource {
 
     /// One server-sent event: every line of `data` on its own `data:` line, ended by a blank line.
     /// CR, LF and CRLF all end a line in the protocol, so each becomes a line of its own here.
-    static func sseEvent(_ data: String, event: String? = nil) -> String {
+    static func sseEvent(_ data: String) -> String {
         var out = ""
-        if let event { out += "event: " + event.filter { $0 != "\n" && $0 != "\r" && $0 != "\r\n" } + "\n" }
         let lines = data.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n").components(separatedBy: "\n")
         for line in lines { out += "data: " + line + "\n" }
         return out + "\n"
     }
 
     // MARK: escaping
-
-    /// Text made safe inside HTML (element content and quoted attributes). Scalar by scalar, so a
-    /// combining mark after `<` cannot hide it in one Character.
-    static func escapeHTML(_ s: String) -> String {
-        var out = ""
-        out.unicodeScalars.reserveCapacity(s.unicodeScalars.count)
-        for u in s.unicodeScalars {
-            switch u {
-            case "&": out += "&amp;"
-            case "<": out += "&lt;"
-            case ">": out += "&gt;"
-            case "\"": out += "&quot;"
-            case "'": out += "&#39;"
-            default: out.unicodeScalars.append(u)
-            }
-        }
-        return out
-    }
 
     /// JSON made safe inside a `<script>` element: no `</script>`, `<!--` or line separators can
     /// end it early. Each is a valid JSON string escape, so the value reads the same.
@@ -166,7 +144,6 @@ enum BrowserSource {
     struct Request: Equatable {
         var method: String
         var path: String
-        var query: [String: String]
         var host: String?
     }
 
@@ -180,14 +157,7 @@ enum BrowserSource {
         let first = lines[0].split(separator: " ", omittingEmptySubsequences: false).map(String.init)
         guard first.count == 3, first[1].hasPrefix("/"), first[2].hasPrefix("HTTP/1."),
               !first[0].isEmpty, first[0].allSatisfy({ $0.isASCII && $0.isUppercase }) else { return nil }
-        let target = first[1]
-        let parts = target.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
-        var query: [String: String] = [:]
-        if parts.count > 1 {
-            for item in URLComponents(string: "?" + parts[1])?.queryItems ?? [] where query[item.name] == nil {
-                query[item.name] = item.value ?? ""
-            }
-        }
+        let path = String(first[1].prefix { $0 != "?" })
         var host: String?
         for line in lines.dropFirst() {
             guard let colon = line.firstIndex(of: ":") else { continue }
@@ -196,47 +166,28 @@ enum BrowserSource {
                 break
             }
         }
-        return Request(method: first[0], path: parts[0], query: query, host: host)
-    }
-
-    /// The page's display options, from `?lang=` and `?scale=`. Anything else is ignored; a value
-    /// that is not one of these falls back to the default.
-    struct Display: Equatable {
-        var lang: Lang?           // nil: follow the app's language
-        var scale = 1.0           // the line, Odysseus and the chip, 0.5...4
-
-        static let scales = 0.5...4.0
-
-        init(lang: Lang? = nil, scale: Double = 1) { self.lang = lang; self.scale = scale }
-
-        init(query: [String: String]) {
-            lang = query["lang"].flatMap { Lang(rawValue: $0.lowercased()) }
-            if let raw = query["scale"], raw.count <= 8, let x = Double(raw), x.isFinite, Self.scales.contains(x) { scale = x }
-        }
+        return Request(method: first[0], path: path, host: host)
     }
 
     enum Route: Equatable {
-        case overlay(Display)
+        case overlay
         case events
-        case state
         case notFound
         case methodNotAllowed
         case forbidden   // a Host header that is not this address: a web page rebinding its domain to 127.0.0.1
     }
 
-    /// Hosts a request may name: the address OBS is given, or localhost, at our port.
+    /// The only Host a request may name: the address OBS is given, at our port.
     static func allowsHost(_ host: String?, port: Int) -> Bool {
-        guard let h = host?.lowercased() else { return false }
-        return h == "\(Self.host):\(port)" || h == "localhost:\(port)"
+        host == "\(Self.host):\(port)"
     }
 
     static func route(_ r: Request, port: Int) -> Route {
         guard allowsHost(r.host, port: port) else { return .forbidden }
         guard r.method == "GET" else { return .methodNotAllowed }
         switch r.path {
-        case "/overlay": return .overlay(Display(query: r.query))
+        case "/overlay": return .overlay
         case "/events": return .events
-        case "/state.json": return .state
         default: return .notFound
         }
     }
@@ -272,14 +223,13 @@ enum BrowserSource {
     }
 
     /// What to send for a request head. `state`: the latest snapshot's JSON; `page`: the overlay page.
-    static func reply(to head: String, port: Int, state: () -> String, page: (Display) -> String) -> Reply {
+    static func reply(to head: String, port: Int, state: () -> String, page: () -> String) -> Reply {
         guard let r = parseRequest(head) else { return .respond(response(400, body: "Bad request\n")) }
         switch route(r, port: port) {
         case .forbidden: return .respond(response(403, body: "Forbidden\n"))
         case .methodNotAllowed: return .respond(response(405, body: "Method not allowed\n", headers: ["Allow: GET"]))
         case .notFound: return .respond(response(404, body: "Not found\n"))
-        case .state: return .respond(response(200, type: "application/json; charset=utf-8", body: state() + "\n"))
-        case .overlay(let d): return .respond(response(200, type: "text/html; charset=utf-8", body: page(d), headers: ["Content-Security-Policy: \(pagePolicy)"]))
+        case .overlay: return .respond(response(200, type: "text/html; charset=utf-8", body: page(), headers: ["Content-Security-Policy: \(pagePolicy)"]))
         case .events: return .stream(streamHead(state: state()))
         }
     }
@@ -301,7 +251,7 @@ enum BrowserSource {
     /// A PNG as a `data:` URI.
     static func dataURI(png: Data) -> String { "data:image/png;base64," + png.base64EncodedString() }
 
-    /// The page's names for each phase, in every language, so `?lang=` or the app's language picks them.
+    /// The page's names for each phase, in every language, so the app's language picks them.
     static func labels() -> [String: [String: String]] {
         var all: [String: [String: String]] = [:]
         for l in Lang.allCases {
@@ -316,17 +266,13 @@ enum BrowserSource {
     }
 
     private struct PageConfig: Encodable {
-        var lang: String?
-        var scale: Double
         var labels: [String: [String: String]]
         var sprites: Sprites
         var colors: [String: String]
 
         func encode(to e: Encoder) throws {
-            enum K: String, CodingKey { case lang, scale, labels, sprites, colors }
+            enum K: String, CodingKey { case labels, sprites, colors }
             var c = e.container(keyedBy: K.self)
-            try c.encode(lang, forKey: .lang)
-            try c.encode(scale, forKey: .scale)
             try c.encode(labels, forKey: .labels)
             try c.encode(sprites, forKey: .sprites)
             try c.encode(colors, forKey: .colors)
@@ -344,18 +290,16 @@ enum BrowserSource {
 
     /// The overlay page: transparent, self-contained (inline style, script and frames), and drawn from
     /// the event stream. Text reaches it as escaped JSON and is set with `textContent`, never as HTML.
-    static func page(_ d: Display, sprites: Sprites) -> String {
-        let config = PageConfig(lang: d.lang?.rawValue, scale: d.scale, labels: labels(), sprites: sprites, colors: colors)
-        return pageTemplate
-            .replacingOccurrences(of: "%LANG%", with: escapeHTML(d.lang?.rawValue ?? "en"))
-            .replacingOccurrences(of: "%CONFIG%", with: scriptJSON(json(config)))
+    static func page(sprites: Sprites) -> String {
+        let config = PageConfig(labels: labels(), sprites: sprites, colors: colors)
+        return pageTemplate.replacingOccurrences(of: "%CONFIG%", with: scriptJSON(json(config)))
     }
 
     /// The route is the edge's: from the bottom-left corner right along the floor, up the right side,
     /// left along the top and down the left side; a focus fills it, a break drains it.
     static let pageTemplate = #"""
 <!doctype html>
-<html lang="%LANG%">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -379,17 +323,13 @@ canvas { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; }
   var CFG = %CONFIG%;
   var cv = document.getElementById("edge"), g = cv.getContext("2d"), chip = document.getElementById("chip");
   var st = null, got = 0, dpr = 1, es = null, stale = 5000;
-  var C = CFG.colors, S = CFG.sprites, k = CFG.scale;
+  var C = CFG.colors, S = CFG.sprites;
   var imgs = {};
   Object.keys(S.anims).forEach(function (name) {
     imgs[name] = S.anims[name].frames.map(function (src) { var i = new Image(); i.src = src; return i; });
   });
   chip.style.background = C.surface + "EB";
   chip.style.color = C.ink;
-  chip.style.fontSize = (13 * k) + "px";
-  chip.style.padding = (5 * k) + "px " + (11 * k) + "px";
-  chip.style.right = chip.style.bottom = (36 * k) + "px";
-  chip.style.borderWidth = (1.5 * k) + "px";
 
   function fit() {
     dpr = window.devicePixelRatio || 1;
@@ -412,7 +352,7 @@ canvas { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; }
   }
 
   function labelFor(s) {
-    var L = CFG.labels[CFG.lang || s.lang] || CFG.labels.en;
+    var L = CFG.labels[s.lang] || CFG.labels.en;
     var name = s.mode === "timer" ? L.timer : s.mode === "stopwatch" ? L.stopwatch : L[s.phase];
     var parts = [name, s.paused ? L.paused : s.clock];
     if (s.session) parts.push(s.session.n + "/" + s.session.of);
@@ -464,7 +404,7 @@ canvas { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; }
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, cv.width, cv.height);
     if (!st || st.phase === "idle" || now - got > stale) { chip.hidden = true; return; }
-    var W = cv.width, H = cv.height, px = k * dpr, lw = 4 * px, i = lw / 2 + 2 * px;
+    var W = cv.width, H = cv.height, px = dpr, lw = 4 * px, i = lw / 2 + 2 * px;
     var live = !st.paused && st.phase !== "arrived";
     var el = st.elapsed + (live ? (now - got) / 1000 : 0), dur = st.duration;
     var t = st.phase === "arrived" ? 1 : dur > 0 ? (st.mode === "stopwatch" ? (el % dur) / dur : Math.min(el / dur, 1)) : 0;
