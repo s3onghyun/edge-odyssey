@@ -302,8 +302,16 @@ open "/Applications/Edge Odyssey.app"
 2. **URL**：アドレスを貼り付けます（設定の *コピー*、またはメニューの *オーバーレイの URL をコピー*）。
 3. **幅** `1920`、**高さ** `1080`（キャンバスの大きさ）。OBS 既定の **カスタム CSS**
    （`background-color: rgba(0, 0, 0, 0)`）はそのままにすると、背景は透明のままです。
-4. OK。セッション中はオーバーレイが描かれ、何も動いていないときは空です。アプリを起動し直すと、
+4. OK。セッション中はオーバーレイが描かれ、何も動いていないときは空です（下のエージェントの実況は除く）。アプリを起動し直すと、
    ソースは自動でつなぎ直します。
+
+**エージェントの実況。** Claude Code のサインがオンなら、ストリームモードの HUD とこのオーバーレイが
+2 つ目のチップでエージェントの様子を視聴者に伝えます。作業中は `⛵ Claude が漕いでいます…`、あなたを
+待っているときは `🎶 セイレーン：Claude があなたを呼んでいます`、上限が近いときは `⛈ 使用上限が近づいています`、
+何もしていないときは何も表示しません。ふちのサインと一緒に変わり（休憩中はふちと同じく静か）、タイマーが
+動いていないときも表示されます。表示するのは状態だけで、プロジェクトは出ません。リポジトリ、ブランチ、
+フォルダ、セッション、プロンプトはどれも表示しません。**エージェントの実況**（*一般*、Claude Code の
+サインの下。初期値はオン）でオフにでき、ふちのサインはそのまま残ります。
 
 表示の言語はアプリの言語に従います。ポート（1024〜49151）は設定の *ポート…* で
 変えられます。サーバーはこの Mac の中だけで動きます。127.0.0.1 だけで待ち受けるのでほかの機器からは
@@ -332,6 +340,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl background:off|cycle|<ファイル名>   # または background-folder:<パス>、drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
 "$APP" --ctl stream-mode:on|off
+"$APP" --ctl narrate:on|off
 "$APP" --ctl browser-overlay:on|off     # または overlay-port:47213
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```

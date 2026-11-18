@@ -18,7 +18,7 @@ import Testing
     @Test func idleStateEncodesEveryKeyInOrder() {
         let s = BrowserSource.snapshot(mode: .timer, phase: .idle, restIsLong: false, duration: 600, elapsed: 0, paused: false,
                                        focusCount: 0, longEvery: 4, lang: .ko)
-        #expect(BrowserSource.json(s) == #"{"clock":"","duration":0,"label":"","mode":"timer","#
+        #expect(BrowserSource.json(s) == #"{"agent":"idle","clock":"","duration":0,"label":"","mode":"timer","narration":"","#
             + #""paused":false,"phase":"idle","progress":0,"remaining":0,"session":null,"v":1}"#)
     }
 
@@ -26,7 +26,8 @@ import Testing
         let s = focus()
         #expect(s.phase == "focus" && s.label == "Focus" && s.clock == "23:30" && s.session == .init(n: 2, of: 4))
         let d = try decode(BrowserSource.json(s))
-        #expect(Set(d.keys) == ["v", "phase", "mode", "label", "clock", "duration", "remaining", "progress", "paused", "session"])
+        #expect(Set(d.keys) == ["v", "phase", "mode", "label", "clock", "duration", "remaining", "progress", "paused", "session",
+                                "agent", "narration"])
         #expect(d["duration"] as? Double == 1500 && d["remaining"] as? Double == 1409.5)
         #expect(d["progress"] as? Double == 0.0603)
         #expect((d["session"] as? [String: Int]) == ["n": 2, "of": 4])
@@ -59,6 +60,39 @@ import Testing
         #expect(watch.clock == "12:03" && watch.remaining == 717 && watch.progress == 0.0042)   // the second lap
         let over = focus(elapsed: 1600)
         #expect(over.remaining == 0 && over.progress == 1 && over.clock == "0:00")
+    }
+
+    @Test func theAgentIsNarratedEvenWithNoTimer() throws {
+        func snap(_ phase: Phase, _ agent: AgentState, lang: Lang = .en) -> BrowserSource.Snapshot {
+            BrowserSource.snapshot(mode: .pomodoro, phase: phase, restIsLong: false, duration: 1500, elapsed: 60, paused: false,
+                                   focusCount: 1, longEvery: 4, lang: lang, agent: agent)
+        }
+        #expect(snap(.focus, .idle).agent == "idle" && snap(.focus, .idle).narration == "")
+        let working = snap(.focus, .working)
+        #expect(working.agent == "working" && working.narration == "⛵ Claude rowing…" && working.label == "Focus")
+        let idleTimer = snap(.idle, .waiting)   // no timer: only the narration
+        #expect(idleTimer.phase == "idle" && idleTimer.label == "" && idleTimer.agent == "waiting")
+        #expect(idleTimer.narration == "🎶 Sirens: Claude needs you")
+        #expect(snap(.focus, .limit, lang: .ko).narration == StreamMode.narration(.limit, lang: .ko))
+        let d = try decode(BrowserSource.json(snap(.idle, .limit)))
+        #expect(d["agent"] as? String == "limit" && d["narration"] as? String == "⛈ Near the usage limit")
+        // Every state the hook can write has its word on the wire.
+        for a in [AgentState.idle, .working, .waiting, .limit] { #expect(snap(.focus, a).agent == a.rawValue) }
+    }
+
+    @Test func thePageShowsTheNarrationAsTextOnly() {
+        let page = BrowserSource.page(sprites: BrowserSource.Sprites(width: 32, height: 26))
+        #expect(page.contains(#"<div id="agent" hidden></div>"#) && page.contains(#"<div id="chip" hidden></div>"#))
+        #expect(page.contains("agent.textContent = line"))
+        for sink in ["innerHTML", "outerHTML", "insertAdjacentHTML", "document.write", "eval(", "new Function"] {
+            #expect(!page.contains(sink), "\(sink)")   // state text never becomes markup
+        }
+        // A hostile line still travels as an escaped JSON string inside the event, never as HTML.
+        var s = focus()
+        s.narration = "</script><img src=x onerror=alert(1)>"
+        let event = BrowserSource.sseEvent(BrowserSource.json(s))
+        #expect(event.hasPrefix("data: {") && !event.contains("\n\n\n"))
+        #expect(BrowserSource.colors["signal"] != nil && BrowserSource.colors["storm"] != nil)
     }
 
     @Test func eventsAreFramedLineByLine() {

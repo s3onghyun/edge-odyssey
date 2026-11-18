@@ -1,25 +1,7 @@
 # Changelog
 
-## 0.7.0 (unreleased)
+## 0.8.0 (unreleased)
 
-- **Send feedback…** in the menu, next to *Quit*. It opens a GitHub issue prefilled with a short
-  template and the app version, macOS version and the agent signal's state (on/off and
-  working/waiting), in the app's language. Nothing else goes in: no paths, names, repos or branches.
-  Nothing is sent by the app; you read, edit and submit the issue yourself. People without GitHub
-  can pick *Send an email instead*, which opens the same prefilled draft in their mail app,
-  addressed to s3onghyun.hong@gmail.com.
-- **Stream mode** (*General › Stream mode*, in the menu and in Settings; off by default). For people
-  who record or stream their screen: the edge and focus mode show up in screenshots, recordings and
-  screen shares, they no longer hide while the screen is captured, and a small session HUD sits in
-  the bottom-right corner: `Focus · 18:32 · 2/4` shows the phase (Focus, Break, Long break, or
-  Arrived, Timer, Stopwatch), the time and, in Pomodoro, the session of the long-break cycle,
-  ticking every second. The HUD shows for the whole session even with *Only show in the last 5 minutes* on;
-  the edge still waits for the last five minutes. While Stream mode is on, *Hide while the screen
-  is shared or recorded* is greyed out with the reason; turning Stream mode off brings back exactly
-  the old behaviour and your previous choice. Also `--ctl stream-mode:on|off`; `--capture-visible`
-  still shows the windows in captures on its own.
-- The README's Privacy section now says the app hides from capture by default and shows itself only
-  in Stream mode.
 - The state folder (`~/.edge-odyssey`, or your `--state-dir`) and every file in it are now readable
   by your account only (folders 0700, files 0600). The hooks and the app create them that way, and
   the app tightens a folder or file an older version left readable to others the next time it
@@ -42,7 +24,37 @@
   The server listens on 127.0.0.1 only, serves only `/overlay` and `/events`, answers GET only, never
   takes commands, sends nothing cacheable, rejects any Host but `127.0.0.1:<port>`, and names no paths, users or
   hosts; turning it off closes every connection. README: *OBS browser source* has the steps.
+- **Agent narration** for streams. With the Claude Code signals on, Stream mode's HUD shows a second
+  chip under the session chip, and the browser-source overlay a chip beside the phase, saying what
+  the agent is doing: `⛵ Claude rowing…` (working), `🎶 Sirens: Claude needs you` (waiting for you),
+  `⛈ Near the usage limit` (near the limit), nothing while idle, in the app's language. It follows
+  the edge's own agent signal (including staying quiet during a break), fades in and out, and shows
+  even when no timer runs. Only the state is shown, never the repo, branch, folder, session or
+  prompt. **Narrate agent state** (*General*, under the Claude Code signals, in the menu and in
+  Settings; on by default) turns it off and leaves the edge signals as they are. Also
+  `--ctl narrate:on|off`. The overlay's `/events` snapshot gains `agent` (idle, working, waiting
+  or limit) and `narration`.
 
+## 0.7.0 (2026-11-18)
+
+- **Send feedback…** in the menu, next to *Quit*. It opens a GitHub issue prefilled with a short
+  template and the app version, macOS version and the agent signal's state (on/off and
+  working/waiting), in the app's language. Nothing else goes in: no paths, names, repos or branches.
+  Nothing is sent by the app; you read, edit and submit the issue yourself. People without GitHub
+  can pick *Send an email instead*, which opens the same prefilled draft in their mail app,
+  addressed to s3onghyun.hong@gmail.com.
+- **Stream mode** (*General › Stream mode*, in the menu and in Settings; off by default). For people
+  who record or stream their screen: the edge and focus mode show up in screenshots, recordings and
+  screen shares, they no longer hide while the screen is captured, and a small session HUD sits in
+  the bottom-right corner: `Focus · 18:32 · 2/4` shows the phase (Focus, Break, Long break, or
+  Arrived, Timer, Stopwatch), the time and, in Pomodoro, the session of the long-break cycle,
+  ticking every second. The HUD shows for the whole session even with *Only show in the last 5 minutes* on;
+  the edge still waits for the last five minutes. While Stream mode is on, *Hide while the screen
+  is shared or recorded* is greyed out with the reason; turning Stream mode off brings back exactly
+  the old behaviour and your previous choice. Also `--ctl stream-mode:on|off`; `--capture-visible`
+  still shows the windows in captures on its own.
+- The README's Privacy section now says the app hides from capture by default and shows itself only
+  in Stream mode.
 ## 0.6.2 (2026-11-18)
 
 - **Opens on the first try.** Edge Odyssey is now signed with a Developer ID, notarized by Apple

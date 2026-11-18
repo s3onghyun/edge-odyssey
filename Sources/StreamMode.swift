@@ -4,7 +4,8 @@ import Foundation
 /// Stream mode: for people who record or stream their screen and want viewers to see the voyage.
 /// Off (the default), the edge and focus mode keep out of screenshots, recordings and shares, and
 /// hide while the screen is captured. On, they show up in captures, stay on screen while captured,
-/// and a small session HUD ("Focus · 18:32 · 2/4") sits in the bottom-right corner. Pure, so the tests decide it.
+/// and a small session HUD ("Focus · 18:32 · 2/4") sits in the bottom-right corner, with the agent's
+/// narration ("⛵ Claude rowing…") under it while Claude Code works or waits. Pure, so the tests decide it.
 enum StreamMode {
     /// Whether the overlay and focus-mode windows exclude themselves from capture
     /// (`NSWindow.sharingType` `.none`, else `.readOnly`). `captureVisible`: the `--capture-visible`
@@ -67,4 +68,42 @@ enum StreamMode {
 
     /// What the HUD shows in place of the time while paused.
     static func pausedWord(_ lang: Lang? = nil) -> String { L.t("paused", "일시정지", "一時停止", "暂停", in: lang) }
+
+    // MARK: agent narration
+
+    /// The agent state a stream narrates: the edge's own display state (`App.agentState`, already
+    /// held through a break like the edge's signal, and changed only when the hook's state does),
+    /// so the narration never runs ahead of the edge. Idle when the Claude Code signals or the
+    /// narration are off. Only the state is narrated: never a repo, branch, folder or session.
+    static func narratedState(_ state: AgentState, agentEnabled: Bool, narrate: Bool) -> AgentState {
+        agentEnabled && narrate ? state : .idle
+    }
+
+    /// The narration line for viewers: what the coding agent is doing. Nil when idle (nothing shows).
+    static func narration(_ state: AgentState, lang: Lang? = nil) -> String? {
+        switch state {
+        case .idle: return nil
+        case .working: return L.t("⛵ Claude rowing…", "⛵ Claude 노 젓는 중…", "⛵ Claude が漕いでいます…", "⛵ Claude 正在划桨…", in: lang)
+        case .waiting:
+            return L.t("🎶 Sirens: Claude needs you", "🎶 세이렌: Claude가 당신을 불러요", "🎶 セイレーン：Claude があなたを呼んでいます", "🎶 塞壬：Claude 需要你", in: lang)
+        case .limit: return L.t("⛈ Near the usage limit", "⛈ 사용 한도에 가까워요", "⛈ 使用上限が近づいています", "⛈ 接近用量上限", in: lang)
+        }
+    }
+
+    /// Room between the session chip and the narration chip under it.
+    static let hudGap: CGFloat = 6
+
+    /// Where the HUD's chips sit, bottom right of `area`: the narration (when there is one) at the
+    /// margin, the session chip right above it, both right-aligned. Without a narration the session
+    /// chip keeps its own place at the margin.
+    static func hudStack(session: CGSize?, narration: CGSize?, in area: CGRect, margin m: CGFloat = hudMargin)
+        -> (session: CGPoint?, narration: CGPoint?) {
+        let low = narration.map { hudOrigin(chip: $0, in: area, margin: m) }
+        let high = session.map { size -> CGPoint in
+            var p = hudOrigin(chip: size, in: area, margin: m)
+            if let narration { p.y += narration.height + hudGap }
+            return p
+        }
+        return (high, low)
+    }
 }

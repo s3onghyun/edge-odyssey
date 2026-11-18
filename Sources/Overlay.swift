@@ -27,7 +27,7 @@ struct Scene {
     var dozing = false              // a distracting app is in front: the Lotus-eaters
     var overrideAnim: String?       // a short encounter that replaces the pose (the ram)
     var devicePixelsPerSpritePixel = 3
-    var hud: Overlay.HUD?           // stream mode: the session chip on this display
+    var hud: Overlay.HUD?           // stream mode: the session chip (and agent narration) on this display
     var edgeVisible = true          // false: only the HUD shows (stream mode, before the last 5 minutes)
 }
 
@@ -102,7 +102,10 @@ final class Overlay {
     private let spriteLayer = CALayer()
     private let hudChip = CALayer()        // stream mode's session HUD: a pill in a corner
     private let hudLabel = CATextLayer()
-    private var hudShown: String?          // what the chip shows, to redraw only on change
+    private var hudShown: String?          // what the chips show, to redraw only on change
+    private let narrationChip = CALayer()  // ... and the agent's narration under it, faded in and out
+    private let narrationLabel = CATextLayer()
+    private var narrationShown = false
     var showsHUD: Bool { hudShown != nil }
     private var edgeTimer: Timer?
     private var lastEdge: Int?
@@ -186,6 +189,9 @@ final class Overlay {
         root.addSublayer(hudChip)   // above the traveler
         hudChip.addSublayer(hudLabel)
         hudChip.isHidden = true
+        root.addSublayer(narrationChip)
+        narrationChip.addSublayer(narrationLabel)
+        narrationChip.opacity = 0
     }
 
     /// Off: screenshots, recordings and screen shares see through this window (the default).
@@ -194,43 +200,92 @@ final class Overlay {
         window.sharingType = exclude ? .none : .readOnly
     }
 
-    /// Stream mode's session HUD: one line of text and its phase (for the outline colour).
+    /// Stream mode's HUD: the session line and its phase (for the outline colour), and the agent's
+    /// narration and state (for its outline). `text` is nil while no timer runs, `narration` while
+    /// the agent is idle (or narration is off); the HUD exists only while one of them is set.
     struct HUD: Equatable {
-        var text: String
+        var text: String?
         var phase: Phase
+        var narration: String? = nil
+        var agent: AgentState = .idle
     }
 
-    /// Shows or hides the HUD chip. It sits in the overlay's root, so it fades and hides with the
+    /// How long the narration chip takes to fade in or out, and the session chip to make room.
+    static let narrationFade: CFTimeInterval = 0.35
+
+    /// Shows or hides the HUD's chips. They sit in the overlay's root, so they fade and hide with the
     /// edge (a covered display, Hide now). Called on every scene and once a second while it ticks.
     func setHUD(_ h: HUD?) {
         guard focusView == nil, let h else {   // focus mode shows its own time
             hudChip.isHidden = true
             hudShown = nil
+            showNarration(false)   // fades with the edge
             return
         }
         let dark = Palette.dark
-        let key = "\(h.text)|\(h.phase)|\(dark)|\(screen.frame)|\(screen.visibleFrame)"
+        let key = "\(h.text ?? "")|\(h.phase)|\(h.narration ?? "")|\(h.agent)|\(dark)|\(screen.frame)|\(screen.visibleFrame)"
         guard key != hudShown else { return }
         hudShown = key
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         defer { CATransaction.commit() }
         let tone: Tones.Pair = h.phase == .rest ? Tones.slate : h.phase == .arrived ? Tones.brass : Tones.teal
-        let text = Typography.string(h.text, .numeral, size: 13, weight: .semibold, color: Palette.color(Tones.ink, dark: dark))
-        let ts = text.size()
-        let line = CGSize(width: ceil(ts.width) + 1, height: ceil(ts.height))
-        let size = CGSize(width: line.width + 22, height: line.height + 10)
+        let session = h.text.map { style(hudChip, hudLabel, text: $0, tone: tone, dark: dark) }
+        let narrationTone: Tones.Pair = h.agent == .limit ? Tones.rust : Tones.signal
+        let narration = h.narration.map { style(narrationChip, narrationLabel, text: $0, tone: narrationTone, dark: dark) }
         // The usable part of the display (below the menu bar, beside the Dock), in this window's coordinates.
         let area = screen.visibleFrame.offsetBy(dx: -screen.frame.minX, dy: -screen.frame.minY)
-        hudChip.frame = CGRect(origin: StreamMode.hudOrigin(chip: size, in: area), size: size)
-        hudChip.cornerRadius = size.height / 2
-        hudChip.backgroundColor = Palette.color(Tones.surface, dark: dark, alpha: 0.92).cgColor
-        hudChip.borderColor = Palette.color(tone, dark: dark).cgColor
-        hudChip.borderWidth = 1.5
-        hudLabel.frame = CGRect(x: 11, y: 5, width: line.width, height: line.height)
-        hudLabel.contentsScale = screen.backingScaleFactor
-        hudLabel.string = text
-        hudChip.isHidden = false
+        let at = StreamMode.hudStack(session: session, narration: narration, in: area)
+        let moved = (narration != nil) != narrationShown && !hudChip.isHidden
+        if let session, let origin = at.session { place(hudChip, CGRect(origin: origin, size: session), animated: moved) }
+        hudChip.isHidden = session == nil
+        if let narration, let origin = at.narration { narrationChip.frame = CGRect(origin: origin, size: narration) }
+        showNarration(narration != nil)
+    }
+
+    /// Sets a chip's text, colours and size (its origin is the caller's); returns the size.
+    private func style(_ chip: CALayer, _ label: CATextLayer, text: String, tone: Tones.Pair, dark: Bool) -> CGSize {
+        let string = Typography.string(text, .numeral, size: 13, weight: .semibold, color: Palette.color(Tones.ink, dark: dark))
+        let ts = string.size()
+        let line = CGSize(width: ceil(ts.width) + 1, height: ceil(ts.height))
+        let size = CGSize(width: line.width + 22, height: line.height + 10)
+        chip.cornerRadius = size.height / 2
+        chip.backgroundColor = Palette.color(Tones.surface, dark: dark, alpha: 0.92).cgColor
+        chip.borderColor = Palette.color(tone, dark: dark).cgColor
+        chip.borderWidth = 1.5
+        label.frame = CGRect(x: 11, y: 5, width: line.width, height: line.height)
+        label.contentsScale = screen.backingScaleFactor
+        label.string = string
+        return size
+    }
+
+    /// Moves a chip, gliding from where it is now when `animated` (the session chip making room).
+    private func place(_ chip: CALayer, _ frame: CGRect, animated: Bool) {
+        let from = chip.presentation()?.position ?? chip.position
+        chip.frame = frame
+        guard animated, from != chip.position else { return }
+        let a = CABasicAnimation(keyPath: "position")
+        a.fromValue = NSValue(point: from)
+        a.toValue = NSValue(point: chip.position)
+        a.duration = Self.narrationFade
+        a.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        chip.add(a, forKey: "move")
+    }
+
+    /// Fades the narration chip in or out. Faded out it keeps its last line, so the fade shows it.
+    private func showNarration(_ show: Bool) {
+        guard show != narrationShown else { return }
+        narrationShown = show
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        let from = narrationChip.presentation()?.opacity ?? narrationChip.opacity
+        narrationChip.opacity = show ? 1 : 0
+        let a = CABasicAnimation(keyPath: "opacity")
+        a.fromValue = from
+        a.toValue = narrationChip.opacity
+        a.duration = Self.narrationFade
+        narrationChip.add(a, forKey: "fade")
     }
 
     func close() {

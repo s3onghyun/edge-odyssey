@@ -33,6 +33,7 @@ struct Options {
     var ceilingVariant: String?     // demo: force zip or cling
     var lotusEnabled = true         // doze when a game, video or social app is frontmost
     var agentEnabled = true         // show Claude Code signals
+    var narrateAgent = true         // stream mode's HUD and the browser source narrate the agent's state
     var showSeconds = true          // menu bar counts down 12:50; off shows whole minutes (13m)
     var longEvery = 4               // a long break after every n-th focus
     var sessionGoal = 0             // completed Pomodoro focuses today; 0: none
@@ -59,7 +60,7 @@ struct Options {
     /// Settings the menu changes are kept in UserDefaults; command-line flags override them
     /// for one run without being saved.
     static let saved: [String: Any] = ["style": "traveler", "display": "main", "thickness": 3.0, "onlyLast5": false,
-                                       "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true, "streamMode": false,
+                                       "agentEnabled": true, "narrateAgent": true, "lotusEnabled": true, "hideWhenCaptured": true, "streamMode": false,
                                        "browserOverlay": false, "overlayPort": BrowserSource.defaultPort,
                                        "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4, "sessionGoal": 0,
                                        "notifyAtEnd": true, "soundVolume": "low", "dialSound": true, "autoNextFocus": false, "autoStartBreak": false, "autoRestMinutes": ArrivalWait.defaultMinutes, "pace": "even",
@@ -75,6 +76,7 @@ struct Options {
         thickness = CGFloat(min(max(d.double(forKey: "thickness"), 2), 4))
         onlyLast5 = d.bool(forKey: "onlyLast5")
         agentEnabled = d.bool(forKey: "agentEnabled")
+        narrateAgent = d.bool(forKey: "narrateAgent")
         lotusEnabled = d.bool(forKey: "lotusEnabled")
         hideWhenCaptured = d.bool(forKey: "hideWhenCaptured")
         streamMode = d.bool(forKey: "streamMode")
@@ -1080,14 +1082,40 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             "ストリームモード中はオフ：録画・共有に Edge Odyssey が映ります", "直播模式开启时关闭：录制和共享中会显示 Edge Odyssey")
     }
 
-    /// The session HUD now: "Focus · 18:32 · 2/4", or nil outside stream mode or while idle.
+    /// The agent state viewers are told about: the edge's own, or idle with the signals or narration off.
+    var narratedAgent: AgentState {
+        StreamMode.narratedState(agentState, agentEnabled: o.agentEnabled, narrate: o.narrateAgent)
+    }
+
+    /// The HUD now: the session ("Focus · 18:32 · 2/4") while a timer runs and the agent's narration
+    /// ("⛵ Claude rowing…") while it works, waits or nears the limit. Nil outside stream mode or
+    /// when neither has anything to show.
     var hud: Overlay.HUD? {
-        guard StreamMode.showsHUD(streamMode: o.streamMode, phase: phase) else { return nil }
-        let clock = phase == .arrived ? overtime(elapsed * o.speed)
-            : o.mode == .stopwatch ? elapsedClock(elapsed * o.speed) : countdown(remaining * o.speed)
-        let text = StreamMode.hudText(mode: o.mode, phase: phase, restIsLong: restIsLong, clock: clock, paused: pausedAt != nil,
+        guard o.streamMode else { return nil }
+        var text: String?
+        if StreamMode.showsHUD(streamMode: o.streamMode, phase: phase) {
+            let clock = phase == .arrived ? overtime(elapsed * o.speed)
+                : o.mode == .stopwatch ? elapsedClock(elapsed * o.speed) : countdown(remaining * o.speed)
+            text = StreamMode.hudText(mode: o.mode, phase: phase, restIsLong: restIsLong, clock: clock, paused: pausedAt != nil,
                                       session: StreamMode.session(focusCount: focusCount, every: o.longEvery))
-        return text.map { Overlay.HUD(text: $0, phase: phase) }
+        }
+        let agent = narratedAgent
+        let narration = StreamMode.narration(agent)
+        guard text != nil || narration != nil else { return nil }
+        return Overlay.HUD(text: text, phase: phase, narration: narration, agent: agent)
+    }
+
+    var narrateAgentTitle: String { L.t("Narrate agent state", "에이전트 실황", "エージェントの実況", "解说代理状态") }
+
+    /// Under "Show agent signals", only while they are on: the narration toggle, indented.
+    func narrateAgentMenuItems() -> [NSMenuItem] {
+        guard o.agentEnabled else { return [] }
+        let item = MenuAction(narrateAgentTitle, checked: o.narrateAgent) { [weak self] in
+            guard let self else { return }
+            self.control(self.o.narrateAgent ? "narrate:off" : "narrate:on")
+        }
+        item.indentationLevel = 1
+        return [item]
     }
 
     /// Ticks the HUD's time with the menu bar's (once a second in stream mode), never the edge animation.
@@ -1129,6 +1157,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         case "thickness": o.thickness = CGFloat(min(max(Double(arg) ?? 3, 2), 4)); remember("thickness", Double(o.thickness)); refresh()
         case "last5": o.onlyLast5 = arg == "on"; remember("onlyLast5", o.onlyLast5); refresh()
         case "agent": o.agentEnabled = arg != "off"; remember("agentEnabled", o.agentEnabled); refresh()
+        case "narrate": o.narrateAgent = arg != "off"; remember("narrateAgent", o.narrateAgent); refresh()
         case "lotus-enabled":
             o.lotusEnabled = arg != "off"
             if !o.lotusEnabled { lotus = false }
@@ -1565,6 +1594,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
                 guard let self else { return }
                 self.control(self.o.agentEnabled ? "agent:off" : "agent:on")
             },
+        ] + narrateAgentMenuItems() + [
             MenuAction(L.t("Doze while a game, video or social app is in front", "게임·동영상·SNS 앱이 앞에 있으면 졸기",
                            "ゲーム・動画・SNS アプリが前面にあるとき居眠りする", "游戏、视频或社交应用在前台时打瞌睡"), checked: o.lotusEnabled) { [weak self] in
                 guard let self else { return }

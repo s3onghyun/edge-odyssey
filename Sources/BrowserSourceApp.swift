@@ -27,10 +27,11 @@ extension App {
         }
     }
 
-    /// The state the overlay shows now: stream mode's HUD state, in real seconds.
+    /// The state the overlay shows now: stream mode's HUD state, in real seconds, and the narrated agent state.
     var overlaySnapshot: BrowserSource.Snapshot {
         BrowserSource.snapshot(mode: o.mode, phase: phase, restIsLong: restIsLong, duration: phaseDuration * o.speed, elapsed: elapsed * o.speed,
-                               paused: pausedAt != nil, focusCount: focusCount, longEvery: o.longEvery, lang: L.lang)
+                               paused: pausedAt != nil, focusCount: focusCount, longEvery: o.longEvery, lang: L.lang,
+                               agent: narratedAgent)
     }
 
     /// Starts or stops the server to match the setting. A port change restarts it.

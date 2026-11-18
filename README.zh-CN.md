@@ -279,7 +279,13 @@ VoiceOver 会把表盘读作可调节的滑块。外圈的轨道是进度条（�
 2. **URL**：粘贴地址（设置中的 *复制*，或菜单中的 *复制叠加层网址*）。
 3. **宽度** `1920`，**高度** `1080`（你的画布大小）。保留 OBS 默认的 **自定义 CSS**
    （`background-color: rgba(0, 0, 0, 0)`），背景就保持透明。
-4. 确定。会话进行时会画出叠加层，空闲时是空的。重新启动应用后，来源会自己重新连接。
+4. 确定。会话进行时会画出叠加层，空闲时是空的（下面的代理解说除外）。重新启动应用后，来源会自己重新连接。
+
+**代理解说。** 打开 Claude Code 信号后，直播模式的 HUD 和这个叠加层还会用第二个标签告诉观众代理在做什么：
+工作时是 `⛵ Claude 正在划桨…`，等你时是 `🎶 塞壬：Claude 需要你`，接近上限时是 `⛈ 接近用量上限`，空闲时什么也不显示。
+它和边缘自己的信号一起变化（休息时像边缘一样保持安静），没有计时器在运行时也会显示。它只显示这个状态，从不显示项目：
+没有仓库、分支、文件夹、会话或提示词。可在 **解说代理状态**（*通用*，在 Claude Code 信号下面；默认开启）中关闭，
+边缘信号仍会保留。
 
 显示语言跟随应用的语言。端口（1024 到 49151）可在设置的 *端口…* 中更改。服务器只在这台 Mac 上运行：
 只监听 127.0.0.1，其他设备无法打开；它只读取计时器（不接受任何命令），关闭叠加层后即停止。
@@ -305,6 +311,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl background:off|cycle|<文件名>   # 或 background-folder:<路径>、drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
 "$APP" --ctl stream-mode:on|off
+"$APP" --ctl narrate:on|off
 "$APP" --ctl browser-overlay:on|off     # 或 overlay-port:47213
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```
