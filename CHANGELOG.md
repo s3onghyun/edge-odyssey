@@ -13,7 +13,7 @@
   screen shares, they no longer hide while the screen is captured, and a small session HUD sits in
   the bottom-right corner: `Focus · 18:32 · 2/4` shows the phase (Focus, Break, Long break, or
   Arrived, Timer, Stopwatch), the time and, in Pomodoro, the session of the long-break cycle,
-  ticking every second. The HUD shows all session even with *Only show in the last 5 minutes* on;
+  ticking every second. The HUD shows for the whole session even with *Only show in the last 5 minutes* on;
   the edge still waits for the last five minutes. While Stream mode is on, *Hide while the screen
   is shared or recorded* is greyed out with the reason; turning Stream mode off brings back exactly
   the old behaviour and your previous choice. Also `--ctl stream-mode:on|off`; `--capture-visible`
