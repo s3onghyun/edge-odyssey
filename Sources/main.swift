@@ -1080,6 +1080,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
 
     /// Ticks the HUD's time with the menu bar's (once a second in stream mode), never the edge animation.
     func updateHUD() {
+        guard o.streamMode else { return }
         for ov in overlays { let s = scene(for: ov); ov.setHUD(s.visible ? s.hud : nil) }
     }
 
