@@ -1,10 +1,9 @@
 import Foundation
 
-/// Where "Send an email instead" writes to. Empty until an address is published: then the
-/// feedback dialog offers only the GitHub issue and says an email option comes later.
-/// Setting this one constant turns the email choice on.
+/// Where "Send an email instead" writes to (a public address). Leaving it empty would hide the
+/// email choice and offer only the GitHub issue.
 enum FeedbackContact {
-    static let email = ""
+    static let email = "s3onghyun.hong@gmail.com"
 }
 
 /// The facts a feedback report carries, and nothing else: versions and the agent signal's on/off

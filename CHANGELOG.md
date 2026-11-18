@@ -5,8 +5,9 @@
 - **Send feedback…** in the menu, next to *Quit*. It opens a GitHub issue prefilled with a short
   template and the app version, macOS version and the agent signal's state (on/off and
   working/waiting), in the app's language. Nothing else goes in: no paths, names, repos or branches.
-  Nothing is sent by the app; you read, edit and submit the issue yourself. An email option follows
-  in a later version.
+  Nothing is sent by the app; you read, edit and submit the issue yourself. People without GitHub
+  can pick *Send an email instead*, which opens the same prefilled draft in their mail app,
+  addressed to s3onghyun.hong@gmail.com.
 
 ## 0.6.2 (unreleased)
 

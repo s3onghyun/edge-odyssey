@@ -1759,15 +1759,10 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         let choices = Feedback.choices()
         let alert = NSAlert()
         alert.messageText = L.t("Send feedback", "의견 보내기", "フィードバックを送る", "发送反馈")
-        var info = L.t("Opens a prefilled draft with the app and macOS versions. Nothing is sent until you send it yourself.",
-                       "앱과 macOS 버전이 채워진 초안을 열어요. 직접 보내기 전에는 아무것도 전송되지 않아요.",
-                       "アプリと macOS のバージョンを記入した下書きを開きます。自分で送るまで何も送信されません。",
-                       "打开一份已填好应用和 macOS 版本的草稿。在你自己发送之前，不会发送任何内容。")
-        if !choices.contains(.email) {
-            info += "\n\n" + L.t("An email option will come in a later version.", "이메일로 보내는 방법은 다음 버전에서 추가돼요.",
-                                  "メールで送る方法は今後のバージョンで追加されます。", "邮件发送方式将在以后的版本中提供。")
-        }
-        alert.informativeText = info
+        alert.informativeText = L.t("Opens a prefilled draft with the app and macOS versions. Nothing is sent until you send it yourself.",
+                                    "앱과 macOS 버전이 채워진 초안을 열어요. 직접 보내기 전에는 아무것도 전송되지 않아요.",
+                                    "アプリと macOS のバージョンを記入した下書きを開きます。自分で送るまで何も送信されません。",
+                                    "打开一份已填好应用和 macOS 版本的草稿。在你自己发送之前，不会发送任何内容。")
         for c in choices {
             alert.addButton(withTitle: c == .github ? L.t("Open a GitHub issue", "GitHub 이슈 열기", "GitHub の Issue を開く", "打开 GitHub Issue")
                                                     : L.t("Send an email instead", "대신 이메일 보내기", "代わりにメールを送る", "改为发送邮件"))

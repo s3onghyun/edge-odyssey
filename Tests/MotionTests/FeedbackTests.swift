@@ -85,7 +85,12 @@ import Testing
     @Test func emailIsHiddenUntilAnAddressIsSet() {
         #expect(Feedback.choices(email: "") == [.github])
         #expect(Feedback.mailURL(env, email: "", in: .en) == nil)
-        #expect(Feedback.choices() == (FeedbackContact.email.isEmpty ? [.github] : [.github, .email]))
+    }
+
+    @Test func publishedAddressOffersEmail() throws {
+        #expect(Feedback.choices() == [.github, .email])
+        let url = try #require(Feedback.mailURL(env, in: .en))
+        #expect(url.absoluteString.hasPrefix("mailto:s3onghyun.hong@gmail.com?subject="))
     }
 
     @Test func emailOpensAPrefilledDraft() throws {
