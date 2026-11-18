@@ -62,10 +62,13 @@ import Testing
         #expect(Update.page(v("0.3.0")).absoluteString == "https://github.com/s3onghyun/edge-odyssey/releases/tag/v0.3.0")
     }
 
-    /// The page above exists only if the release workflow tags `v<version>` from CHANGELOG's heading.
+    /// The page above exists only if the release workflow tags `v<version>` from CHANGELOG's heading:
+    /// phase 1 takes the version from the `vX.Y.Z` tag, phase 2 publishes the release as `v<version>`.
     @Test func releaseWorkflowTagsTheVersion() throws {
         let yml = try repoFile(".github/workflows/release.yml")
-        #expect(yml.contains(#"version="${GITHUB_REF_NAME#v}""#))
+        #expect(yml.contains(#"[[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]"#))
+        #expect(yml.contains(#"echo "version=${tag#v}""#))
+        #expect(yml.contains("grep -Fqx \"## ${VERSION} (unreleased)\" CHANGELOG.md"))
         #expect(yml.contains(#"gh release create "v${VERSION}""#))
     }
 
