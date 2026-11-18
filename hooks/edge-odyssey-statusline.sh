@@ -5,8 +5,12 @@
 input=$(cat)
 dir="${EDGE_ODYSSEY_STATE_DIR:-$HOME/.edge-odyssey}"
 pct=$(printf '%s' "$input" | sed -n 's/.*"five_hour"[[:space:]]*:[[:space:]]*{[^}]*"used_percentage"[[:space:]]*:[[:space:]]*\([0-9.]*\).*/\1/p' | head -n 1)
-if [ -n "$pct" ] && mkdir -p "$dir" 2>/dev/null; then
+# umask 077 in a subshell: the state folder and its files are readable by this account only,
+# while the status-line command below keeps the caller's umask.
+[ -n "$pct" ] && (
+  umask 077
+  mkdir -p "$dir" 2>/dev/null || exit 0
   printf '%s %s\n' "$pct" "$(date +%s)" > "$dir/.usage.$$" && mv -f "$dir/.usage.$$" "$dir/usage"
-fi
+)
 [ -n "${EDGE_ODYSSEY_STATUSLINE_NEXT:-}" ] && printf '%s' "$input" | sh -c "$EDGE_ODYSSEY_STATUSLINE_NEXT"
 exit 0

@@ -1877,8 +1877,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         else { return L.t("Hook files are missing from the app bundle.", "앱 번들에 훅 파일이 없어요.", "アプリにフックのファイルがありません。", "应用包中缺少钩子文件。") }
         let fm = FileManager.default
         let dest = o.stateDir.appendingPathComponent("hooks")
+        StateFiles.makePrivateDirectory(o.stateDir)
         do {
-            try fm.createDirectory(at: dest, withIntermediateDirectories: true)
+            try fm.createDirectory(at: dest, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
             for name in ["edge-odyssey-hook.sh", "edge-odyssey-statusline.sh", "codex-hooks-snippet.json"] {
                 let to = dest.appendingPathComponent(name)
                 try? fm.removeItem(at: to)
@@ -1891,8 +1892,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         }
         let home = fm.homeDirectoryForCurrentUser.appendingPathComponent(".edge-odyssey").path
         if o.stateDir.path != home {   // a custom --state-dir: the hooks must write there too
-            let dir = "'" + o.stateDir.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
-            snippet = snippet.replacingOccurrences(of: "$HOME/.edge-odyssey/hooks/", with: "EDGE_ODYSSEY_STATE_DIR=\(dir) \(dir)/hooks/")
+            snippet = HookSnippet.rewrite(snippet, stateDir: o.stateDir.path)
         }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(snippet, forType: .string)
