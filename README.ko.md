@@ -21,8 +21,8 @@
 <p align="center"><sub>25분 한 바퀴를 75배속으로, 앱 자체 창만 녹화했습니다. 화면 전체와, 오디세우스를 따라가는 돋보기.</sub></p>
 
 **설치** (macOS 13 이상, Apple silicon): [Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest)에서
-ZIP을 받아 풀고 **Edge Odyssey**를 응용 프로그램 폴더로 옮기세요. Homebrew로는 `brew install --cask s3onghyun/tap/edge-odyssey`입니다. 아직 공증을 받지 않아서 처음
-실행할 때 한 번 허락이 필요합니다: [처음 실행](#처음-실행)을 보세요.
+ZIP을 받아 풀고 **Edge Odyssey**를 응용 프로그램 폴더로 옮기세요. Homebrew로는 `brew install --cask s3onghyun/tap/edge-odyssey`입니다. Developer ID로 서명하고
+Apple 공증을 받아서 다른 앱처럼 바로 열립니다([처음 실행](#처음-실행)).
 
 - **가장자리 뽀모도로.** 집중 25분, 휴식 5분, 네 번째 휴식은 깁니다. 오디세우스의 위치가 곧
   지난 시간이고(일정한 속도로 가므로 반 바퀴면 절반이 지난 것), 지나온 길이 진행 막대입니다.
@@ -72,14 +72,22 @@ mv "Edge Odyssey.app" /Applications/
 brew install --cask s3onghyun/tap/edge-odyssey
 ```
 
-`brew upgrade --cask edge-odyssey`로 업데이트합니다. 처음 실행 때 허락은 똑같이 한 번 필요합니다(아래).
+`brew upgrade --cask edge-odyssey`로 업데이트합니다.
 Homebrew 7부터는 다른 tap의 cask를 신뢰(trust)해야 읽습니다. 위처럼 전체 이름으로 설치하면 이 cask 하나를
 저절로 신뢰합니다. 설치 전에 `brew info --cask s3onghyun/tap/edge-odyssey`로 먼저 보려면
 `brew trust --cask s3onghyun/tap/edge-odyssey`를 먼저 실행하세요.
 
 ### 처음 실행
 
-앱은 ad-hoc 서명만 되어 있고 **아직 공증(notarization)을 받지 않아서** macOS가 한 번 묻습니다.
+0.6.2부터 모든 릴리스는 Developer ID로 서명하고 Apple 공증(notarization)을 받아 티켓을 붙여(staple) 둡니다.
+그래서 macOS가 **Edge Odyssey**를 처음부터 바로 엽니다. 오프라인에서도 되고 시스템 설정에 갈 일이
+없습니다. 직접 확인하려면 `spctl -a -vv -t exec "/Applications/Edge Odyssey.app"`이
+`source=Notarized Developer ID`를 출력하는지 보세요.
+
+<details>
+<summary>0.6.1 이하: 처음 실행할 때 한 번 허락</summary>
+
+이 버전들은 ad-hoc 서명만 되어 있어서 macOS가 한 번 묻습니다.
 
 1. 응용 프로그램 폴더에서 **Edge Odyssey**를 엽니다. macOS가 앱을 확인할 수 없다고 하면 **완료**를 누릅니다.
 2. **시스템 설정 → 개인정보 보호 및 보안**을 열고 아래로 내려 Edge Odyssey 옆의 **그래도 열기**를
@@ -87,7 +95,11 @@ Homebrew 7부터는 다른 tap의 cask를 신뢰(trust)해야 읽습니다. 위�
 3. macOS 13-14에서는 대신 응용 프로그램 폴더에서 앱을 Control-클릭해 **열기**를 골라도 됩니다
    (macOS 15부터는 이 방법이 없습니다).
 
-코드를 먼저 보고 싶다면 직접 빌드하세요(아래). 공증은 추후 릴리스에 추가할 예정입니다.
+0.6.2 이상으로 업데이트하면 이 확인이 없어집니다.
+
+</details>
+
+코드를 먼저 보고 싶다면 직접 빌드하세요(아래).
 
 ### 소스에서 빌드
 

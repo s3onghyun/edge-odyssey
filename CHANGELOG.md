@@ -1,6 +1,17 @@
 # Changelog
 
-## 0.6.1 (unreleased)
+## 0.6.2 (unreleased)
+
+- **Opens on the first try.** Edge Odyssey is now signed with a Developer ID, notarized by Apple
+  and stapled, so first launch no longer needs *System Settings › Privacy & Security › Open
+  Anyway*, offline too. `spctl -a -vv -t exec "/Applications/Edge Odyssey.app"` prints
+  `source=Notarized Developer ID`.
+- Updating from 0.6.1 works as before: the update notice opens this release page to replace the
+  app, or run `brew upgrade --cask edge-odyssey`. Nothing else in the app changes.
+- Releases are built in two phases (sign and submit, then staple and publish once Apple accepts)
+  and an unnotarized build is never published; see [`docs/release.md`](https://github.com/s3onghyun/edge-odyssey/blob/main/docs/release.md).
+
+## 0.6.1
 
 - **0.6.0 was tagged but never released.** 0.6.1 fixes agent hooks so a non-Git folder or detached
   HEAD still writes its state file cleanly.
