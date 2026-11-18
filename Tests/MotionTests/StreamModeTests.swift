@@ -62,6 +62,21 @@ import Testing
         #expect(area.contains(CGRect(origin: o, size: chip)))
     }
 
+    @Test func narrationSitsUnderTheSessionChip() throws {
+        let area = CGRect(x: 0, y: 70, width: 1512, height: 875)
+        let session = CGSize(width: 160, height: 26), narration = CGSize(width: 190, height: 26)
+        let alone = StreamMode.hudStack(session: session, narration: nil, in: area)
+        #expect(alone.session == StreamMode.hudOrigin(chip: session, in: area) && alone.narration == nil)   // as before
+        let both = StreamMode.hudStack(session: session, narration: narration, in: area)
+        let s = try #require(both.session), n = try #require(both.narration)
+        #expect(n == StreamMode.hudOrigin(chip: narration, in: area))                 // the narration at the margin
+        #expect(s.y == n.y + narration.height + StreamMode.hudGap)                    // the session right above it (y up)
+        #expect(s.x + session.width == n.x + narration.width)                         // right-aligned
+        #expect(area.contains(CGRect(origin: s, size: session)) && area.contains(CGRect(origin: n, size: narration)))
+        let only = StreamMode.hudStack(session: nil, narration: narration, in: area)  // no timer: the narration alone
+        #expect(only.session == nil && only.narration == n)
+    }
+
     @Test func hudStaysAllSessionWhileLast5HidesOnlyTheEdge() {
         func v(content: Bool = true, blocked: Bool = false, last5: Bool, hud: Bool) -> [Bool] {
             let r = StreamMode.visibility(content: content, blocked: blocked, hiddenForLast5: last5, hud: hud)

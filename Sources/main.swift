@@ -1080,14 +1080,27 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             "ストリームモード中はオフ：録画・共有に Edge Odyssey が映ります", "直播模式开启时关闭：录制和共享中会显示 Edge Odyssey")
     }
 
-    /// The session HUD now: "Focus · 18:32 · 2/4", or nil outside stream mode or while idle.
+    /// The agent state viewers are told about: the edge's own, or idle with the signals off.
+    var narratedAgent: AgentState {
+        StreamMode.narratedState(agentState, agentEnabled: o.agentEnabled)
+    }
+
+    /// The HUD now: the session ("Focus · 18:32 · 2/4") while a timer runs and the agent's narration
+    /// ("⛵ Claude rowing…") while it works, waits or nears the limit. Nil outside stream mode or
+    /// when neither has anything to show.
     var hud: Overlay.HUD? {
-        guard StreamMode.showsHUD(streamMode: o.streamMode, phase: phase) else { return nil }
-        let clock = phase == .arrived ? overtime(elapsed * o.speed)
-            : o.mode == .stopwatch ? elapsedClock(elapsed * o.speed) : countdown(remaining * o.speed)
-        let text = StreamMode.hudText(mode: o.mode, phase: phase, restIsLong: restIsLong, clock: clock, paused: pausedAt != nil,
+        guard o.streamMode else { return nil }
+        var text: String?
+        if StreamMode.showsHUD(streamMode: o.streamMode, phase: phase) {
+            let clock = phase == .arrived ? overtime(elapsed * o.speed)
+                : o.mode == .stopwatch ? elapsedClock(elapsed * o.speed) : countdown(remaining * o.speed)
+            text = StreamMode.hudText(mode: o.mode, phase: phase, restIsLong: restIsLong, clock: clock, paused: pausedAt != nil,
                                       session: StreamMode.session(focusCount: focusCount, every: o.longEvery))
-        return text.map { Overlay.HUD(text: $0, phase: phase) }
+        }
+        let agent = narratedAgent
+        let narration = StreamMode.narration(agent)
+        guard text != nil || narration != nil else { return nil }
+        return Overlay.HUD(text: text, phase: phase, narration: narration, agent: agent)
     }
 
     /// Ticks the HUD's time with the menu bar's (once a second in stream mode), never the edge animation.

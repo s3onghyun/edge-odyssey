@@ -55,7 +55,8 @@ notarized by Apple, so it opens like any other app ([First launch](#first-launch
   the voyage: *General › Stream mode* (menu or Settings) lets recordings and shares show the edge
   and focus mode, keeps them on screen while the screen is captured, and adds a small session HUD
   in the bottom-right corner: `Focus · 18:32 · 2/4` (phase, time, session of the long-break
-  cycle), shown all session even with *Only show in the last 5 minutes* on. Off by default;
+  cycle), shown all session even with *Only show in the last 5 minutes* on, and under it what
+  Claude Code is doing (`⛵ Claude rowing…`; the state only, never the repo or branch). Off by default;
   turning it off brings back the hiding exactly as before.
 - **Smooth and light.** All motion runs in the macOS render server; the app wakes only at
   corners and state changes (about 0.1% CPU).
@@ -375,8 +376,15 @@ edge, Odysseus, the phase and the session (`Focus · 18:32 · 2/4`), updated liv
 2. **URL**: paste the address (*Copy* in Settings, or *Copy overlay URL* in the menu).
 3. **Width** `1920`, **Height** `1080` (your canvas size). Keep OBS's default **Custom CSS**
    (`background-color: rgba(0, 0, 0, 0)`), so the background stays transparent.
-4. OK. The overlay draws while a session runs and is empty while idle. If you restart the app,
+4. OK. The overlay draws while a session runs and is empty while idle (apart from the agent narration below). If you restart the app,
    the source reconnects by itself.
+
+**Agent narration.** With the Claude Code signals on, Stream mode's HUD and this overlay also tell
+viewers what the agent is doing, in a second chip: `⛵ Claude rowing…` while it works, `🎶 Sirens:
+Claude needs you` while it waits for you, `⛈ Near the usage limit` near the limit, and nothing while
+it is idle. It changes together with the edge's own signal (and stays quiet during a break, like the
+edge), and shows even when no timer runs. It shows only that state, never the project: no repo,
+branch, folder, session or prompt. Turning the Claude Code signals off hides it.
 
 The labels follow the app's language. *Port…* in Settings changes
 the port (1024 to 49151). The server is local only: it listens on 127.0.0.1, so no other device

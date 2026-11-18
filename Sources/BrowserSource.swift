@@ -37,8 +37,10 @@ enum BrowserSource {
         var progress = 0.0        // 0...1 of the phase (a stopwatch: of this lap)
         var paused = false
         var session: Session?     // Pomodoro only: 2 of 4
+        var agent = "idle"        // the coding agent: idle, working, waiting or limit (idle with narration off)
+        var narration = ""        // its line for viewers, in the app's language; "" when idle. Never a repo or branch.
 
-        enum CodingKeys: String, CodingKey { case v, phase, mode, label, clock, duration, remaining, progress, paused, session }
+        enum CodingKeys: String, CodingKey { case v, phase, mode, label, clock, duration, remaining, progress, paused, session, agent, narration }
 
         func encode(to e: Encoder) throws {
             var c = e.container(keyedBy: CodingKeys.self)
@@ -52,14 +54,20 @@ enum BrowserSource {
             try c.encode(progress, forKey: .progress)
             try c.encode(paused, forKey: .paused)
             try c.encode(session, forKey: .session)   // null outside Pomodoro, so the keys never change
+            try c.encode(agent, forKey: .agent)
+            try c.encode(narration, forKey: .narration)
         }
     }
 
     /// The state now. `duration` and `elapsed` are real seconds (the app's demo speed already applied).
+    /// `agent`: the narrated agent state (`StreamMode.narratedState`), shown even while no timer runs.
+    /// It is only the state, so nothing about the project (repo, branch, folder) can reach the page.
     static func snapshot(mode: TimerMode, phase: Phase, restIsLong: Bool, duration: Double, elapsed: Double, paused: Bool,
-                         focusCount: Int, longEvery: Int, lang: Lang) -> Snapshot {
+                         focusCount: Int, longEvery: Int, lang: Lang, agent: AgentState = .idle) -> Snapshot {
         var s = Snapshot()
         s.mode = mode.rawValue
+        s.agent = agent.rawValue
+        s.narration = StreamMode.narration(agent, lang: lang) ?? ""
         guard phase != .idle else { return s }
         func tenth(_ x: Double) -> Double { (max(x, 0) * 10).rounded() / 10 }
         let d = max(duration, 0), e = max(elapsed, 0)
@@ -264,7 +272,8 @@ enum BrowserSource {
     /// The edge's colours on a camera scene: the dark palette, which reads on most video.
     static var colors: [String: String] {
         ["focus": hex(Tones.teal.dark), "warm": hex(Tones.brass.dark), "rest": hex(Tones.slate.dark),
-         "surface": hex(Tones.surface.dark), "ink": hex(Tones.ink.dark), "track": hex(Tones.ink.dark)]
+         "surface": hex(Tones.surface.dark), "ink": hex(Tones.ink.dark), "track": hex(Tones.ink.dark),
+         "signal": hex(Tones.signal.dark), "storm": hex(Tones.rust.dark)]
     }
 
     /// The overlay page: transparent, self-contained (inline style, script and frames), and drawn from
@@ -287,28 +296,29 @@ enum BrowserSource {
 <style>
 html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; width: 100%; height: 100%; }
 canvas { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; }
-#chip { position: fixed; right: 36px; bottom: 36px; padding: 5px 11px; border-radius: 999px; border: 1.5px solid;
+#chips { position: fixed; right: 36px; bottom: 36px; display: flex; gap: 8px; align-items: center; }
+#chips div { padding: 5px 11px; border-radius: 999px; border: 1.5px solid;
   font: 600 13px -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; font-variant-numeric: tabular-nums;
   white-space: nowrap; }
-#chip[hidden] { display: none; }
+#chips div[hidden] { display: none; }
 </style>
 </head>
 <body>
 <canvas id="edge"></canvas>
-<div id="chip" hidden></div>
+<div id="chips"><div id="agent" hidden></div><div id="chip" hidden></div></div>
 <script>
 "use strict";
 (function () {
   var CFG = %CONFIG%;
   var cv = document.getElementById("edge"), g = cv.getContext("2d"), chip = document.getElementById("chip");
+  var agent = document.getElementById("agent");
   var st = null, got = 0, dpr = 1, es = null, stale = 5000;
   var C = CFG.colors, S = CFG.sprites;
   var imgs = {};
   Object.keys(S.anims).forEach(function (name) {
     imgs[name] = S.anims[name].frames.map(function (src) { var i = new Image(); i.src = src; return i; });
   });
-  chip.style.background = C.surface + "EB";
-  chip.style.color = C.ink;
+  [chip, agent].forEach(function (c) { c.style.background = C.surface + "EB"; c.style.color = C.ink; });
 
   function fit() {
     dpr = window.devicePixelRatio || 1;
@@ -376,11 +386,22 @@ canvas { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; }
     g.restore();
   }
 
+  // The agent's narration, beside the phase: text only (textContent), never markup.
+  function narrate(fresh) {
+    var line = fresh && typeof st.narration === "string" ? st.narration : "";
+    if (!line) { agent.hidden = true; return; }
+    if (agent.textContent !== line) agent.textContent = line;
+    agent.style.borderColor = st.agent === "limit" ? C.storm : C.signal;
+    agent.hidden = false;
+  }
+
   function draw() {
     var now = performance.now();
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, cv.width, cv.height);
-    if (!st || st.phase === "idle" || now - got > stale) { chip.hidden = true; return; }
+    var fresh = !!st && now - got <= stale;
+    narrate(fresh);
+    if (!fresh || st.phase === "idle") { chip.hidden = true; return; }
     var W = cv.width, H = cv.height, px = dpr, lw = 4 * px, i = lw / 2 + 2 * px;
     var live = !st.paused && st.phase !== "arrived";
     var dur = st.duration, w = live && dur > 0 ? (now - got) / 1000 : 0;
