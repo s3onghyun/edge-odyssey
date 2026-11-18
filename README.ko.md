@@ -49,8 +49,8 @@ Apple 공증을 받아서 다른 앱처럼 바로 열립니다([처음 실행](#
   숨고, Control-Option-Command-H로 언제든 숨깁니다.
 - **스트림 모드 (선택).** 화면을 녹화하거나 방송하면서 시청자에게 항해를 보여 주고 싶을 때:
   *일반 › 스트림 모드*(메뉴나 설정)를 켜면 녹화·공유 화면에 가장자리와 집중 모드가 보이고, 화면
-  캡처 중에도 숨지 않으며, 원하는 모서리(기본은 오른쪽 아래)에 작은 세션 HUD가 뜹니다:
-  `집중 · 18:32 · 2/4`(단계, 남은 시간, 긴 휴식 주기 중 몇 번째 세션). 기본은 꺼짐이고, 끄면 숨기기가
+  캡처 중에도 숨지 않으며, 오른쪽 아래 모서리에 작은 세션 HUD가 뜹니다:
+  `집중 · 18:32 · 2/4`(단계, 시간, 긴 휴식 주기 중 몇 번째 세션). *마지막 5분에만 표시*를 켜도 HUD는 세션 내내 보입니다. 기본은 꺼짐이고, 끄면 숨기기가
   전과 똑같이 돌아옵니다.
 - **매끄럽고 가벼움.** 움직임은 모두 macOS 렌더 서버에서 돌고, 앱은 모서리와 상태 변화 때만
   깨어납니다(CPU 약 0.1%).
@@ -321,7 +321,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl history|label:<메모>|goal:<시간>|clear-history
 "$APP" --ctl background:off|cycle|<파일 이름>   # 또는 background-folder:<경로>, drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
-"$APP" --ctl stream-mode:on|off|hud-corner:bottom-right|bottom-left|top-right|top-left
+"$APP" --ctl stream-mode:on|off
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```
 
@@ -330,8 +330,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 `--mode pomodoro|timer|stopwatch`, `--timer <길이>`, `--background off|cycle|<파일 이름>`,
 `--no-lotus`, `--char <id>`, `--state-dir <폴더>`, `--lang en|ko|ja|zh|auto`, `-v`(stderr에 로그). 시연·테스트용:
 `--focus-mode`(실행하며 열기), `--focus-frame x,y,w,h`(전체 화면 대신 창), `--appearance dark|light`,
-`--lang pseudo`(모든 문구를 40%쯤 늘리고 악센트를 붙여 잘림 확인), `--capture-visible`(스크린샷에 가장자리와 집중 모드 포함, 스트림 모드의 나머지는 빼고),
-`--stream-mode`(이번 실행만 스트림 모드).
+`--lang pseudo`(모든 문구를 40%쯤 늘리고 악센트를 붙여 잘림 확인), `--capture-visible`(스크린샷에 가장자리와 집중 모드 포함, 스트림 모드의 나머지는 빼고).
 
 ## 개발
 

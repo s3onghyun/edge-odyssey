@@ -49,8 +49,8 @@
   Control-Option-Command-H でいつでも隠せます。
 - **ストリームモード（任意）。** 画面を録画・配信していて、視聴者に航海を見せたいときに：
   *一般 › ストリームモード*（メニューまたは設定）をオンにすると、録画や共有にふちと集中モードが映り、
-  画面収録中も隠れず、選んだ角（既定は右下）に小さなセッション HUD が出ます：
-  `集中 · 18:32 · 2/4`（フェーズ、残り時間、長い休憩までのサイクルの何回目か）。既定はオフで、
+  画面収録中も隠れず、右下の角に小さなセッション HUD が出ます：
+  `集中 · 18:32 · 2/4`（フェーズ、時間、長い休憩までのサイクルの何回目か）。「最後の5分だけ表示」がオンでも HUD はセッション中ずっと出ます。既定はオフで、
   オフに戻すと隠す動作はこれまでとまったく同じに戻ります。
 - **なめらかで軽い。** 動きはすべて macOS のレンダーサーバーで動き、アプリは角と状態の変化のときだけ起きます
   （CPU 約 0.1%）。
@@ -312,7 +312,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl history|label:<文字>|goal:<時間>|clear-history
 "$APP" --ctl background:off|cycle|<ファイル名>   # または background-folder:<パス>、drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
-"$APP" --ctl stream-mode:on|off|hud-corner:bottom-right|bottom-left|top-right|top-left
+"$APP" --ctl stream-mode:on|off
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```
 
@@ -322,8 +322,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 `--char <id>`、`--state-dir <ディレクトリ>`、`--lang en|ko|ja|zh|auto`、`-v`（ログを stderr に）。デモとテスト用：
 `--focus-mode`（起動時に開く）、`--focus-frame x,y,w,h`（全画面の代わりにウインドウ）、`--appearance dark|light`、
 `--lang pseudo`（すべての文字列を約 40% 長くしてアクセント付きにし、切れを探す）、`--capture-visible`
-（スクリーンショットにふちと集中モードを写す。ストリームモードのほかの部分は含まない）、
-`--stream-mode`（その起動だけストリームモード）。
+（スクリーンショットにふちと集中モードを写す。ストリームモードのほかの部分は含まない）。
 
 ## 開発
 

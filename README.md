@@ -54,9 +54,9 @@ notarized by Apple, so it opens like any other app ([First launch](#first-launch
 - **Stream mode (optional).** For when you record or stream your screen and want viewers to see
   the voyage: *General › Stream mode* (menu or Settings) lets recordings and shares show the edge
   and focus mode, keeps them on screen while the screen is captured, and adds a small session HUD
-  in a corner of your choice (bottom right by default): `Focus · 18:32 · 2/4` (phase, time left,
-  session of the long-break cycle). Off by default; turning it off brings back the hiding exactly
-  as before.
+  in the bottom-right corner: `Focus · 18:32 · 2/4` (phase, time, session of the long-break
+  cycle), shown all session even with *Only show in the last 5 minutes* on. Off by default;
+  turning it off brings back the hiding exactly as before.
 - **Smooth and light.** All motion runs in the macOS render server; the app wakes only at
   corners and state changes (about 0.1% CPU).
 
@@ -386,7 +386,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl history|label:<text>|goal:<hours>|clear-history
 "$APP" --ctl background:off|cycle|<file name>   # or background-folder:<path>, drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
-"$APP" --ctl stream-mode:on|off|hud-corner:bottom-right|bottom-left|top-right|top-left
+"$APP" --ctl stream-mode:on|off
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```
 
@@ -396,8 +396,7 @@ Flags (one run only, not saved): `--display main|all|follow|<index>|<name>`, `--
 `--state-dir <dir>`, `--lang en|ko|ja|zh|auto`, `-v` (log to stderr). For demos and tests: `--focus-mode` (open it at launch),
 `--focus-frame x,y,w,h` (a window instead of full screen), `--appearance dark|light`,
 `--lang pseudo` (every string about 40% longer and accented, to find truncation),
-`--capture-visible` (let screenshots include the edge and focus mode, without the rest of Stream mode),
-`--stream-mode` (Stream mode for one run).
+`--capture-visible` (let screenshots include the edge and focus mode, without the rest of Stream mode).
 
 ## Development
 

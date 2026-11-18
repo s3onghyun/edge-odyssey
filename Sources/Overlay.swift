@@ -28,6 +28,7 @@ struct Scene {
     var overrideAnim: String?       // a short encounter that replaces the pose (the ram)
     var devicePixelsPerSpritePixel = 3
     var hud: Overlay.HUD?           // stream mode: the session chip on this display
+    var edgeVisible = true          // false: only the HUD shows (stream mode, before the last 5 minutes)
 }
 
 /// The colours (values and contrast checks in Tones): the light or dark variant by the system
@@ -192,11 +193,10 @@ final class Overlay {
         window.sharingType = exclude ? .none : .readOnly
     }
 
-    /// Stream mode's session HUD: one line of text, its phase (for the outline colour), its corner.
+    /// Stream mode's session HUD: one line of text and its phase (for the outline colour).
     struct HUD: Equatable {
         var text: String
         var phase: Phase
-        var corner: HUDCorner
     }
 
     /// Shows or hides the HUD chip. It sits in the overlay's root, so it fades and hides with the
@@ -208,7 +208,7 @@ final class Overlay {
             return
         }
         let dark = Palette.dark
-        let key = "\(h.text)|\(h.phase)|\(h.corner.rawValue)|\(dark)|\(screen.frame)|\(screen.visibleFrame)"
+        let key = "\(h.text)|\(h.phase)|\(dark)|\(screen.frame)|\(screen.visibleFrame)"
         guard key != hudShown else { return }
         hudShown = key
         CATransaction.begin()
@@ -221,7 +221,7 @@ final class Overlay {
         let size = CGSize(width: line.width + 22, height: line.height + 10)
         // The usable part of the display (below the menu bar, beside the Dock), in this window's coordinates.
         let area = screen.visibleFrame.offsetBy(dx: -screen.frame.minX, dy: -screen.frame.minY)
-        hudChip.frame = CGRect(origin: h.corner.origin(chip: size, in: area), size: size)
+        hudChip.frame = CGRect(origin: StreamMode.hudOrigin(chip: size, in: area), size: size)
         hudChip.cornerRadius = size.height / 2
         hudChip.backgroundColor = Palette.color(Tones.surface, dark: dark, alpha: 0.92).cgColor
         hudChip.borderColor = Palette.color(tone, dark: dark).cgColor
@@ -363,6 +363,13 @@ final class Overlay {
         setVisible(s.visible)
         setHUD(s.visible ? s.hud : nil)
         guard s.visible else { lastEdge = nil; return }
+        guard s.edgeVisible else {
+            for l in [track, fill, agentRing, mover] { l.isHidden = true }
+            for l in [fill, agentRing, mover, poser, spriteLayer] { l.removeAllAnimations() }
+            clearEpisodes()
+            lastEdge = nil
+            return
+        }
 
         let size = root.bounds.size
         let weights = Journey.weights(physical: s.style == .traveler && s.physical)

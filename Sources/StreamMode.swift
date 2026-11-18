@@ -4,7 +4,7 @@ import Foundation
 /// Stream mode: for people who record or stream their screen and want viewers to see the voyage.
 /// Off (the default), the edge and focus mode keep out of screenshots, recordings and shares, and
 /// hide while the screen is captured. On, they show up in captures, stay on screen while captured,
-/// and a small session HUD ("Focus · 18:32 · 2/4") sits in a corner. Pure, so the tests decide it.
+/// and a small session HUD ("Focus · 18:32 · 2/4") sits in the bottom-right corner. Pure, so the tests decide it.
 enum StreamMode {
     /// Whether the overlay and focus-mode windows exclude themselves from capture
     /// (`NSWindow.sharingType` `.none`, else `.readOnly`). `captureVisible`: the `--capture-visible`
@@ -17,6 +17,22 @@ enum StreamMode {
 
     /// The session HUD shows only in stream mode, while something runs.
     static func showsHUD(streamMode: Bool, phase: Phase) -> Bool { streamMode && phase != .idle }
+
+    /// What a display shows: its overlay at all, and the edge inside it. `content`: something runs
+    /// for this display; `blocked`: Hide now, a covered display or capture hiding. "Only the last
+    /// 5 minutes" hides just the edge when the HUD is on this display, so the HUD stays all session.
+    static func visibility(content: Bool, blocked: Bool, hiddenForLast5: Bool, hud: Bool) -> (overlay: Bool, edge: Bool) {
+        let overlay = content && !blocked && (!hiddenForLast5 || hud)
+        return (overlay, overlay && !hiddenForLast5)
+    }
+
+    /// Room kept between the HUD and the display's usable area: clear of the edge and the traveler.
+    static let hudMargin: CGFloat = 36
+
+    /// The HUD's origin, bottom right of `area` (y up, as the overlay's layers are), `margin` in.
+    static func hudOrigin(chip size: CGSize, in area: CGRect, margin m: CGFloat = hudMargin) -> CGPoint {
+        CGPoint(x: (area.maxX - m - size.width).rounded(), y: (area.minY + m).rounded())
+    }
 
     /// Which Pomodoro of the current long-break cycle this is: (2, 4) is the second of four. It
     /// counts like `Durations.isLongBreak`, so the long break follows n == of.
@@ -42,33 +58,5 @@ enum StreamMode {
         let time = paused ? L.t("paused", "일시정지", "一時停止", "暂停", in: lang) : clock
         let parts = [name, time] + (mode == .pomodoro ? ["\(session.n)/\(session.of)"] : [])
         return parts.joined(separator: " · ")
-    }
-}
-
-/// Where the session HUD sits on the display.
-enum HUDCorner: String, CaseIterable {
-    case bottomRight = "bottom-right", bottomLeft = "bottom-left", topRight = "top-right", topLeft = "top-left"
-
-    /// A saved or typed choice; bottom right when it isn't one.
-    static func named(_ s: String?) -> HUDCorner { HUDCorner(rawValue: s ?? "") ?? .bottomRight }
-
-    /// Room kept between the HUD and the display's usable area: clear of the edge and the traveler.
-    static let margin: CGFloat = 36
-
-    var title: String {
-        switch self {
-        case .bottomRight: return L.t("Bottom right", "오른쪽 아래", "右下", "右下")
-        case .bottomLeft: return L.t("Bottom left", "왼쪽 아래", "左下", "左下")
-        case .topRight: return L.t("Top right", "오른쪽 위", "右上", "右上")
-        case .topLeft: return L.t("Top left", "왼쪽 위", "左上", "左上")
-        }
-    }
-
-    /// The HUD's origin for a chip of `size` inside `area` (y up, as the overlay's layers are),
-    /// `margin` in from the corner.
-    func origin(chip size: CGSize, in area: CGRect, margin m: CGFloat = HUDCorner.margin) -> CGPoint {
-        let left = self == .bottomLeft || self == .topLeft, top = self == .topLeft || self == .topRight
-        return CGPoint(x: (left ? area.minX + m : area.maxX - m - size.width).rounded(),
-                       y: (top ? area.maxY - m - size.height : area.minY + m).rounded())
     }
 }

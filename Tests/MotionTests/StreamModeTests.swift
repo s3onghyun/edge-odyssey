@@ -54,20 +54,26 @@ import Testing
         #expect(text(.en, .pomodoro, .focus, clock: countdown(18 * 60 + 31.2)) == "Focus · 18:32 · 2/4")
     }
 
-    @Test func hudCornerDefaultsToBottomRightAndStaysInside() {
-        #expect(HUDCorner.named(nil) == .bottomRight)
-        #expect(HUDCorner.named("sideways") == .bottomRight)
-        #expect(HUDCorner.named("top-left") == .topLeft)
+    @Test func hudSitsBottomRightInsideTheUsableArea() {
         let area = CGRect(x: 0, y: 70, width: 1512, height: 875)   // below the menu bar, above the Dock
         let chip = CGSize(width: 160, height: 26)
-        for c in HUDCorner.allCases {
-            let o = c.origin(chip: chip, in: area)
-            let frame = CGRect(origin: o, size: chip)
-            #expect(area.insetBy(dx: HUDCorner.margin - 1, dy: HUDCorner.margin - 1).contains(frame), "\(c) leaves the area: \(frame)")
+        let o = StreamMode.hudOrigin(chip: chip, in: area)
+        #expect(o.x + chip.width == area.maxX - StreamMode.hudMargin && o.y == area.minY + StreamMode.hudMargin)
+        #expect(area.contains(CGRect(origin: o, size: chip)))
+    }
+
+    @Test func hudStaysAllSessionWhileLast5HidesOnlyTheEdge() {
+        func v(content: Bool = true, blocked: Bool = false, last5: Bool, hud: Bool) -> [Bool] {
+            let r = StreamMode.visibility(content: content, blocked: blocked, hiddenForLast5: last5, hud: hud)
+            return [r.overlay, r.edge]
         }
-        let br = HUDCorner.bottomRight.origin(chip: chip, in: area)
-        #expect(br.x + chip.width == area.maxX - HUDCorner.margin && br.y == area.minY + HUDCorner.margin)
-        let tl = HUDCorner.topLeft.origin(chip: chip, in: area)
-        #expect(tl.x == area.minX + HUDCorner.margin && tl.y + chip.height == area.maxY - HUDCorner.margin)
+        #expect(v(last5: true, hud: true) == [true, false])     // stream mode, early in a focus: the HUD alone
+        #expect(v(last5: false, hud: true) == [true, true])     // the last 5 minutes: the edge joins it
+        #expect(v(last5: true, hud: false) == [false, false])   // no HUD (stream mode off, another display): as before
+        #expect(v(last5: false, hud: false) == [true, true])
+        for last5 in [false, true] {
+            #expect(v(blocked: true, last5: last5, hud: true) == [false, false])    // Hide now, a covered display
+            #expect(v(content: false, last5: last5, hud: true) == [false, false])   // idle
+        }
     }
 }

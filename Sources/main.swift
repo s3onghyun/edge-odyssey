@@ -16,7 +16,6 @@ struct Options {
     var excludeFromCapture = true   // --capture-visible: false, for one run (stream mode's capture part only)
     var hideWhenCaptured = true
     var streamMode = false          // show on recordings and streams, with the session HUD (StreamMode)
-    var hudCorner = HUDCorner.bottomRight
     var onlyLast5 = false
     var autostart = false
     /// Where to show: "main", "all" (border everywhere, traveler where you work),
@@ -58,7 +57,7 @@ struct Options {
     /// Settings the menu changes are kept in UserDefaults; command-line flags override them
     /// for one run without being saved.
     static let saved: [String: Any] = ["style": "traveler", "display": "main", "thickness": 3.0, "onlyLast5": false,
-                                       "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true, "streamMode": false, "hudCorner": "bottom-right",
+                                       "agentEnabled": true, "lotusEnabled": true, "hideWhenCaptured": true, "streamMode": false,
                                        "showSeconds": true, "focusMinutes": 25.0, "restMinutes": 5.0, "longEvery": 4, "sessionGoal": 0,
                                        "notifyAtEnd": true, "soundVolume": "low", "dialSound": true, "autoNextFocus": false, "autoStartBreak": false, "autoRestMinutes": ArrivalWait.defaultMinutes, "pace": "even",
                                        "focusDisplay": "", "mode": "pomodoro", "timerSeconds": 600.0,
@@ -76,7 +75,6 @@ struct Options {
         lotusEnabled = d.bool(forKey: "lotusEnabled")
         hideWhenCaptured = d.bool(forKey: "hideWhenCaptured")
         streamMode = d.bool(forKey: "streamMode")
-        hudCorner = HUDCorner.named(d.string(forKey: "hudCorner"))
         showSeconds = d.bool(forKey: "showSeconds")
         focusMinutes = Durations.minutes(String(d.double(forKey: "focusMinutes")), in: Durations.focusRange) ?? 25
         restMinutes = Durations.minutes(String(d.double(forKey: "restMinutes")), in: Durations.breakRange) ?? 5
@@ -110,7 +108,6 @@ struct Options {
             case "--thickness": thickness = CGFloat(Double(it.next() ?? "") ?? 3)
             case "--capture-visible": excludeFromCapture = false
             case "--no-share-hide": hideWhenCaptured = false
-            case "--stream-mode": streamMode = true
             case "--last5": onlyLast5 = true
             case "--autostart": autostart = true
             case "--traveler-screen", "--display": display = it.next() ?? "main"
@@ -413,9 +410,9 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         let hasContent = (phase != .idle || s.agent != .idle) && onThisDisplay
         let hiddenForLast5 = o.onlyLast5 && phase == .focus && o.mode != .stopwatch && remaining > 300 / o.speed && s.agent != .waiting
         s.hud = ov.screen == travelerScreen ? hud : nil   // one HUD, on the display the traveler walks
-        s.visible = hasContent && !manualHidden && !hiddenForLast5
-            && !(hidesWhenCaptured && detector.result.capturing)
-            && !detector.result.coveredDisplays.contains(displayID(ov.screen))
+        let blocked = manualHidden || (hidesWhenCaptured && detector.result.capturing)
+            || detector.result.coveredDisplays.contains(displayID(ov.screen))
+        (s.visible, s.edgeVisible) = StreamMode.visibility(content: hasContent, blocked: blocked, hiddenForLast5: hiddenForLast5, hud: s.hud != nil)
         return s
     }
 
@@ -1078,7 +1075,7 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
             : o.mode == .stopwatch ? elapsedClock(elapsed * o.speed) : countdown(remaining * o.speed)
         let text = StreamMode.hudText(mode: o.mode, phase: phase, restIsLong: restIsLong, clock: clock, paused: pausedAt != nil,
                                       session: StreamMode.session(focusCount: focusCount, every: o.longEvery))
-        return text.map { Overlay.HUD(text: $0, phase: phase, corner: o.hudCorner) }
+        return text.map { Overlay.HUD(text: $0, phase: phase) }
     }
 
     /// Ticks the HUD's time with the menu bar's (once a second in stream mode), never the edge animation.
@@ -1138,7 +1135,6 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
         case "autorest": o.autoStartBreak = arg == "on"; remember("autoStartBreak", o.autoStartBreak)
         case "share-hide": o.hideWhenCaptured = arg != "off"; remember("hideWhenCaptured", o.hideWhenCaptured); refresh()
         case "stream-mode": o.streamMode = arg == "on"; remember("streamMode", o.streamMode); applyStreamMode()
-        case "hud-corner": o.hudCorner = HUDCorner.named(arg); remember("hudCorner", o.hudCorner.rawValue); refresh()
         case "hide": manualHidden = true; refresh()
         case "show": manualHidden = false; refresh()
         case "display": o.display = arg; remember("display", arg); refresh(); planEpisodes()
