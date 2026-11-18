@@ -8,7 +8,7 @@ import Testing
 @Suite struct FeedbackReport {
     let env = FeedbackEnvironment(appVersion: "0.6.3", build: "42",
                                   macOS: OperatingSystemVersion(majorVersion: 15, minorVersion: 4, patchVersion: 1),
-                                  model: "Mac15,3", agent: (enabled: true, state: .waiting))
+                                  agent: (enabled: true, state: .waiting))
 
     /// The query value named `name`, decoded.
     func query(_ url: URL, _ name: String) -> String? {
@@ -21,7 +21,6 @@ import Testing
         #expect(body.contains("What did you expect?"))
         #expect(body.contains("- Edge Odyssey: 0.6.3 (build 42)"))
         #expect(body.contains("- macOS: 15.4.1"))
-        #expect(body.contains("- Mac: Mac15,3"))
         #expect(body.contains("- Agent hooks (Claude Code, Codex): signals on, state waiting"))
         #expect(body.utf8.count < Feedback.maxBody)
     }
@@ -29,12 +28,10 @@ import Testing
     @Test func optionalLinesAreLeftOut() {
         var e = env
         e.build = "0.6.3"   // same as the version: not repeated
-        e.model = nil
         e.agent = nil
         let body = Feedback.body(e, in: .en)
         #expect(body.contains("- Edge Odyssey: 0.6.3\n"))
         #expect(!body.contains("build"))
-        #expect(!body.contains("- Mac:"))
         #expect(!body.contains("Agent"))
     }
 
@@ -55,7 +52,6 @@ import Testing
         var hostile = env
         hostile.appVersion = "0.6.3 /Users/alice/work/secret-repo"
         hostile.build = "fix-auth@my-repo"
-        hostile.model = home
         for l in Lang.allCases {
             let plain = Feedback.body(env, in: l)
             if user.count > 3 { #expect(!plain.contains(user), "\(l)") }
@@ -79,7 +75,7 @@ import Testing
         #expect(s.hasPrefix("https://github.com/s3onghyun/edge-odyssey/issues/new?title="))
         #expect(!s.contains(" ") && !s.contains("\n") && !s.contains("+"))
         #expect(s.contains("%0A"))                         // newlines
-        #expect(s.contains("Mac15%2C3"))                   // reserved characters too
+        #expect(s.contains("%2C") && s.contains("%3A"))      // reserved characters too
         #expect(query(url, "title") == Feedback.title(in: .ko))
         #expect(query(url, "body") == Feedback.body(env, in: .ko))
         #expect(s.utf8.count < 8000)                       // GitHub's URL limit

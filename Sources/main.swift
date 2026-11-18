@@ -1744,19 +1744,12 @@ final class App: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelega
 
     // MARK: feedback
 
-    /// Only versions, the Mac model and the agent signal's state: see Feedback.swift.
+    /// Only versions and the agent signal's state: see Feedback.swift.
     var feedbackEnvironment: FeedbackEnvironment {
         let info = Bundle.main.infoDictionary
-        var size = 0
-        var model: String?
-        if sysctlbyname("hw.model", nil, &size, nil, 0) == 0, size > 0 {
-            var bytes = [CChar](repeating: 0, count: size)
-            if sysctlbyname("hw.model", &bytes, &size, nil, 0) == 0 { model = String(decoding: bytes.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self) }
-        }
         return FeedbackEnvironment(appVersion: info?["CFBundleShortVersionString"] as? String ?? "unknown",
                                    build: info?["CFBundleVersion"] as? String,
                                    macOS: ProcessInfo.processInfo.operatingSystemVersion,
-                                   model: model,
                                    agent: (enabled: o.agentEnabled, state: agentState))
     }
 

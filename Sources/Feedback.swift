@@ -7,13 +7,12 @@ enum FeedbackContact {
     static let email = ""
 }
 
-/// The facts a feedback report carries, and nothing else: versions, the Mac model and the agent
-/// signal's on/off and state. Typed so no path, user name, host name, repo or branch can get in.
+/// The facts a feedback report carries, and nothing else: versions and the agent signal's on/off
+/// and state. Typed so no path, user name, host name, repo or branch can get in.
 struct FeedbackEnvironment {
     var appVersion: String
     var build: String?
     var macOS: OperatingSystemVersion
-    var model: String?
     /// nil when there is nothing to report; otherwise whether agent signals are on, and their state.
     var agent: (enabled: Bool, state: AgentState)?
 }
@@ -49,7 +48,6 @@ enum Feedback {
         if let b = e.build.map(clean), !b.isEmpty, b != clean(e.appVersion) { app += " (build \(b))" }
         let v = e.macOS
         var lines = [app, "- macOS: \(v.majorVersion).\(v.minorVersion).\(v.patchVersion)"]
-        if let m = e.model.map(clean), !m.isEmpty { lines.append("- Mac: " + m) }
         if let a = e.agent {
             lines.append("- Agent hooks (Claude Code, Codex): signals \(a.enabled ? "on" : "off"), state \(a.state.rawValue)")
         }
