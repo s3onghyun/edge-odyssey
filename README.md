@@ -172,7 +172,7 @@ brass in its last five minutes and empties during a break).
 | Label this session… | A one-line note kept with the run in the history (before starting: for the next one) |
 | Logbook… | The 24 books of the Odyssey you have collected |
 | Settings… (⌘,) | A window with every option of this menu, grouped (Timer, When time is up, On screen, Focus mode, General). It stays open, so you can change several in a row; each change applies at once |
-| General | **Language** (below), Claude Code signals, doze while a game/video/social app is in front, **Stream mode** (above), hide while sharing (greyed out while Stream mode is on), count down in seconds (turn off for whole minutes, `13m`), **Check for updates once a day** and *Check now* (below), **Launch at login** (off until you turn it on), Welcome guide |
+| General | **Language** (below), Claude Code signals, doze while a game/video/social app is in front, **Stream mode** (above), **Browser-source overlay (OBS)** ([below](#obs-browser-source)), hide while sharing (greyed out while Stream mode is on), count down in seconds (turn off for whole minutes, `13m`), **Check for updates once a day** and *Check now* (below), **Launch at login** (off until you turn it on), Welcome guide |
 | Hide now | Control-Option-Command-H, from anywhere |
 | Send feedback… | Send feedback from the menu: opens a prefilled GitHub issue with the app and macOS versions, or an email draft to s3onghyun.hong@gmail.com. Nothing is sent until you submit it yourself |
 
@@ -364,10 +364,30 @@ It writes the same state file as Claude Code, including the working directory an
 available. If an agent starts waiting during a Pomodoro break, Edge Odyssey keeps the edge quiet,
 then combines that count with the break-end notice once.
 
+## OBS browser source
+
+Streams that show a camera rather than the screen can still carry the voyage. Turn on
+**Browser-source overlay (OBS)** (*General*, in the menu or Settings; off by default) and the app
+serves a transparent page at `http://127.0.0.1:47213/overlay`: the progress line along the frame
+edge, Odysseus, the phase and the session (`Focus · 18:32 · 2/4`), updated live every second.
+
+1. In OBS, **Sources › + › Browser**, give it a name and press OK.
+2. **URL**: paste the address (*Copy* in Settings, or *Copy overlay URL* in the menu).
+3. **Width** `1920`, **Height** `1080` (your canvas size). Keep OBS's default **Custom CSS**
+   (`background-color: rgba(0, 0, 0, 0)`), so the background stays transparent.
+4. OK. The overlay draws while a session runs and is empty while idle. If you restart the app,
+   the source reconnects by itself.
+
+Add `?lang=ko` (`en`, `ko`, `ja`, `zh`) to pick the labels' language instead of the app's, and
+`?scale=1.5` (0.5 to 4) for a thicker line, a bigger Odysseus and chip. *Port…* in Settings changes
+the port (1024 to 49151). The server is local only: it listens on 127.0.0.1, so no other device
+can open it, it only reads the timer (it takes no commands), and turning the overlay off closes it.
+
 ## Privacy
 
 No analytics and no telemetry. The only network access is the once-a-day update check
-([Updates](#updates)), which you can turn off. By default the overlay windows are excluded from
+([Updates](#updates)), which you can turn off. With the [browser-source overlay](#obs-browser-source)
+on (off by default), the app also serves its page on 127.0.0.1, which only this Mac can reach. By default the overlay windows are excluded from
 screenshots and screen recordings, and the whole edge (and focus mode's content) hides while the macOS screen-capture
 indicator is on (Zoom, Meet, QuickTime and so on). They show up in captures only while you turn on
 **Stream mode**. Local files: `~/.edge-odyssey/` (hook states, logbook, focus history) and
@@ -387,6 +407,7 @@ APP="/Applications/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey"
 "$APP" --ctl background:off|cycle|<file name>   # or background-folder:<path>, drift:on|off
 "$APP" --ctl language:auto|en|ko|ja|zh
 "$APP" --ctl stream-mode:on|off
+"$APP" --ctl browser-overlay:on|off     # also overlay-port:47213
 "$APP" --ctl update-check|updates:on|off|release-page|skip-update
 ```
 

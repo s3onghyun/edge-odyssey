@@ -176,6 +176,20 @@ struct SettingsView: View {
                         .disabled(o.streamMode)
                     if o.streamMode { Text(app.streamModeHideNote).type(.caption).foregroundStyle(.secondary) }
                 }
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle(app.browserOverlayTitle, isOn: flag(o.browserOverlay, "browser-overlay"))
+                    if o.browserOverlay {
+                        HStack {
+                            Text(verbatim: app.overlayURL).font(.system(.body, design: .monospaced)).textSelection(.enabled).lineLimit(1)
+                            Spacer()
+                            Button(L.t("Copy", "복사", "コピー", "复制")) { app.copyOverlayURL() }
+                            Button(L.t("Port…", "포트…", "ポート…", "端口…")) {
+                                if let p = app.askOverlayPort() { send("overlay-port:\(p)") }
+                            }
+                        }
+                        Text(app.overlayNote).type(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
                 Toggle(L.t("Launch at login", "로그인할 때 실행", "ログイン時に起動", "登录时启动"), isOn: flag(LoginItem.isOn, "login"))
                 HStack {
                     Toggle(L.t("Check for updates once a day", "하루 한 번 업데이트 확인", "1日1回アップデートを確認", "每天检查一次更新"), isOn: flag(app.checkUpdates, "updates"))
