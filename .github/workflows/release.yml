@@ -1,52 +1,289 @@
 name: Release
 
+# Two phases, so a notarization that takes Apple hours never throws away the signed app or its
+# submission (docs/release.md). Nothing unnotarized is ever published.
+#   Phase 1 - push a vX.Y.Z tag, or run by hand with -f tag=vX.Y.Z (an existing tag):
+#     test, build the universal app, sign it with Developer ID, submit it for notarization without
+#     waiting, and keep the signed zip, its .sha256 and submission.json as a 90-day artifact.
+#     Publishes nothing. Without the signing secrets it builds the old ad-hoc app instead, says
+#     "Notarization skipped" and keeps that as a 7-day artifact; phase 2 refuses it.
+#   Phase 2 - run by hand with -f run_id=<phase-1 run id> once Apple has accepted:
+#     download that artifact, staple the same app, check it with stapler and spctl, attest the
+#     archive, then create the GitHub Release. Still "In Progress": fails and changes nothing.
 on:
   push:
-    tags:
-      - "v*"
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Phase 2: run id of the phase-1 run to publish (gh run list -R s3onghyun/edge-odyssey -w release.yml)'
+        type: string
+        default: ''
+      submission_id:
+        description: 'Phase 2, optional: notarization submission id to check instead of the one in the artifact'
+        type: string
+        default: ''
+      tag:
+        description: 'Phase 1 for an existing tag (e.g. v0.6.2). Not together with run_id'
+        type: string
+        default: ''
 
 permissions:
-  contents: write
+  contents: read
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
-  release:
+  # -- Phase 1: build, sign, submit -------------------------------------------------------------
+  sign-and-submit:
+    if: github.event_name == 'push' || inputs.run_id == ''
     runs-on: macos-15
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    env:
+      # Secrets cannot be used in if:, so pass on only whether one is set (true/false, not the value)
+      HAS_SIGNING: ${{ secrets.APPLE_DEVELOPER_ID_P12 != '' }}
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Validate tag version
+      # Inputs reach the script through the environment only and are format-checked there
+      - name: Release version
         id: version
-        shell: bash
+        env:
+          TAG_INPUT: ${{ inputs.tag }}
         run: |
-          set -euo pipefail
-          version="${GITHUB_REF_NAME#v}"
-          grep -Fqx "## ${version} (unreleased)" CHANGELOG.md
-          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_EVENT_NAME" == push ]]; then tag="$GITHUB_REF_NAME"; else tag="$TAG_INPUT"; fi
+          [[ -n "$tag" ]] || { echo "Phase 1 needs a tag (-f tag=vX.Y.Z); phase 2 needs -f run_id=<phase-1 run id>" >&2; exit 1; }
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "The tag must be vX.Y.Z" >&2; exit 1; }
+          { echo "tag=$tag"; echo "version=${tag#v}"; } >> "$GITHUB_OUTPUT"
+          echo "Version ${tag#v} from tag $tag (signing secrets present: $HAS_SIGNING)"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ steps.version.outputs.tag }}
+          persist-credentials: false
+      # The notarization script always comes from this workflow's commit: an older tag's tree has none
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: .release-tools
+          sparse-checkout: scripts/notarize-app.sh
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: Validate tag version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: grep -Fqx "## ${VERSION} (unreleased)" CHANGELOG.md
       - name: Test
         run: ./test.sh
       - name: Build universal app
         env:
           EDGE_ODYSSEY_BUNDLE_ID: app.edgeodyssey
           EDGE_ODYSSEY_VERSION: ${{ steps.version.outputs.version }}
-        run: ./build.sh
-      - name: Ad-hoc sign and package
+        run: |
+          ./build.sh
+          lipo "build/Edge Odyssey.app/Contents/MacOS/EdgeOdyssey" -verify_arch arm64 x86_64
+      - name: Sign with Developer ID and submit for notarization
+        if: env.HAS_SIGNING == 'true'
+        timeout-minutes: 30
+        env:
+          RELEASE_ROOT: ${{ github.workspace }}
+          VERSION: ${{ steps.version.outputs.version }}
+          APPLE_DEVELOPER_ID_P12: ${{ secrets.APPLE_DEVELOPER_ID_P12 }}
+          APPLE_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_P12_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: .release-tools/scripts/notarize-app.sh submit
+      - if: env.HAS_SIGNING == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: edge-odyssey-signed-${{ steps.version.outputs.version }}
+          path: build/notary/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Phase 2 command
+        if: env.HAS_SIGNING == 'true'
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          id="$(plutil -extract id raw -o - build/notary/submission.json)"
+          sha="$(plutil -extract sha256 raw -o - build/notary/submission.json)"
+          cmd="gh workflow run release.yml -R $GITHUB_REPOSITORY --ref $DEFAULT_BRANCH -f run_id=$GITHUB_RUN_ID"
+          echo "Phase 2, once Apple has accepted: $cmd"
+          {
+            echo "### Notarization submitted - nothing published yet"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Submission id | \`$id\` |"
+            echo "| Signed zip sha256 | \`$sha\` |"
+            echo "| Phase-1 run id | \`$GITHUB_RUN_ID\` |"
+            echo
+            echo "Once Apple has accepted it, run phase 2 (still in progress: it fails and changes nothing; run it again later):"
+            echo
+            echo '```sh'
+            echo "$cmd"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      # Forks and repositories without the signing secrets: the old ad-hoc build, never published
+      - name: Ad-hoc sign and package (Notarization skipped)
+        if: env.HAS_SIGNING != 'true'
         env:
           VERSION: ${{ steps.version.outputs.version }}
-        shell: bash
         run: |
           set -euo pipefail
           app="build/Edge Odyssey.app"
-          # Keep this long-standing filename: Homebrew's cask updater consumes it. Its
-          # contents are now universal, as verified below.
           archive="Edge-Odyssey-${VERSION}-arm64.zip"
           codesign --force --deep --sign - "$app"
           codesign --verify --deep --strict --verbose=2 "$app"
-          lipo "$app/Contents/MacOS/EdgeOdyssey" -verify_arch arm64 x86_64
-          ditto -c -k --sequesterRsrc --keepParent "$app" "$archive"
-          shasum -a 256 "$archive" > "$archive.sha256"
-      - name: Prepare changelog notes
+          mkdir -p build/adhoc
+          ditto -c -k --sequesterRsrc --keepParent "$app" "build/adhoc/$archive"
+          (cd build/adhoc && shasum -a 256 "$archive" > "$archive.sha256")
+          msg="Notarization skipped: APPLE_DEVELOPER_ID_P12 is not set. Built an ad-hoc signed app as a 7-day artifact; nothing will be published (docs/release.md)"
+          echo "::warning title=Notarization skipped::$msg"
+          echo "### $msg" >> "$GITHUB_STEP_SUMMARY"
+      - if: env.HAS_SIGNING != 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: edge-odyssey-adhoc-${{ steps.version.outputs.version }}
+          path: build/adhoc/
+          if-no-files-found: error
+          retention-days: 7
+
+  # -- Phase 2: check notarization, staple -------------------------------------------------------
+  notarized:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_id != ''
+    runs-on: macos-15
+    timeout-minutes: 20
+    concurrency:
+      group: release-phase2-${{ inputs.run_id }}
+    permissions:
+      contents: read
+      actions: read        # list and download the phase-1 run's artifacts
+      id-token: write      # attestation signature (Sigstore OIDC)
+      attestations: write
+    outputs:
+      version: ${{ steps.phase1.outputs.version }}
+      commit: ${{ steps.submission.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Find the phase-1 artifact
+        id: phase1
         env:
-          VERSION: ${{ steps.version.outputs.version }}
-        shell: bash
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+          SUBMISSION_INPUT: ${{ inputs.submission_id }}
+          TAG_INPUT: ${{ inputs.tag }}
+        run: |
+          fail() { echo "$*" >&2; exit 1; }
+          [[ -z "$TAG_INPUT" ]] || fail "tag and run_id do not go together (phase 1 takes tag, phase 2 takes run_id)"
+          [[ "$RUN_ID" =~ ^[1-9][0-9]{0,19}$ ]] || fail "run_id must be a number"
+          [[ -z "$SUBMISSION_INPUT" || "$SUBMISSION_INPUT" =~ ^[0-9A-Fa-f]{8}-([0-9A-Fa-f]{4}-){3}[0-9A-Fa-f]{12}$ ]] \
+            || fail "submission_id must be a UUID"
+          workflow="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq .path)"
+          [[ "$workflow" == .github/workflows/release.yml ]] || fail "run $RUN_ID is not a release.yml run"
+          names="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" --paginate \
+            --jq '.artifacts[] | select(.expired | not) | .name')"
+          signed="$(grep -E '^edge-odyssey-signed-[0-9]+\.[0-9]+\.[0-9]+$' <<< "$names" || true)"
+          [[ -n "$signed" && "$(wc -l <<< "$signed")" -eq 1 ]] \
+            || fail "run $RUN_ID needs exactly one edge-odyssey-signed-X.Y.Z artifact (expired, phase 1 unfinished, or Notarization skipped)"
+          version="${signed#edge-odyssey-signed-}"
+          { echo "signed=$signed"; echo "version=$version"; } >> "$GITHUB_OUTPUT"
+          echo "Phase-1 run $RUN_ID: $signed"
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ steps.phase1.outputs.signed }}
+          path: build/notary
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Read the submission
+        id: submission
+        env:
+          VERSION: ${{ steps.phase1.outputs.version }}
+        run: |
+          [[ "$(plutil -extract version raw -o - build/notary/submission.json)" == "$VERSION" ]] \
+            || { echo "submission.json's version differs from the artifact name" >&2; exit 1; }
+          commit="$(plutil -extract commit raw -o - build/notary/submission.json)"
+          [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || commit=""
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+      - name: Staple when Apple has accepted
+        env:
+          SUBMISSION_INPUT: ${{ inputs.submission_id }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          rc=0
+          ./scripts/notarize-app.sh finish ${SUBMISSION_INPUT:+"$SUBMISSION_INPUT"} || rc=$?
+          if ((rc == 75)); then
+            msg="Apple notarization is still in progress. Nothing was published; run phase 2 again later with the same command"
+            echo "::error title=Notarization still in progress::$msg"
+            echo "### $msg" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$rc"
+      - name: Verify
+        env:
+          VERSION: ${{ steps.phase1.outputs.version }}
+        run: |
+          app="build/Edge Odyssey.app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+          lipo "$app/Contents/MacOS/EdgeOdyssey" -verify_arch arm64 x86_64
+          xcrun stapler validate "$app"
+          spctl --assess --type execute --verbose=2 "$app"
+          cd build && shasum -a 256 -c "Edge-Odyssey-${VERSION}-arm64.zip.sha256"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: build/Edge-Odyssey-${{ steps.phase1.outputs.version }}-arm64.zip
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: edge-odyssey-notarized-${{ steps.phase1.outputs.version }}
+          path: |
+            build/Edge-Odyssey-${{ steps.phase1.outputs.version }}-arm64.zip
+            build/Edge-Odyssey-${{ steps.phase1.outputs.version }}-arm64.zip.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  # -- Phase 2: GitHub Release (contents: write only here, and no Apple secrets) -----------------
+  publish:
+    needs: notarized
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write      # create the Release
+    env:
+      VERSION: ${{ needs.notarized.outputs.version }}
+      COMMIT: ${{ needs.notarized.outputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/v${{ needs.notarized.outputs.version }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: edge-odyssey-notarized-${{ needs.notarized.outputs.version }}
+          path: assets
+      - name: Check the assets
+        run: |
+          # The commit phase 1 built must be the commit the tag points at now
+          tagged="$(git rev-parse HEAD)"
+          [[ -n "$COMMIT" && "$tagged" == "$COMMIT" ]] \
+            || { echo "Tag v$VERSION points at $tagged, but phase 1 built ${COMMIT:-an unknown commit}" >&2; exit 1; }
+          cd assets
+          sha256sum -c "Edge-Odyssey-${VERSION}-arm64.zip.sha256"
+          ls -l
+      - name: Prepare changelog notes
         run: |
           set -euo pipefail
           awk -v heading="## ${VERSION} (unreleased)" '
@@ -61,12 +298,12 @@ jobs:
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-        shell: bash
         run: |
-          set -euo pipefail
           gh release create "v${VERSION}" \
+            --repo "$GITHUB_REPOSITORY" \
             --title "Edge Odyssey ${VERSION}" \
             --notes-file RELEASE_NOTES.md \
-            "Edge-Odyssey-${VERSION}-arm64.zip" \
-            "Edge-Odyssey-${VERSION}-arm64.zip.sha256"
+            --verify-tag \
+            "assets/Edge-Odyssey-${VERSION}-arm64.zip" \
+            "assets/Edge-Odyssey-${VERSION}-arm64.zip.sha256"
+          echo "### Published v${VERSION} - next: bump the Homebrew cask (docs/release.md)" >> "$GITHUB_STEP_SUMMARY"

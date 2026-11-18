@@ -22,8 +22,8 @@ session passes, and the edge glows when Claude Code needs you.</p>
 
 **Install** (macOS 13+, Apple silicon): download the ZIP from
 [Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest), unzip it and move
-**Edge Odyssey** to Applications, or run `brew install --cask s3onghyun/tap/edge-odyssey`. It is not notarized yet, so the first launch needs one approval:
-see [First launch](#first-launch). The app speaks English, 한국어, 日本語 and 简体中文
+**Edge Odyssey** to Applications, or run `brew install --cask s3onghyun/tap/edge-odyssey`. It is signed with a Developer ID and
+notarized by Apple, so it opens like any other app ([First launch](#first-launch)). The app speaks English, 한국어, 日本語 and 简体中文
 ([Languages](#languages)).
 
 - **Pomodoro on the edge.** 25 minutes of focus, 5 minutes of break, every fourth break is
@@ -76,7 +76,7 @@ mv "Edge Odyssey.app" /Applications/
 brew install --cask s3onghyun/tap/edge-odyssey
 ```
 
-`brew upgrade --cask edge-odyssey` updates it. The first launch still needs one approval (below).
+`brew upgrade --cask edge-odyssey` updates it.
 Homebrew 7 and later load casks from other taps only once you trust them; installing by the full
 name, as above, trusts this one cask by itself. To look at it first with
 `brew info --cask s3onghyun/tap/edge-odyssey`, run `brew trust --cask s3onghyun/tap/edge-odyssey` before it.
@@ -108,7 +108,15 @@ The built-in commands are `start` (optional `minutes` from 1–240 and `label`),
 
 ### First launch
 
-The app is ad-hoc signed but **not notarized yet**, so macOS asks once:
+From 0.6.2 on, every release is signed with a Developer ID, notarized by Apple and stapled, so
+macOS opens **Edge Odyssey** on the first try, offline too, with no trip to System Settings. To
+check a copy yourself, `spctl -a -vv -t exec "/Applications/Edge Odyssey.app"` prints
+`source=Notarized Developer ID`.
+
+<details>
+<summary>0.6.1 and older: one approval on first launch</summary>
+
+Those releases were ad-hoc signed only, so macOS asks once:
 
 1. Open **Edge Odyssey** from Applications. macOS says it cannot verify the app; click **Done**.
 2. Open **System Settings → Privacy & Security**, scroll down, click **Open Anyway** next to
@@ -116,8 +124,11 @@ The app is ad-hoc signed but **not notarized yet**, so macOS asks once:
 3. On macOS 13-14 you can instead Control-click the app in Applications and choose **Open**
    (macOS 15 and later no longer offer this).
 
-Prefer to check the code first? Build it yourself (below). Notarization will be added in a later
-release.
+Updating to 0.6.2 or later removes the prompt.
+
+</details>
+
+Prefer to check the code first? Build it yourself (below).
 
 ### Build from source
 

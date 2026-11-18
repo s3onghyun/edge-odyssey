@@ -23,8 +23,8 @@ Claude Code 需要你时，屏幕边缘会轻轻发光。</p>
 > 本文由 AI 辅助翻译，欢迎指正（[翻译反馈](https://github.com/s3onghyun/edge-odyssey/issues/new?template=translation.yml)）。项目本身由作者在 AI 编程助手协助下编写，美术也是用代码绘制的原创作品（见 [`PROVENANCE.md`](PROVENANCE.md)）。
 
 **安装**（macOS 13 及以上，Apple 芯片）：从 [Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest)
-下载 ZIP，解压后把 **Edge Odyssey** 拖进“应用程序”，或者用 Homebrew：`brew install --cask s3onghyun/tap/edge-odyssey`。应用尚未经过公证，第一次打开需要允许一次：
-见[首次打开](#首次打开)。界面支持简体中文、English、한국어、日本語，切换无需重启（[语言](#语言)）。
+下载 ZIP，解压后把 **Edge Odyssey** 拖进“应用程序”，或者用 Homebrew：`brew install --cask s3onghyun/tap/edge-odyssey`。应用使用 Developer ID 签名并经过 Apple 公证，像其他应用一样直接打开
+（见[首次打开](#首次打开)）。界面支持简体中文、English、한국어、日本語，切换无需重启（[语言](#语言)）。
 
 - **边缘上的番茄钟。** 专注 25 分钟，休息 5 分钟，每第四次休息是长休息。奥德修斯在边缘上的位置就是
   这一轮过去了多少（他匀速前进，走到一半就是过了一半）；他身后的航迹就是进度条，时间一到他正好到家。
@@ -68,12 +68,19 @@ mv "Edge Odyssey.app" /Applications/
 brew install --cask s3onghyun/tap/edge-odyssey
 ```
 
-用 `brew upgrade --cask edge-odyssey` 更新。首次打开时同样需要允许一次（见下文）。
+用 `brew upgrade --cask edge-odyssey` 更新。
 Homebrew 7 起，其他 tap 里的 cask 要先信任（trust）才会加载。像上面那样用完整名称安装，会自动信任这一个 cask。想在安装前用 `brew info --cask s3onghyun/tap/edge-odyssey` 查看，请先运行 `brew trust --cask s3onghyun/tap/edge-odyssey`。
 
 ### 首次打开
 
-应用使用 ad-hoc 签名，但**尚未经过公证**，所以 macOS 会询问一次：
+从 0.6.2 起，每个版本都使用 Developer ID 签名、经过 Apple 公证（notarization）并附上票据（staple），
+所以 macOS 第一次就能直接打开 **Edge Odyssey**，离线也可以，不用去系统设置。想自己确认，
+可以运行 `spctl -a -vv -t exec "/Applications/Edge Odyssey.app"`，它会输出 `source=Notarized Developer ID`。
+
+<details>
+<summary>0.6.1 及更早版本：首次打开需要允许一次</summary>
+
+这些版本只有 ad-hoc 签名，所以 macOS 会询问一次：
 
 1. 在“应用程序”中打开 **Edge Odyssey**。macOS 提示无法验证该应用时，点击 **完成**。
 2. 打开 **系统设置 → 隐私与安全性**，向下滚动，点击 Edge Odyssey 旁边的 **仍要打开**，
@@ -81,7 +88,11 @@ Homebrew 7 起，其他 tap 里的 cask 要先信任（trust）才会加载。�
 3. 在 macOS 13–14 上，也可以在“应用程序”中按住 Control 点按应用，选择 **打开**
    （macOS 15 起不再提供这个方法）。
 
-想先看代码？可以自己构建（见下）。以后的版本会加入公证。
+更新到 0.6.2 或更高版本后就不再需要这一步。
+
+</details>
+
+想先看代码？可以自己构建（见下）。
 
 ### 从源码构建
 
