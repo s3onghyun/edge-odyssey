@@ -88,6 +88,7 @@ final class HistoryLog {
 
     init(url: URL) {
         self.url = url
+        StateFiles.makePrivate(url)   // a file an older version wrote with the default umask
         let text = (try? String(contentsOf: url, encoding: .utf8)) ?? ""
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .iso8601
@@ -101,7 +102,7 @@ final class HistoryLog {
         enc.outputFormatting = .sortedKeys
         guard var line = try? enc.encode(v) else { return }
         line.append(0x0A)
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        StateFiles.makePrivateDirectory(url.deletingLastPathComponent())
         if let h = try? FileHandle(forWritingTo: url) {
             defer { try? h.close() }
             _ = try? h.seekToEnd()
@@ -109,6 +110,7 @@ final class HistoryLog {
         } else {
             try? line.write(to: url, options: .atomic)
         }
+        StateFiles.makePrivate(url)
     }
 
     func clear() {

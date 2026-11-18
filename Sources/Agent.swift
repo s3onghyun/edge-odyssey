@@ -23,7 +23,8 @@ struct AgentSession: Equatable {
         var values: [String: String] = [:]
         for line in lines.dropFirst() {
             guard let space = line.firstIndex(of: " ") else { continue }
-            values[String(line[..<space])] = String(line[line.index(after: space)...])
+            let key = String(line[..<space])
+            if values[key] == nil { values[key] = String(line[line.index(after: space)...]) }   // the first wins
         }
         return AgentSession(state: state, timestamp: timestamp, cwd: values["cwd"], repo: values["repo"], branch: values["branch"])
     }
@@ -92,7 +93,8 @@ final class AgentWatcher {
     var sessionsDir: URL { dir.appendingPathComponent("sessions") }
 
     func start() {
-        try? FileManager.default.createDirectory(at: sessionsDir, withIntermediateDirectories: true)
+        StateFiles.makePrivateDirectory(dir)
+        StateFiles.makePrivateDirectory(sessionsDir)
         for d in [sessionsDir, dir] {   // sessions/ for hook states, the parent for "usage"
             let fd = open(d.path, O_EVTONLY)
             guard fd >= 0 else { continue }
@@ -107,16 +109,20 @@ final class AgentWatcher {
         reload()
     }
 
+    /// The state files a hook wrote, read on the main thread: only regular files (never through a
+    /// symlink) of at most `StateFiles.maxStateFileSize` bytes, so nothing else in the folder can
+    /// stall or flood the app.
+    static func sessions(in sessionsDir: URL) -> [AgentSession] {
+        let files = (try? FileManager.default.contentsOfDirectory(at: sessionsDir, includingPropertiesForKeys: nil)) ?? []
+        return files.filter { !$0.lastPathComponent.hasPrefix(".") }
+            .compactMap { StateFiles.readSmall($0).flatMap(AgentSession.parse) }
+    }
+
     func reload() {
         let now = Date().timeIntervalSince1970
-        var sessions: [AgentSession] = []
-        let files = (try? FileManager.default.contentsOfDirectory(at: sessionsDir, includingPropertiesForKeys: nil)) ?? []
-        for f in files where !f.lastPathComponent.hasPrefix(".") {
-            guard let text = try? String(contentsOf: f, encoding: .utf8) else { continue }
-            if let session = AgentSession.parse(text) { sessions.append(session) }
-        }
+        let sessions = Self.sessions(in: sessionsDir)
         var next = AgentStatus.summarize(sessions, now: now)
-        if let u = try? String(contentsOf: dir.appendingPathComponent("usage"), encoding: .utf8) {
+        if let u = StateFiles.readSmall(dir.appendingPathComponent("usage")) {
             let p = u.split(whereSeparator: { $0 == " " || $0 == "\n" })
             if p.count >= 2, let pct = Double(p[0]), let ts = Double(p[1]), now - ts < 5 * 3600, pct >= limitPercent {
                 next.state = next.state == .waiting ? .waiting : .limit
@@ -127,5 +133,42 @@ final class AgentWatcher {
             log?("agent: \(next.state.rawValue) waiting=\(next.waitingCount)")
             onChange?(next)
         }
+    }
+}
+
+/// The app's state folder (~/.edge-odyssey) holds agent paths, usage and the focus history, so it
+/// and every file in it are this account's only: 0700 folders, 0600 files. Existing ones written
+/// with the default umask by older versions are tightened the next time the app touches them.
+enum StateFiles {
+    static let maxStateFileSize = 4096
+
+    static func makePrivateDirectory(_ url: URL) {
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: url.path)
+    }
+
+    static func makePrivate(_ file: URL) {
+        try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
+    }
+
+    /// The contents of a small regular file, or nil for anything else: a symlink, FIFO, device,
+    /// directory or a file over `limit` bytes. Opened without following symlinks and without
+    /// blocking, and never reads more than `limit` + 1 bytes.
+    static func readSmall(_ url: URL, limit: Int = maxStateFileSize) -> String? {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),   // lstat: a symlink stays a symlink
+              attrs[.type] as? FileAttributeType == .typeRegular,
+              let size = attrs[.size] as? NSNumber, size.intValue <= limit else { return nil }
+        let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_NONBLOCK)
+        guard fd >= 0 else { return nil }
+        defer { close(fd) }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: limit + 1)
+        while data.count <= limit {
+            let n = buffer.withUnsafeMutableBytes { read(fd, $0.baseAddress, limit + 1 - data.count) }
+            guard n > 0 else { if n < 0 { return nil }; break }
+            data.append(contentsOf: buffer[0..<n])
+        }
+        guard data.count <= limit else { return nil }   // it grew after the size check
+        return String(data: data, encoding: .utf8)
     }
 }

@@ -20,6 +20,18 @@
   still shows the windows in captures on its own.
 - The README's Privacy section now says the app hides from capture by default and shows itself only
   in Stream mode.
+- The state folder (`~/.edge-odyssey`, or your `--state-dir`) and every file in it are now readable
+  by your account only (folders 0700, files 0600). The hooks and the app create them that way, and
+  the app tightens a folder or file an older version left readable to others the next time it
+  starts or writes. Use **Copy hook snippet** in the welcome guide again to get the updated
+  scripts.
+- The agent hook reads `session_id` and `cwd` only from the top level of the hook's JSON (with
+  `python3`, falling back to the first match), so a same-named field inside a tool's input or output
+  no longer counts, and control characters are dropped from the folder, repo and branch it records.
+- The app reads only small regular files from the state folder, never through a symlink, so a
+  stray large file, pipe or link there can't stall it.
+- The copied hook settings for a custom `--state-dir` stay valid JSON whatever characters the path
+  holds.
 
 ## 0.6.2 (2026-11-18)
 

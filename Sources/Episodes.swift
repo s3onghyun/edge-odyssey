@@ -103,6 +103,7 @@ final class Logbook {
 
     init(url: URL) {
         self.url = url
+        StateFiles.makePrivate(url)   // a file an older version wrote with the default umask
         if let data = try? Data(contentsOf: url),
            let raw = try? JSONDecoder().decode([String: Double].self, from: data) {
             for (k, v) in raw { if let b = Int(k) { found[b] = Date(timeIntervalSince1970: v) } }
@@ -118,7 +119,8 @@ final class Logbook {
         }
         guard changed else { return }
         let raw = Dictionary(uniqueKeysWithValues: found.map { (String($0.key), $0.value.timeIntervalSince1970) })
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        StateFiles.makePrivateDirectory(url.deletingLastPathComponent())
         try? JSONEncoder().encode(raw).write(to: url, options: .atomic)
+        StateFiles.makePrivate(url)
     }
 }
