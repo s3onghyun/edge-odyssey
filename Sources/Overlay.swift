@@ -103,6 +103,7 @@ final class Overlay {
     private let hudChip = CALayer()        // stream mode's session HUD: a pill in a corner
     private let hudLabel = CATextLayer()
     private var hudShown: String?          // what the chip shows, to redraw only on change
+    var showsHUD: Bool { hudShown != nil }
     private var edgeTimer: Timer?
     private var lastEdge: Int?
     private var lastAgent: AgentState = .idle
