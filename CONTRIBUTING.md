@@ -1,7 +1,8 @@
 # Contributing
 
 Thanks for looking! This is a small one-person project, so small, focused changes are the
-easiest to review.
+easiest to review. Please follow the [Code of Conduct](CODE_OF_CONDUCT.md), and report
+security problems privately as described in [SECURITY.md](SECURITY.md), not in an issue.
 
 ## Good first contributions
 
@@ -24,6 +25,11 @@ easiest to review.
   an issue first.
 - Motion should stay in the render server (Core Animation); the app wakes only at corners and
   state changes.
+- The tests and the build need macOS (Command Line Tools are enough). CI runs both on every
+  pull request; a first-time contributor's run starts once the maintainer approves it.
+- One topic per pull request, with what changed and why in the
+  [template](.github/pull_request_template.md). User-visible changes get a line in
+  [`CHANGELOG.md`](CHANGELOG.md) (the maintainer can add it).
 
 ## Art
 
@@ -35,3 +41,8 @@ request; open an issue to discuss the idea instead. Episode ideas from the Odyss
 
 Welcome, as long as you have read and tested what you submit. This project itself is written with
 AI coding assistants (see [`PROVENANCE.md`](PROVENANCE.md)).
+
+## Maintainers
+
+How releases are signed, notarized and protected, and why CI is set up as it is:
+[`docs/MAINTAINERS.md`](docs/MAINTAINERS.md) and [`docs/release.md`](docs/release.md).

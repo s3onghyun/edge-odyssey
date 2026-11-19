@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/s3onghyun/edge-odyssey/releases/latest"><img src="https://img.shields.io/github/v/release/s3onghyun/edge-odyssey?style=flat-square" alt="최신 릴리스"></a>
-  <img src="https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20silicon-0a0a0c?style=flat-square" alt="macOS 13 이상, Apple silicon">
+  <img src="https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20silicon%20%26%20Intel-0a0a0c?style=flat-square" alt="macOS 13 이상, Apple silicon 및 Intel">
   <a href="LICENSE"><img src="https://img.shields.io/badge/code-MIT-6e5aff?style=flat-square" alt="코드: MIT"></a>
   <img src="https://img.shields.io/badge/telemetry-none-2e8b57?style=flat-square" alt="텔레메트리 없음">
 </p>
@@ -20,7 +20,7 @@
 <p align="center"><img src="assets/screenshots/voyage.gif" width="720" alt="화면 전체의 얇은 가장자리가 청록색으로 차오르는 동안 오디세우스가 아래쪽을 노 저어 가고, 오른쪽을 오르고, 위쪽을 짚라인으로 건너고, 왼쪽을 미끄러져 이타카에 닿자 금빛 물결이 가장자리를 돕니다. 가운데 돋보기가 그를 따라갑니다"></p>
 <p align="center"><sub>25분 한 바퀴를 75배속으로, 앱 자체 창만 녹화했습니다. 화면 전체와, 오디세우스를 따라가는 돋보기.</sub></p>
 
-**설치** (macOS 13 이상, Apple silicon): [Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest)에서
+**설치** (macOS 13 이상, Apple silicon 또는 Intel): [Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest)에서
 ZIP을 받아 풀고 **Edge Odyssey**를 응용 프로그램 폴더로 옮기세요. Homebrew로는 `brew install --cask s3onghyun/tap/edge-odyssey`입니다. Developer ID로 서명하고
 Apple 공증을 받아서 다른 앱처럼 바로 열립니다([처음 실행](#처음-실행)).
 

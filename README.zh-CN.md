@@ -12,7 +12,7 @@ Claude Code 需要你时，屏幕边缘会轻轻发光。</p>
 
 <p align="center">
   <a href="https://github.com/s3onghyun/edge-odyssey/releases/latest"><img src="https://img.shields.io/github/v/release/s3onghyun/edge-odyssey?style=flat-square" alt="最新版本"></a>
-  <img src="https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20silicon-0a0a0c?style=flat-square" alt="macOS 13 及以上，Apple 芯片">
+  <img src="https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20silicon%20%26%20Intel-0a0a0c?style=flat-square" alt="macOS 13 及以上，Apple 芯片和 Intel">
   <a href="LICENSE"><img src="https://img.shields.io/badge/code-MIT-6e5aff?style=flat-square" alt="代码：MIT"></a>
   <img src="https://img.shields.io/badge/telemetry-none-2e8b57?style=flat-square" alt="无遥测">
 </p>
@@ -22,7 +22,7 @@ Claude Code 需要你时，屏幕边缘会轻轻发光。</p>
 
 > 本文由 AI 辅助翻译，欢迎指正（[翻译反馈](https://github.com/s3onghyun/edge-odyssey/issues/new?template=translation.yml)）。项目本身由作者在 AI 编程助手协助下编写，美术也是用代码绘制的原创作品（见 [`PROVENANCE.md`](PROVENANCE.md)）。
 
-**安装**（macOS 13 及以上，Apple 芯片）：从 [Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest)
+**安装**（macOS 13 及以上，Apple 芯片或 Intel）：从 [Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest)
 下载 ZIP，解压后把 **Edge Odyssey** 拖进“应用程序”，或者用 Homebrew：`brew install --cask s3onghyun/tap/edge-odyssey`。应用使用 Developer ID 签名并经过 Apple 公证，像其他应用一样直接打开
 （见[首次打开](#首次打开)）。界面支持简体中文、English、한국어、日本語，切换无需重启（[语言](#语言)）。
 

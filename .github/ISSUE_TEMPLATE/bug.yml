@@ -31,6 +31,12 @@ body:
       placeholder: "macOS 15.4, MacBook Pro M3, one external display"
     validations:
       required: true
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Coding agent signals involved?
+      description: Only if the problem is about the edge glow or hooks.
+      options: ["No", Claude Code, Codex CLI, Other]
   - type: textarea
     id: log
     attributes:
