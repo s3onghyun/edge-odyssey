@@ -22,8 +22,7 @@ workflows, not in trusting each contributor:
   weekly updates for them; check the release notes of a major bump before merging. Prefer no new
   third-party Actions.
 - The release workflow never runs on pull requests. It starts only on a `v*` tag push or a manual
-  run, which both need write access, so keep write access to the maintainer. There is no tag
-  ruleset or branch protection today; do not describe them as present.
+  run, which both need write access, so keep write access to the maintainer.
 
 ## Releases: notarized or nothing
 
