@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/s3onghyun/edge-odyssey/releases/latest"><img src="https://img.shields.io/github/v/release/s3onghyun/edge-odyssey?style=flat-square" alt="最新リリース"></a>
-  <img src="https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20silicon-0a0a0c?style=flat-square" alt="macOS 13 以降、Apple シリコン">
+  <img src="https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20silicon%20%26%20Intel-0a0a0c?style=flat-square" alt="macOS 13 以降、Apple シリコンと Intel">
   <a href="LICENSE"><img src="https://img.shields.io/badge/code-MIT-6e5aff?style=flat-square" alt="コード：MIT"></a>
   <img src="https://img.shields.io/badge/telemetry-none-2e8b57?style=flat-square" alt="テレメトリなし">
 </p>
@@ -22,7 +22,7 @@
 
 > この日本語訳は AI の補助によるものです。修正を歓迎します（[翻訳の報告](https://github.com/s3onghyun/edge-odyssey/issues/new?template=translation.yml)）。作者が AI コーディング支援（Claude Code など）を使って作りました。絵もコードで描いたオリジナルです（[`PROVENANCE.md`](PROVENANCE.md)）。
 
-**インストール**（macOS 13 以降、Apple シリコン）：[Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest)
+**インストール**（macOS 13 以降、Apple シリコンまたは Intel）：[Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest)
 から ZIP をダウンロードして展開し、**Edge Odyssey** を「アプリケーション」に移します。Homebrew なら `brew install --cask s3onghyun/tap/edge-odyssey` です。Developer ID で署名し Apple の公証を受けているため、
 ほかのアプリと同じようにそのまま開けます（[初回起動](#初回起動)）。表示言語は日本語、English、한국어、
 简体中文で、再起動なしで切り替えられます（[言語](#言語)）。

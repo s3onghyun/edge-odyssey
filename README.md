@@ -12,7 +12,7 @@ session passes, and the edge glows when Claude Code needs you.</p>
 
 <p align="center">
   <a href="https://github.com/s3onghyun/edge-odyssey/releases/latest"><img src="https://img.shields.io/github/v/release/s3onghyun/edge-odyssey?style=flat-square" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20silicon-0a0a0c?style=flat-square" alt="macOS 13+, Apple silicon">
+  <img src="https://img.shields.io/badge/macOS-13%2B%20·%20Apple%20silicon%20%26%20Intel-0a0a0c?style=flat-square" alt="macOS 13+, Apple silicon and Intel">
   <a href="LICENSE"><img src="https://img.shields.io/badge/code-MIT-6e5aff?style=flat-square" alt="Code: MIT"></a>
   <img src="https://img.shields.io/badge/telemetry-none-2e8b57?style=flat-square" alt="No telemetry">
 </p>
@@ -20,7 +20,7 @@ session passes, and the edge glows when Claude Code needs you.</p>
 <p align="center"><img src="assets/screenshots/voyage.gif" width="720" alt="The whole screen with a thin edge filling teal as Odysseus rows along the bottom, climbs the right side, rides a zipline along the top and slides down the left to Ithaca, where a gold wave runs round the edge; a magnifier in the middle follows him"></p>
 <p align="center"><sub>One 25-minute lap at 75x speed, recorded from the app's own windows: the whole screen, and a magnifier following Odysseus.</sub></p>
 
-**Install** (macOS 13+, Apple silicon): download the ZIP from
+**Install** (macOS 13+, Apple silicon or Intel): download the ZIP from
 [Releases](https://github.com/s3onghyun/edge-odyssey/releases/latest), unzip it and move
 **Edge Odyssey** to Applications, or run `brew install --cask s3onghyun/tap/edge-odyssey`. It is signed with a Developer ID and
 notarized by Apple, so it opens like any other app ([First launch](#first-launch)). The app speaks English, 한국어, 日本語 and 简体中文
